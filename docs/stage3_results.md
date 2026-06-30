@@ -34,10 +34,19 @@ Lone agent (seat 0) vs a field of the same model, comms on; n=2500 per arm.
 
 Scrambling the messages a receiver hears does **not** reduce its win-rate (the point estimate even slightly favors scrambled — noise). The agent wins ~its fair share (0.20) regardless of what it hears. **The channel carries no win-relevant information.**
 
+### Receiver vs sender (two distinct causal paths)
+The win-rate ablation above is the **receiver** path (*others' messages → my behavior → my win-rate*): null. The **sender** path (*my messages → others' behavior → my win-rate*) is separate and tested independently — seat 0 broadcasts normally while the field is made deaf to it; n=2500.
+
+| ablation | intact | ablated | Δ | verdict |
+|---|---|---|---|---|
+| receiver (deaf to others) | 0.1996 | 0.2132 | −0.014 (p=0.12) | null |
+| sender (field deaf to me) | _running_ | _running_ | _running_ | _pending_ |
+
 ## 3. Verdict
 - **Capability: yes.** Agents can speak a rule-based emoji language and perceive others' messages in their observation.
-- **Use: no.** Under individual reward, communication is not used for gain — the babbling/cheap-talk equilibrium. Predicted by theory before building; confirmed empirically.
-- This is **a clean scientific result**, designed for from the start: "do self-interested agents talk?" → here, no.
+- **Use (receiver): no.** Hearing real vs scrambled messages does not change win-rate. The babbling/cheap-talk equilibrium, predicted by theory before building.
+- **Use (sender):** measured separately (table above); under the receiver null + policy symmetry, expected null, but tested rather than assumed.
+- This is **a clean scientific result**, designed for from the start: "do self-interested agents talk?" → on the receiver side, no.
 
 ## 4. Honest limits
 - **One generation, 250k self-play steps, single seed.** A bigger run *could* surface a small effect, but the theory says the gradient toward honest signaling is near-zero under pure self-interest, and the win-rate ablation is powered for a 0.03 effect and shows none.
