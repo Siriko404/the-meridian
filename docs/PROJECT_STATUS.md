@@ -13,7 +13,7 @@ A 5+ player social-deduction game ("Social Roulette") turned into **deterministi
 |---|---|---|
 | 0 | Deterministic engine + rule tests + random sim | ✅ DONE |
 | 1 | Learn vs RANDOM bots (1a shoot-only → 1b full action) | ✅ DONE |
-| 2 | Self-play vs POOL of frozen past selves | ⬜ NEXT |
+| 2 | Self-play vs POOL of frozen past selves | 🟡 pipeline+eval VALIDATED, bug fixed, no sig gain @ smoke |
 | 3 | Emoji COMMS channel (conversations live here) | ⬜ LATER |
 
 ## Key results (measured · n=5000 · eval seeds disjoint from train · binomial vs 0.20)
@@ -58,8 +58,15 @@ Trajectory-validated as **real play** (agent heals + shoots enemies; not a rewar
 - Obs Markov-sufficient, **hides who-holds-what**; action = absolute-id masked `Discrete(24)`; env auto-pays cheapest for flips.
 - Records = **event-sourced → chunked zstd Parquet**; views pluggable (CLI storyboard / narrator / web = future views, zero rework).
 
-## Next step — Stage 2
-Brainstorm → spec → plan → build **checkpoint self-play**: opponents = pool of frozen checkpoints (bias recent + sprinkle old); progress metric = **win-rate vs past selves (Elo curve)** + a fixed held-out eval set to detect cycling. Reuse `observe/run_match` (already takes arbitrary per-seat policies). GPU may start to matter.
+## Stage 2 — status (2026-06-30)
+Built + validated. See `docs/stage2_results.md` + `docs/superpowers/specs/2026-06-30-stage2-self-play-design.md`.
+- Machinery: `rl/selfplay.py` (pool, parallel SubprocVecEnv self-play, eval, per-seat diag), `rl/selfplay_env.py`, `rl/pool.py`, shared `sim/turn.py`, ego-centric `rl/obs.py`+`rl/action_space.py`.
+- **Bug caught + fixed:** obs/actions were absolute-seat-indexed → policy was seat-0-only → self-play opponents were secretly crippled. Fixed with **ego-centric encoding**; seat-invariance proven (flat per-seat win-rate). New seat-invariant seed = `models/stage2seed` (stage1b retired).
+- **Result:** eval honest (seed-vs-4×seed = 0.21 ≈ fair share), self-play stable (no collapse), **no significant skill gain at 250k smoke** (gen1 +0.017 over the 0.210 control, p≈0.18). Lever for a real gain = more **training** (not eval).
+- Parallelism: SubprocVecEnv = 1.6× only (PPO serial grad phase caps it on a tiny MLP). GPU does NOT help (env-bound); GPU only matters at Stage 3 (transformer).
+
+## Next step — choose
+(a) **Bank Stage 2** (pipeline validated + bug fixed) and move to **Stage 3** (emoji comms) — or pause. (b) **Invest** a bigger self-play run (more gens × more steps) for a detectable gain.
 
 ## Audit's standing verdict
 Stages 0–1 = buildable & **done** (the safe half). Stage 2 = unprecedented method/compute quadrant — a research bet; set a hard compute stop and make every stage gate a number. Stage 3 comms = **near-determined null** under individual reward (agents may ignore the channel) — that null is itself a valid result to design for.
