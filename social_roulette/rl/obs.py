@@ -19,7 +19,8 @@ def encode_obs(state, learner_id, extras):
     me = player_by_id(state, learner_id)
     ta = teams_active(state)
     vec = []
-    for k in range(N_SLOTS):
+    for j in range(N_SLOTS):
+        k = (learner_id + j) % N_SLOTS     # ego-centric: slot 0 = self, others rotate
         p = player_by_id(state, k)
         is_self = (k == learner_id)
         is_ally = (not is_self) and ta and p.team == me.team
