@@ -55,5 +55,9 @@ class Recorder:
     def reload(self, turn, reason, new_total, new_live):
         self._emit(E.RELOAD, turn=turn, extra={"reason": reason, "new_total": new_total, "new_live": new_live})
 
+    def message(self, turn, speaker, act, target, value):
+        self._emit(E.MESSAGE, turn=turn, actor=speaker, target=target,
+                   extra={"act": act, "value": value})
+
     def match_end(self, turn, winner):
         self._emit(E.MATCH_END, turn=turn, extra={"winner": winner, "turns": turn})

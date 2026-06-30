@@ -12,7 +12,7 @@ extras_map:        {seat_id: Extras} — every seat re-syncs announced counts af
 from social_roulette.engine.engine import step
 from social_roulette.engine.constants import Shell, Item
 from social_roulette.engine.state import living_ids, player_by_id
-from social_roulette.engine.actions import legal_actions, Shoot, Flip
+from social_roulette.engine.actions import legal_actions, Shoot, Flip, Speak
 from social_roulette.engine.endgame import legal_targets
 
 
@@ -74,6 +74,13 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
                 rec.shot(turn_idx, pid, a.target_id, ev["shell"].name, ev["damage"], ev["killed"], saw)
             shot_done = True
             break
+        if isinstance(a, Speak):
+            step(state, pid, a)
+            if rec:
+                rec.message(turn_idx, pid, a.act, a.target, a.value)
+            for e in extras_map.values():
+                e.sync(state)
+            continue
         if isinstance(a, Flip):
             tgt = a.target_id
             step(state, pid, a)
