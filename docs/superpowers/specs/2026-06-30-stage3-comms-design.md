@@ -45,6 +45,7 @@ Under the **locked individual reward**, pure competition has only a *babbling eq
 | 🛡️ | truce / won't shoot | WHO |
 | ✅ | agree | — |
 These form a coordination loop: propose target → agree → share peek → signal non-aggression.
+Note: 👁️ peek-sharing is gated on **rare private info** (the agent must have used Magnifier to have something to share), so in v1 the real signaling load rides on the **intention/coordination acts** (🗳️ gang-up, ✅ agree, 🛡️ truce), not peek — don't over-index on peek when reading results.
 
 ## 5. Rich vocabulary (the expansion target — designed, not yet trained)
 Compositional `[ACT][WHO][VALUE]`. ~28 acts grouped by behavior:
@@ -65,11 +66,17 @@ Compositional `[ACT][WHO][VALUE]`. ~28 acts grouped by behavior:
 ## 6. Reward
 **Unchanged** — terminal-only, individual (+1 win / −1 death). Comms adds actions, not reward.
 
-## 7. Success metric — ABLATION (the experiment)
-Train a comms policy in self-play (reuse Stage-2 machinery + seat-invariant encoding). Then compare win-rate of a lone comms-agent vs a field:
-- **Receiver test:** real incoming messages vs **scrambled** incoming messages (only the test agent's message-obs shuffled). Lower with scrambled ⇒ it *used* what it heard.
-- **Sender test:** can broadcast vs **muted** (others don't receive its messages). Lower when muted ⇒ its speech influenced others to its benefit.
-- **Gate:** win-rate delta significant (two-proportion test vs the no-comms control, like Stage 2's corrected stats) ⇒ channel is used → expand vocabulary. Delta ≈ 0 ⇒ **channel unused = the honest null** (a valid, expected result under self-interest — not a failure).
+## 7. Success metric — measure signal USE (power-aware)
+Win-rate alone is too blunt — **Stage 2's real effect (0.017) was invisible at n=1000.** So lead with a per-decision behavioral metric; confirm with win-rate.
+
+**PRIMARY — per-decision response shift (high power).** Under the scramble intervention, test whether the receiver's *action distribution* shifts with message content: e.g. `P(learner shoots Blue | "gang-up on Blue" broadcast)` vs `P(shoot Blue | messages scrambled)`. Measured per decision → thousands of samples per few hundred games → detects small effects. A significant shift ⇒ the channel is used.
+
+**SECONDARY — win-rate ablation (confirmation).** Lone comms-agent vs field; real-vs-scrambled incoming (receiver test) and broadcast-vs-muted (sender test). **Asymmetric** — only the test agent's comms disabled; a *symmetric* mask would hide team-coordination benefits the same way symmetric self-play hid Stage-2 skill. **Pre-register n:** detecting a 0.03 win-rate delta at base ~0.2 needs **~2,500-3,000 games/cell** (two-proportion test) — size the run to it, do NOT default to 1000.
+
+**Scramble, not mask** = the causal control: same message marginal, broken state-correlation.
+**Two distinct questions:** within-policy scramble answers *"does this agent rely on comms"* (primary). A separately-trained no-comms policy answers *"does comms-training change strength"* (optional secondary). The scramble is primary.
+**Null is valid:** no response shift + no win-rate delta ⇒ channel unused = the honest, expected result under self-interest — not a failure.
+**Eval seeds ≥ 3,000,000** (disjoint from Stage-1's 1e6 and Stage-2's 2e6).
 
 ## 8. Build sequence (for the plan)
 1. `comms.py`: vocabulary (act ids, slot enums), encode/decode, NL render table.
@@ -77,8 +84,8 @@ Train a comms policy in self-play (reuse Stage-2 machinery + seat-invariant enco
 3. `take_policy_turn`: SPEAK sub-action + per-turn message cap; talk-phase gating.
 4. `obs`: append last-K message window (re-relativized).
 5. `action_space`: SPEAK action indices (minimal 5-act set) + mask (talk phase only).
-6. Self-play train a comms seed (warm-start from `stage2seed`).
-7. Ablation harness (receiver + sender) → the number.
+6. Self-play train a comms seed **fresh** — `MaskablePPO.load(stage2seed)` will NOT load (obs gains the message window, action space gains SPEAK indices → input/output layer shapes differ). Stage 1 showed learning is fast; fresh is simplest. (Optional later: partial transfer of compatible hidden layers.)
+7. Metric harness: **per-decision response shift (primary)** + win-rate ablation (secondary), sized for power per §7.
 
 ## 9. Out of scope (v1)
 - The full 28-act set in training (paper only until ablation shows use).
