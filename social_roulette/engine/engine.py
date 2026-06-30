@@ -1,7 +1,13 @@
-from .state import player_by_id, living_ids
+from .constants import Team, ITEM_TABLE, START_LIVES, Item
+from .state import player_by_id, living_ids, Player, Chamber, GameState
+from .rng import SeededRng
+from .chamber import load_chamber
 from .shooting import resolve_shot
+from .items import apply_item, cap_reached
+from .economy import flip_team
 from .reload import reload_on_empty, reload_on_death, draw_items_for_all
 from .endgame import assert_legal_shot, winner, next_living_after
+from .actions import UseItem, Flip, Trade, Shoot, EndSubactions
 
 
 def _on_turn_start(state, pid):
@@ -61,3 +67,45 @@ def take_shot(state, shooter_id, target_id):
     _advance_turn(state, shooter_id)
     state.winner = winner(state)
     return ev
+
+
+def new_game(num_players, seed):
+    assert num_players >= 5
+    rng = SeededRng(seed)
+    half = num_players // 2
+    extra = num_players - 2 * half
+    counts = {Team.RED: half, Team.BLUE: half}
+    if extra:
+        counts[Team.RED if rng.randint(0, 1) == 0 else Team.BLUE] += 1
+    teams = [Team.RED] * counts[Team.RED] + [Team.BLUE] * counts[Team.BLUE]
+    rng.shuffle(teams)
+    players = []
+    for i in range(num_players):
+        inv = {}
+        for _ in range(3):
+            it = ITEM_TABLE[rng.randint(1, 6)]
+            inv[it] = inv.get(it, 0) + 1
+        players.append(Player(i, teams[i], START_LIVES, True, inv, set(), False, False))
+    order = list(range(num_players))
+    rng.shuffle(order)
+    chamber = load_chamber(rng, num_players)
+    return GameState(players=players, order=order, current_id=order[0], chamber=chamber, rng=rng)
+
+
+def step(state, player_id, action):
+    if isinstance(action, Shoot):
+        return take_shot(state, player_id, action.target_id)
+    if isinstance(action, UseItem):
+        if cap_reached(state, action.item):
+            raise ValueError("consumption cap reached")
+        ev = apply_item(state, player_id, action.item, action.target_id)
+        if action.item == Item.BEER and state.chamber.is_empty():
+            reload_on_empty(state)
+        return ev
+    if isinstance(action, Flip):
+        return flip_team(state, player_id, action.target_id, action.sacrifice)
+    if isinstance(action, EndSubactions):
+        return {}
+    if isinstance(action, Trade):
+        raise NotImplementedError("trade is Stage 1")
+    raise ValueError(f"unknown action {action}")
