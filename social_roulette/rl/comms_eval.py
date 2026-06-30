@@ -86,6 +86,41 @@ def _model_policy(model):
     return pol
 
 
+def _muted_listener_policy(model, mute_speaker):
+    """A listener who does NOT hear `mute_speaker`: its message window is built with
+    that speaker's messages filtered out. Used for the SENDER ablation — the muted
+    speaker still broadcasts (its own trajectory unchanged), but others can't hear it."""
+    def pol(state, pid, extras):
+        saved = state.messages
+        state.messages = [m for m in saved if m.speaker != mute_speaker]
+        obs = encode_obs(state, pid, extras.d())
+        state.messages = saved
+        mask = ActionCodec.legal_mask(state, pid, False)
+        return ActionCodec.decode(_predict(model, obs, mask), state, pid)
+    return pol
+
+
+def sender_ablation(model_path, n_games, seed_offset=3_000_000, num_players=5):
+    """SENDER test. Seat 0 speaks normally; compare its win-rate when the field
+    HEARS it (intact) vs when the field is deaf to seat 0 (muted). Lower win-rate
+    when muted => seat 0's broadcasting helped it (manipulated the field)."""
+    model = _load(model_path)
+    field = _model_policy(model)
+    deaf = _muted_listener_policy(model, mute_speaker=0)
+    intact_wins = muted_wins = 0
+    for s in range(seed_offset, seed_offset + n_games):
+        if run_match(s, {i: field for i in range(num_players)},
+                     num_players=num_players, record=False, comms=True)["winner"] == 0:
+            intact_wins += 1
+        pols_m = {0: field}
+        pols_m.update({i: deaf for i in range(1, num_players)})
+        if run_match(s, pols_m, num_players=num_players, record=False, comms=True)["winner"] == 0:
+            muted_wins += 1
+    stats = _two_prop(intact_wins, n_games, muted_wins, n_games)
+    return {"intact": intact_wins / n_games, "sender_muted": muted_wins / n_games,
+            "n": n_games, **stats}
+
+
 def _two_prop(k1, n1, k2, n2):
     from scipy.stats import norm
     if min(n1, n2) == 0:
