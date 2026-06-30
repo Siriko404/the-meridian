@@ -22,8 +22,14 @@
 
 Self-shot rate, heal rate, and win-rate are **all flat** — the policy ignores `f`.
 
-## Diagnosis (the real insight)
-A risk attitude only changes behavior where there is a **risk-reward tradeoff**: a +EV-but-deadly action a risk-neutral agent takes and a fearful one declines. **Against random opponents that tradeoff is absent** — safe play is already win-optimal (the agent self-shoots ~2% at *every* `f`, because self-shooting is simply −EV here). With no decision for fear to tip, the gradient on the `f` input is ~0 → the policy correctly learned to ignore it. The **flat win-rate** confirms this: a fear-using agent would sacrifice win-rate for safety at high `f`; it doesn't.
+## Diagnosis (leading explanation — NOT proven; 1 seed)
+**Most likely:** a risk attitude only changes behavior where there is a **risk-reward tradeoff** — a +EV-but-deadly action a risk-neutral agent takes and a fearful one declines. Against random opponents that tradeoff is largely absent — safe play is already win-optimal — so there's little for fear to tip and the policy learns to ignore `f`. Flat win-rate is consistent (a fear-using agent would trade win-rate for safety; it doesn't).
+
+**Confounds NOT ruled out (one run can't distinguish these):**
+- **Unlearnable input:** one fear scalar appended to a 102-dim obs, signal diluted across random opponents — the net may simply fail to condition on it (the same way Stage-3 agents ignored messages). Predicts the identical flat result.
+- **Floor effect:** self-shot rate ~0.02 at *every* `f` — the probed behavior is already pinned near zero, so a decrease can't show. The metric may be saturated, not the agent fearless.
+
+To separate "no tradeoff" from "couldn't learn it": (a) test fear under **self-play** (creates tradeoffs), and (b) probe behaviors with headroom — **aggression rate, defensive-item (immunity/handcuff) use** — not just self-shot/heal.
 
 ## Implication / next lever
 - **Fear needs a tempting risk** to bite. The place that exists is **competent self-play** (a strong opponent makes aggressive/risky plays profitable), not random bots.

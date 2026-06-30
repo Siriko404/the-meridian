@@ -23,8 +23,8 @@ Every social behavior reached for (comms, fear; and the proposed trust/revenge/m
 individual reward  +  weak/dumb opponents  →  no INCENTIVE for social behavior  →  agents stay "boring" (boring = optimal)
 ```
 It is NOT that the behaviors are coded wrong. Nothing in the game **rewards** them yet. The next lever is therefore the **incentive or the opponent**, not another behavior knob.
-- **Comms** got a *shallow* competent-opponent test (Stage-3 gen1 = 1 generation of self-play; its opponents were comms-DEAF, trained vs random) → null. **Deep co-evolution (many generations, all comms-on, speaking+listening bootstrapping together) is UNTESTED** — the most likely place a signal appears, if anywhere.
-- **Fear** was only tested vs random → inert (safe play is already win-optimal vs random, so fear has nothing to tip). **Fear-under-self-play is UNTESTED** (a competent opponent makes risk tempting).
+- **Comms** got a *shallow* competent-opponent test (Stage-3 gen1 = 1 generation of self-play; its opponents were comms-DEAF, trained vs random) → null. **Deep co-evolution (many generations, all comms-on) is UNTESTED.** ⚠️ CONJECTURE, not finding: it's the plausible place a signal *could* appear, but theory (Crawford-Sobel under pure conflict) predicts it likely STILL null — treat a deep-run as a chosen bet, not a promised payoff.
+- **Fear** tested vs random (1 seed, 1M) → flat. ⚠️ Diagnosis "no risk tradeoff" is CONSISTENT WITH the data but NOT proven — two confounds unruled-out: (i) one scalar in a 102-dim obs may be **unlearnable** (same way messages were ignored), (ii) **floor effect** — self-shot ~0.02 at every `f` leaves no headroom to drop. **Fear-under-self-play is UNTESTED** (a competent opponent makes risk tempting).
 - **Risk-attitude correction (don't re-derive):** a +1-win/−1-death win-maximizer is **risk-NEUTRAL** → fear/greed are genuinely ABSENT, not present. "Define fear/greed" = risk-sensitive RL. **Greed must pick ONE mechanism:** impatience (low gamma) · acquisitiveness (intrinsic item/kill reward) · risk-seeking (convex upside). Hidden heterogeneous types = the information-asymmetry comms would need.
 
 ## Key results (measured · n=5000 · eval seeds disjoint from train · binomial vs 0.20)
@@ -93,8 +93,8 @@ Built + measured. See `docs/stage3_results.md` + spec/plan `…2026-06-30-stage3
 ## Stage 4 (probe) — fear (2026-06-30)
 Built + measured. See `docs/stage4_fear_results.md`.
 - Per-agent fear weight `f~U[0,3]` scales the death penalty (−f), exposed in the agent's own obs (`fear_env.py`, `fear.py`). Trained 1M vs random.
-- **INERT:** self-shot rate, heal rate, win-rate all FLAT across `f∈[0,3]`. Pre-registered FAIL branch. Cause: vs random opponents safe play is already win-optimal → no risk-reward tradeoff for fear to tip → policy ignores `f` (flat win-rate confirms).
-- Diagnosis → fear needs a TEMPTING risk = competent self-play, not random.
+- **INERT:** self-shot rate, heal rate, win-rate all FLAT across `f∈[0,3]`. Pre-registered FAIL branch.
+- Leading explanation (NOT proven, 1 seed): vs random, safe play is already win-optimal → no risk tradeoff for fear to tip. **Confounds not ruled out:** the `f` scalar may be unlearnable in a 102-dim obs; self-shot ~0.02 floor leaves no room to fall. To distinguish: test fear under self-play AND probe behaviors with headroom (aggression, defensive-item use), not just self-shot/heal.
 
 ## Open levers / next (PAUSED here — user's call)
 Per the THROUGHLINE: change the incentive or the opponent, not the behavior.
