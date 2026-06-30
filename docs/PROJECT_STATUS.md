@@ -14,7 +14,7 @@ A 5+ player social-deduction game ("Social Roulette") turned into **deterministi
 | 0 | Deterministic engine + rule tests + random sim | ✅ DONE |
 | 1 | Learn vs RANDOM bots (1a shoot-only → 1b full action) | ✅ DONE |
 | 2 | Self-play vs POOL of frozen past selves | 🟡 pipeline+eval VALIDATED, bug fixed, no sig gain @ smoke |
-| 3 | Emoji COMMS channel (conversations live here) | ⬜ LATER |
+| 3 | Emoji COMMS channel (conversations live here) | 🟡 BUILT + measured — channel works, agents don't use it (cheap-talk null) |
 
 ## Key results (measured · n=5000 · eval seeds disjoint from train · binomial vs 0.20)
 | Policy | Win-rate | p |
@@ -65,8 +65,15 @@ Built + validated. See `docs/stage2_results.md` + `docs/superpowers/specs/2026-0
 - **Result:** eval honest (seed-vs-4×seed = 0.21 ≈ fair share), self-play stable (no collapse), **no significant skill gain at 250k smoke** (gen1 +0.017 over the 0.210 control, p≈0.18). Lever for a real gain = more **training** (not eval).
 - Parallelism: SubprocVecEnv = 1.6× only (PPO serial grad phase caps it on a tiny MLP). GPU does NOT help (env-bound); GPU only matters at Stage 3 (transformer).
 
+## Stage 3 — status (2026-06-30)
+Built + measured. See `docs/stage3_results.md` + spec/plan `…2026-06-30-stage3-comms*`.
+- **Channel works:** emoji `[ACT][WHO][VALUE]`, 5-act v1 set, ≤2 msgs/turn, public, lying allowed, normal-turns-only. Agents **speak** (masked Speak action → `MESSAGE` event) and **perceive** (last-8-message window in obs, re-relativized). Comms gated behind `state.comms_enabled` (opt-in) so Stage-1/2 baselines are untouched. Seat-invariance preserved (seed-vs-seed = 0.193).
+- **Verdict = cheap-talk NULL (expected):** win-rate ablation — scrambling a receiver's incoming messages does NOT cost wins (intact 0.1996 vs scrambled 0.2132, p=0.12). Decisions are *sensitive* to messages (flip-rate 0.55) but identically so in a random-trained seed → incidental, not learned. Under individual reward, agents don't use the channel for gain.
+- **Methodological catch:** flip-rate = input-sensitivity, NOT benefit; only the outcome (win-rate) ablation measures use. Rich 28-act vocab remains designed-on-paper (expand only if a regime shows use).
+- Artifacts: `models/stage3seed`, `models/stage3/gen1`. 168 tests green.
+
 ## Next step — choose
-(a) **Bank Stage 2** (pipeline validated + bug fixed) and move to **Stage 3** (emoji comms) — or pause. (b) **Invest** a bigger self-play run (more gens × more steps) for a detectable gain.
+(a) **Bank Stage 3** (engine + honest null) — the social-deduction RL harness is complete across all 4 stages. (b) **Force comms to emerge:** add an aligned incentive in the team window or make private info (Magnifier peek) valuable to share — gives cheap talk a gradient. (c) **Bigger Stage-2/3 runs** for stronger skill/comms signal.
 
 ## Audit's standing verdict
 Stages 0–1 = buildable & **done** (the safe half). Stage 2 = unprecedented method/compute quadrant — a research bet; set a hard compute stop and make every stage gate a number. Stage 3 comms = **near-determined null** under individual reward (agents may ignore the channel) — that null is itself a valid result to design for.
