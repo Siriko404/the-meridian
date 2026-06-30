@@ -184,6 +184,20 @@ def pilot(seed_path, steps):
         print(f"  projected {target:>9,} steps      : {mins:7.1f} min ({mins/60:.1f} h)")
 
 
+def per_seat_winrate(a_path, n=300, seed_offset=2_000_000, num_players=5):
+    """Win-rate of the policy when placed in EACH seat vs a random field.
+    Flat across seats == seat-invariant (the ego-centric fix worked)."""
+    a = _model_policy(a_path)
+    out = []
+    for seat in range(num_players):
+        w = sum(1 for s in range(seed_offset, seed_offset + n)
+                if run_match(s, {k: (a if k == seat else random_policy)
+                                 for k in range(num_players)},
+                             num_players=num_players, record=False)["winner"] == seat)
+        out.append(round(w / n, 3))
+    return out
+
+
 def smoke_report(seed_model, gen_paths, n=1000):
     s1 = _model_policy(seed_model)
     rows = [("stage1b vs 4x random  (ref ~0.74)", lone_vs_field(s1, random_policy, n)),
@@ -205,6 +219,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--pilot", action="store_true")
     ap.add_argument("--par-pilot", action="store_true", help="parallel throughput check")
+    ap.add_argument("--retrain-seed", action="store_true", help="train fresh seat-invariant seed vs random")
+    ap.add_argument("--per-seat", default=None, help="path to a model: report per-seat win-rate vs random")
     ap.add_argument("--run-parallel", action="store_true")
     ap.add_argument("--seed-model", default="models/stage1b")
     ap.add_argument("--steps", type=int, default=6144)
@@ -225,6 +241,17 @@ if __name__ == "__main__":
         sps = a.steps / (time.perf_counter() - t0)
         print(f"[par-pilot] {a.n_envs} envs: {sps:7.0f} steps/sec  "
               f"(1M = {1e6/sps/60:.1f} min, 4M = {4e6/sps/60:.1f} min)")
+    elif a.retrain_seed:
+        venv = make_vec_selfplay_env([], a.n_envs)   # empty pool => random opponents
+        model = MaskablePPO("MlpPolicy", venv, device="cpu", verbose=1,
+                            n_steps=2048, batch_size=256, gamma=0.999, seed=0)
+        model.learn(total_timesteps=a.steps_per_gen)
+        venv.close()
+        os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
+        model.save(a.out)
+        print("saved", a.out, "per-seat vs random:", per_seat_winrate(a.out), flush=True)
+    elif a.per_seat:
+        print("per-seat vs random:", per_seat_winrate(a.per_seat), flush=True)
     elif a.run_parallel:
         paths = run_selfplay_parallel(a.seed_model, a.gens, a.steps_per_gen, a.out, a.n_envs)
         if paths:
