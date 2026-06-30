@@ -1,0 +1,64 @@
+from dataclasses import dataclass, field
+
+from .constants import MAX_PER_TYPE, MAX_TOTAL
+
+
+@dataclass
+class Player:
+    id: int
+    team: object
+    lives: int
+    alive: bool
+    inventory: dict
+    immunity_against: set
+    handcuffed: bool
+    flipback_discount: bool
+
+
+@dataclass
+class Chamber:
+    shells: list
+    pos: int = 0
+
+    def remaining(self):
+        return self.shells[self.pos:]
+
+    def current(self):
+        return self.shells[self.pos] if self.pos < len(self.shells) else None
+
+    def is_empty(self):
+        return self.pos >= len(self.shells)
+
+
+@dataclass
+class GameState:
+    players: list
+    order: list
+    current_id: int
+    chamber: object
+    rng: object
+    use_counts: dict = field(default_factory=dict)
+    saw_active: bool = False
+    saw_used_this_turn: bool = False
+    bonus_pending: bool = False
+    winner: int = None
+
+
+def player_by_id(state, pid):
+    return next(p for p in state.players if p.id == pid)
+
+
+def living_players(state):
+    return [p for p in state.players if p.alive]
+
+
+def living_ids(state):
+    return {p.id for p in state.players if p.alive}
+
+
+def inventory_total(p):
+    return sum(p.inventory.values())
+
+
+def can_receive(p, item):
+    return p.inventory.get(item, 0) < MAX_PER_TYPE and inventory_total(p) < MAX_TOTAL
