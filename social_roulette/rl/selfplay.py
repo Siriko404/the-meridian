@@ -200,14 +200,14 @@ def per_seat_winrate(a_path, n=300, seed_offset=2_000_000, num_players=5):
 
 def smoke_report(seed_model, gen_paths, n=1000):
     s1 = _model_policy(seed_model)
-    rows = [("stage1b vs 4x random  (ref ~0.74)", lone_vs_field(s1, random_policy, n)),
-            ("stage1b vs 4x stage1b (symmetry ~0.20)", lone_vs_field(s1, s1, n))]
-    prev_pol, prev_lab = s1, "stage1b"
+    rows = [("seed vs 4x random  (ref ~0.74)", lone_vs_field(s1, random_policy, n)),
+            ("seed vs 4x seed    (symmetry ~0.20)", lone_vs_field(s1, s1, n))]
+    prev_pol, prev_lab = s1, "seed"
     for i, p in enumerate(gen_paths, 1):
         gp = _model_policy(p)
-        rows.append((f"gen{i} vs 4x random   (held-out)", lone_vs_field(gp, random_policy, n)))
-        rows.append((f"gen{i} vs 4x stage1b  (skill vs base)", lone_vs_field(gp, s1, n)))
-        rows.append((f"gen{i} vs 4x {prev_lab:8s}(beats predecessor?)", lone_vs_field(gp, prev_pol, n)))
+        rows.append((f"gen{i} vs 4x random  (held-out)", lone_vs_field(gp, random_policy, n)))
+        rows.append((f"gen{i} vs 4x seed    (skill vs base)", lone_vs_field(gp, s1, n)))
+        rows.append((f"gen{i} vs 4x {prev_lab:7s}(beats predecessor?)", lone_vs_field(gp, prev_pol, n)))
         prev_pol, prev_lab = gp, f"gen{i}"
     print(f"\n=== Stage-2 report (n={n}) ===", flush=True)
     for lab, wr in rows:
