@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-30
 **Question:** Can the agent improve against a *competent* opponent (a frozen copy of itself), not just random bots — and is the self-play pipeline correct?
-**Answer:** Pipeline + eval validated (after catching & fixing a silent bug). At the 250k smoke budget, gen1 shows a **small but statistically real** skill gain over a competent opponent; general strength is unchanged.
+**Answer:** Pipeline + eval **validated** (after catching & fixing a silent run-invalidating bug). At the 250k smoke budget, **no statistically significant skill gain** was demonstrated — the value of this stage is the validated machinery and the caught bug, not a gain.
 
 ---
 
@@ -14,9 +14,11 @@
 | seed vs 4× random | 0.714 | ✓ matches Stage-1 (0.74) — eval sane |
 | **seed vs 4× seed** | **0.210** | ✓ **symmetry restored** (was 1.000) — eval honest |
 | gen1 vs 4× random | 0.728 | ✓ no collapse (≈ seed) |
-| **gen1 vs 4× seed** | **0.227** | real but small: +0.027 over 0.20, ~2.1σ, p≈0.02 |
+| **gen1 vs 4× seed** | **0.227** | vs **empirical** 0.210 control: +0.017, z≈0.9, **p≈0.18 — NOT significant** |
 
 gen1 = 250k steps warm-started from `stage2seed`, pool = {stage2seed}, parallel self-play.
+
+**Significance note (corrected):** the no-improvement baseline is the *measured* control `seed vs 4× seed = 0.210` (identical policy vs the field), **not** the theoretical 0.20 fair share. Two-proportion test (0.227 vs 0.210, n=1000 each): effect 0.017, z=0.92, p≈0.18. The held-out metric independently agrees: gen1 vs random 0.728 ≈ seed 0.714 (+0.014 ≈ 1σ). Both signals → no significant gain at this budget.
 
 ---
 
@@ -43,7 +45,7 @@ The first gen1 run looked like a triumph — `gen1 vs 4× stage1b = 0.999`. It w
 ## 3. What the validated result says
 - **Eval is honest:** identical policies → 0.21 ≈ fair share. The skill metric measures skill, not seat.
 - **Self-play training is stable:** no collapse (gen1 holds 0.728 vs random).
-- **Skill gain is small:** gen1 best-responded to the seed for +0.027 over fair share (~2σ) — a real but modest edge — while its *general* strength (vs random) is unchanged. Textbook single small self-play step at a tiny budget.
+- **No significant skill gain at 250k:** gen1 vs the seed is 0.017 above the empirical 0.210 control (z≈0.9, p≈0.18), and its general strength vs random is unchanged. Both readings agree: at this budget, self-play did not produce a demonstrable gain. This is the honest null — the stage's value is the validated pipeline + the bug caught, not a gain.
 
 ## 4. Honest limits
 - **250k steps, 1 generation, single run.** A smoke. A larger/multi-generation run (declined here for time) is needed to see an Elo *trend* or a larger edge.
