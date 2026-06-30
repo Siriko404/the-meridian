@@ -62,6 +62,14 @@ unchanged (identity rotation) so Stage-1 win-rate should reproduce (~0.74). Then
 **retrain the seed policy** (stage1b is seat-0-only, unusable) and **re-run Stage 2**.
 Stage-2 machinery (env/pool/eval/parallel) stays valid — only obs+action+reseed.
 
+## ✅ FIX VERIFIED (2026-06-30) — ego-centric encoding shipped, seat-invariance proven
+obs slots + action targets are now ego-centric (self=slot 0, targets relative).
+Retrained seat-invariant seed = **`models/stage2seed`** (1M steps vs random, parallel).
+Per-seat win-rate vs random (was [0.74,0.43,0.19,0.14,0.10]) is now **FLAT**:
+`[0.707, 0.777, 0.757, 0.730, 0.733]` — competent from every seat. 150 tests green.
+stage1b is retired (seat-0-only); stage2seed is the new self-play seed. gen1 re-run
+in progress with stage2seed as warm-start + pool seed.
+
 ## Build checklist
 - [ ] 1. `sim/turn.py`: `Extras`, `random_policy`, `take_policy_turn` (extract from match.py). Verify: full suite green (test_observe = regression guard).
 - [ ] 2. `rl/policies.py`: `make_model_policy`. Verify: import + smoke.
