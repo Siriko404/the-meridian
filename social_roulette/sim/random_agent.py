@@ -5,25 +5,24 @@ from social_roulette.engine.actions import legal_actions, Shoot
 from social_roulette.engine.endgame import legal_targets
 
 
-def play_game(num_players, seed, max_turns=20000, max_sub=40):
+def take_random_turn(state, pid, max_sub=40):
+    """Play one full turn for pid: random legal sub-actions until a shot commits."""
+    for _ in range(max_sub):
+        action = state.rng.choice(legal_actions(state, pid))
+        if isinstance(action, Shoot):
+            return take_shot(state, pid, action.target_id)
+        step(state, pid, action)
+    return take_shot(state, pid, state.rng.choice(legal_targets(state, pid)))
+
+
+def play_game(num_players, seed, max_turns=20000):
     state = new_game(num_players, seed)
     h = hashlib.sha256()
     turns = 0
     while state.winner is None and turns < max_turns:
         pid = state.current_id
-        shot = False
-        for _ in range(max_sub):
-            action = state.rng.choice(legal_actions(state, pid))
-            if isinstance(action, Shoot):
-                ev = take_shot(state, pid, action.target_id)
-                h.update(repr((pid, action.target_id, ev["shell"].name, ev["damage"], ev["killed"])).encode())
-                shot = True
-                break
-            step(state, pid, action)
-        if not shot:
-            tgt = state.rng.choice(legal_targets(state, pid))
-            ev = take_shot(state, pid, tgt)
-            h.update(repr((pid, tgt, ev["shell"].name, ev["damage"], ev["killed"])).encode())
+        ev = take_random_turn(state, pid)
+        h.update(repr((pid, ev["shell"].name, ev["damage"], ev["killed"])).encode())
         turns += 1
     if state.winner is None:
         raise RuntimeError("game did not terminate")
