@@ -1,5 +1,5 @@
 from .constants import Team, ITEM_TABLE, START_LIVES, Item
-from .state import player_by_id, living_ids, Player, Chamber, GameState
+from .state import player_by_id, living_ids, Player, Chamber, GameState, Msg
 from .rng import SeededRng
 from .chamber import load_chamber
 from .shooting import resolve_shot
@@ -7,7 +7,7 @@ from .items import apply_item, cap_reached
 from .economy import flip_team
 from .reload import reload_on_empty, reload_on_death, draw_items_for_all
 from .endgame import assert_legal_shot, winner, next_living_after
-from .actions import UseItem, Flip, Trade, Shoot, EndSubactions
+from .actions import UseItem, Flip, Trade, Shoot, EndSubactions, Speak
 
 
 def _on_turn_start(state, pid):
@@ -106,6 +106,11 @@ def step(state, player_id, action):
     if isinstance(action, Flip):
         return flip_team(state, player_id, action.target_id, action.sacrifice)
     if isinstance(action, EndSubactions):
+        return {}
+    if isinstance(action, Speak):
+        state.messages.append(Msg(turn=len(state.messages), speaker=player_id,
+                                  act=action.act, target=action.target, value=action.value))
+        state.msgs_this_turn += 1
         return {}
     if isinstance(action, Trade):
         raise NotImplementedError("trade is Stage 1")

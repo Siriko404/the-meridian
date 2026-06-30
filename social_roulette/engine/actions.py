@@ -5,6 +5,8 @@ from .state import player_by_id, living_players
 from .items import cap_reached
 from .endgame import legal_targets
 
+MSG_CAP = 2
+
 
 @dataclass
 class UseItem:
@@ -32,6 +34,13 @@ class Shoot:
 @dataclass
 class EndSubactions:
     pass
+
+
+@dataclass
+class Speak:
+    act: int
+    target: int = None     # absolute seat id, or None
+    value: int = None      # 0/1, or None
 
 
 def cheapest_payment(player, cost):
@@ -75,4 +84,12 @@ def legal_actions(state, player_id):
         pay = cheapest_payment(p, 4 if (q.id == player_id and p.flipback_discount) else 5)
         if pay is not None:
             acts.append(Flip(q.id, pay))
+    if not state.bonus_pending and state.msgs_this_turn < MSG_CAP:
+        from social_roulette.comms.vocab import SPEAK_TABLE
+        n = len(state.players)
+        for act, who_rel, value in SPEAK_TABLE:
+            target = (player_id + who_rel) % n if who_rel is not None else None
+            if target is not None and not player_by_id(state, target).alive:
+                continue
+            acts.append(Speak(act, target, value))
     return acts
