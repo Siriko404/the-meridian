@@ -3,12 +3,15 @@ import numpy as np
 from social_roulette.engine.constants import Item, MAX_LIVES
 from social_roulette.engine.state import player_by_id
 from social_roulette.engine.endgame import teams_active
+from social_roulette.comms.vocab import ACT_N
 
 ITEMS = [Item.BEER, Item.HANDCUFFS, Item.MAGNIFIER, Item.SAW, Item.CIGARETTES, Item.IMMUNITY]
 N_SLOTS = 5
 PER_SLOT = 8       # alive, is_self, is_ally, is_enemy, lives, handcuffed, learner_immunized_them, they_immunized_learner
 GLOBALS = 22       # own_lives(1) own_inv(6) flipback(1) peek(3) item_counts(6) ann_total(1) ann_live(1) fired(1) saw(1) bonus(1)
-OBS_DIM = N_SLOTS * PER_SLOT + GLOBALS
+MSG_K = 8          # last-K messages heard
+MSG_FEATURES = 5   # has, speaker_rel, act, target_rel, value (re-relativized per listener)
+OBS_DIM = N_SLOTS * PER_SLOT + GLOBALS + MSG_K * MSG_FEATURES
 
 
 def _peek_onehot(v):
@@ -49,4 +52,12 @@ def encode_obs(state, learner_id, extras):
     vec.append(state.chamber.pos / 30.0)
     vec.append(1.0 if state.saw_active else 0.0)
     vec.append(1.0 if state.bonus_pending else 0.0)
+    recent = state.messages[-MSG_K:]
+    for _ in range(MSG_K - len(recent)):
+        vec += [0.0] * MSG_FEATURES
+    for m in recent:
+        spk_rel = (m.speaker - learner_id) % N_SLOTS
+        tgt_rel = ((m.target - learner_id) % N_SLOTS) if m.target is not None else 0
+        vec += [1.0, spk_rel / N_SLOTS, m.act / ACT_N, tgt_rel / N_SLOTS,
+                0.0 if m.value is None else float(m.value)]
     return np.asarray(vec, dtype=np.float32)
