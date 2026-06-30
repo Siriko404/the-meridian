@@ -1,11 +1,12 @@
 import numpy as np
 
 from social_roulette.engine.constants import Item
-from social_roulette.engine.actions import Shoot, UseItem, Flip, cheapest_payment, legal_actions
+from social_roulette.engine.actions import Shoot, UseItem, Flip, Speak, cheapest_payment, legal_actions
 from social_roulette.engine.state import player_by_id
+from social_roulette.comms.vocab import SPEAK_TABLE, SPEAK_N, speak_index
 
-ACTION_N = 24
 N_SEATS = 5
+ACTION_N = 24 + SPEAK_N
 NONTARGET = [Item.CIGARETTES, Item.MAGNIFIER, Item.SAW, Item.BEER]  # indices 5..8
 
 # Targets are EGO-CENTRIC: index r=0..4 is a relative offset; the absolute seat is
@@ -24,6 +25,10 @@ def _rel(learner_id, target_id):
 class ActionCodec:
     @staticmethod
     def decode(idx, state, learner_id):
+        if idx >= 24:
+            act, who_rel, value = SPEAK_TABLE[idx - 24]
+            target = _abs_seat(learner_id, who_rel) if who_rel is not None else None
+            return Speak(act, target, value)
         if idx < 5:
             return Shoot(_abs_seat(learner_id, idx))
         if idx < 9:
@@ -39,6 +44,9 @@ class ActionCodec:
 
     @staticmethod
     def _index_of(action, learner_id):
+        if isinstance(action, Speak):
+            who_rel = _rel(learner_id, action.target) if action.target is not None else None
+            return 24 + speak_index(action.act, who_rel, action.value)
         if isinstance(action, Shoot):
             return _rel(learner_id, action.target_id)
         if isinstance(action, UseItem):
