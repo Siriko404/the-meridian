@@ -49,7 +49,7 @@ def make_selfplay_env(pool, shoot_only=False):
 
 # ---- parallel (SubprocVecEnv) -------------------------------------------------
 
-def _build_masked_selfplay_env(opponent_paths, shoot_only):
+def _build_masked_selfplay_env(opponent_paths, shoot_only, comms):
     """Runs INSIDE each worker process. Builds its own pool (loads its own copy of
     the opponent models) so nothing unpicklable crosses the process boundary."""
     import torch
@@ -58,22 +58,22 @@ def _build_masked_selfplay_env(opponent_paths, shoot_only):
         sampler = build_pool(list(opponent_paths), shoot_only).sample
     else:
         sampler = lambda rng: random_policy     # empty pool => random opponents
-    env = SocialRouletteSelfPlayEnv(opponent_sampler=sampler, shoot_only=shoot_only)
+    env = SocialRouletteSelfPlayEnv(opponent_sampler=sampler, shoot_only=shoot_only, comms=comms)
     return ActionMasker(env, _mask_fn)
 
 
-def build_selfplay_env_fn(opponent_paths, shoot_only=False):
+def build_selfplay_env_fn(opponent_paths, shoot_only=False, comms=False):
     """Picklable thunk for one worker env (partial of a module-level fn)."""
-    return functools.partial(_build_masked_selfplay_env, tuple(opponent_paths), shoot_only)
+    return functools.partial(_build_masked_selfplay_env, tuple(opponent_paths), shoot_only, comms)
 
 
-def make_vec_selfplay_env(opponent_paths, n_envs, shoot_only=False):
-    return SubprocVecEnv([build_selfplay_env_fn(opponent_paths, shoot_only)
+def make_vec_selfplay_env(opponent_paths, n_envs, shoot_only=False, comms=False):
+    return SubprocVecEnv([build_selfplay_env_fn(opponent_paths, shoot_only, comms)
                           for _ in range(n_envs)])
 
 
 def run_selfplay_parallel(seed_model, n_gen, steps_per_gen, out_dir, n_envs=12,
-                          canary_floor=0.65, canary_n=1000):
+                          canary_floor=0.65, canary_n=1000, comms=False):
     """Parallel checkpoint self-play. Pool = [seed_model] + completed gens; rebuilt
     each generation (frozen within a generation). Gen-1 canary gates on held-out
     random. Returns the list of saved generation paths."""
@@ -81,7 +81,7 @@ def run_selfplay_parallel(seed_model, n_gen, steps_per_gen, out_dir, n_envs=12,
     prev, gen_paths = seed_model, []
     for g in range(1, n_gen + 1):
         pool_paths = [seed_model] + gen_paths
-        venv = make_vec_selfplay_env(pool_paths, n_envs)
+        venv = make_vec_selfplay_env(pool_paths, n_envs, comms=comms)
         model = MaskablePPO.load(prev, env=venv, device="cpu",
                                  n_steps=2048, batch_size=256, gamma=0.999)
         t0 = time.perf_counter()
@@ -228,6 +228,7 @@ if __name__ == "__main__":
     ap.add_argument("--steps-per-gen", type=int, default=1_000_000)
     ap.add_argument("--n-envs", type=int, default=12)
     ap.add_argument("--out", default="models/stage2")
+    ap.add_argument("--comms", action="store_true", help="enable Stage-3 emoji comms")
     a = ap.parse_args()
     if a.pilot:
         pilot(a.seed_model, a.steps)
@@ -242,7 +243,7 @@ if __name__ == "__main__":
         print(f"[par-pilot] {a.n_envs} envs: {sps:7.0f} steps/sec  "
               f"(1M = {1e6/sps/60:.1f} min, 4M = {4e6/sps/60:.1f} min)")
     elif a.retrain_seed:
-        venv = make_vec_selfplay_env([], a.n_envs)   # empty pool => random opponents
+        venv = make_vec_selfplay_env([], a.n_envs, comms=a.comms)   # empty pool => random opponents
         model = MaskablePPO("MlpPolicy", venv, device="cpu", verbose=1,
                             n_steps=2048, batch_size=256, gamma=0.999, seed=0)
         model.learn(total_timesteps=a.steps_per_gen)
@@ -253,6 +254,7 @@ if __name__ == "__main__":
     elif a.per_seat:
         print("per-seat vs random:", per_seat_winrate(a.per_seat), flush=True)
     elif a.run_parallel:
-        paths = run_selfplay_parallel(a.seed_model, a.gens, a.steps_per_gen, a.out, a.n_envs)
+        paths = run_selfplay_parallel(a.seed_model, a.gens, a.steps_per_gen, a.out, a.n_envs,
+                                      comms=a.comms)
         if paths:
             smoke_report(a.seed_model, paths)
