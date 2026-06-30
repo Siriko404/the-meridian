@@ -37,6 +37,31 @@ Prove training is **stable** and the agent improves against **competent** (not s
 ## Held-out eval set (fixed, detects cycling)
 `{random_policy, stage1b}` + each frozen gen. Pairwise: 1×A vs 4×B, n=2000, eval seeds ≥ 2,000,000 (disjoint from Stage-1's 1e6 eval band and train band).
 
+## 🛑 CRITICAL FINDING (2026-06-30, gen1 run) — seat-specialization invalidates run
+The gen1 run completed but is **INVALID**. The eval symmetry ref exposed it:
+`stage1b lone vs 4x stage1b = 1.000` (must be ~0.20). Not determinism (stochastic
+also gave 0.995). **Per-seat diagnostic (stage1b vs 4x random):**
+| seat | 0 | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|---|
+| win-rate | **0.737** | 0.427 | 0.187 | 0.143 | 0.100 |
+
+stage1b only works in **seat 0** (its training seat); in seats 2-4 it's at/below
+random. **Root cause:** `obs.encode_obs` loops seats in ABSOLUTE order (`for k in
+range(N_SLOTS): player_by_id(state,k)`) and `ActionCodec` targets by ABSOLUTE id.
+Trained always as `learner_id=0`, the policy hard-coded "slot 0 = me".
+→ In self-play, opponents (stage1b in seats 1-4) were CRIPPLED, not competent.
+gen1 "beat" weak play. The whole Stage-2 premise failed silently — caught only by
+trajectory/symmetry inspection (the observation philosophy working as intended).
+
+**FIX = ego-centric encoding.** Reorder obs slots so the actor is always slot 0
+(others = seats (self+1..self+N-1) mod N); make action targets RELATIVE offsets
+(decode r -> seat (self+r)%N; remap immunity/handcuff/flip targets + the r==0
+self-cases). Single-agent Stage-1 still trains as seat 0, but the normalized view
+now matches ANY seat => policy becomes seat-invariant automatically. Seat-0 obs is
+unchanged (identity rotation) so Stage-1 win-rate should reproduce (~0.74). Then
+**retrain the seed policy** (stage1b is seat-0-only, unusable) and **re-run Stage 2**.
+Stage-2 machinery (env/pool/eval/parallel) stays valid — only obs+action+reseed.
+
 ## Build checklist
 - [ ] 1. `sim/turn.py`: `Extras`, `random_policy`, `take_policy_turn` (extract from match.py). Verify: full suite green (test_observe = regression guard).
 - [ ] 2. `rl/policies.py`: `make_model_policy`. Verify: import + smoke.
