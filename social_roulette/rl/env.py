@@ -1,0 +1,94 @@
+import numpy as np
+import gymnasium as gym
+from gymnasium import spaces
+
+from social_roulette.engine.engine import new_game, step as engine_step
+from social_roulette.engine.constants import Shell, Item
+from social_roulette.engine.state import player_by_id
+from social_roulette.sim.random_agent import take_random_turn
+from social_roulette.rl.obs import encode_obs, OBS_DIM
+from social_roulette.rl.action_space import ActionCodec, ACTION_N
+
+
+class SocialRouletteSingleEnv(gym.Env):
+    metadata = {"render_modes": []}
+
+    def __init__(self, num_players=5, learner_id=0, shoot_only=False):
+        super().__init__()
+        self.num_players = num_players
+        self.learner_id = learner_id
+        self.shoot_only = shoot_only
+        self.observation_space = spaces.Box(-1.0, 5.0, shape=(OBS_DIM,), dtype=np.float32)
+        self.action_space = spaces.Discrete(ACTION_N)
+        self.state = None
+        self._known = "unknown"
+        self._ann_total = 0
+        self._ann_live = 0
+        self._last_chamber = None
+        self._last_pos = 0
+
+    def _on_chamber_change(self):
+        ch = self.state.chamber
+        if ch is not self._last_chamber:
+            self._last_chamber = ch
+            self._ann_total = len(ch.shells)
+            self._ann_live = sum(1 for s in ch.shells if s == Shell.LIVE)
+            self._known = "unknown"
+            self._last_pos = ch.pos
+        elif ch.pos != self._last_pos:
+            self._known = "unknown"
+            self._last_pos = ch.pos
+
+    def _extras(self):
+        return {"known_next_shell": self._known, "announced_total": self._ann_total,
+                "announced_live": self._ann_live}
+
+    def _obs(self):
+        return encode_obs(self.state, self.learner_id, self._extras())
+
+    def _mask(self):
+        return ActionCodec.legal_mask(self.state, self.learner_id, self.shoot_only)
+
+    def _info(self):
+        return {"action_mask": self._mask()}
+
+    def _learner(self):
+        return player_by_id(self.state, self.learner_id)
+
+    def _terminal(self):
+        return self.state.winner is not None or not self._learner().alive
+
+    def _reward(self):
+        if self.state.winner == self.learner_id:
+            return 1.0
+        if not self._learner().alive:
+            return -1.0
+        return 0.0
+
+    def _run_opponents(self):
+        while (self.state.winner is None and self.state.current_id != self.learner_id
+               and self._learner().alive):
+            take_random_turn(self.state, self.state.current_id)
+            self._on_chamber_change()
+
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
+        game_seed = seed if seed is not None else int(self.np_random.integers(0, 1_000_000))
+        self.state = new_game(self.num_players, game_seed)
+        self._last_chamber = None
+        self._on_chamber_change()
+        self._run_opponents()
+        return self._obs(), self._info()
+
+    def step(self, idx):
+        action = ActionCodec.decode(int(idx), self.state, self.learner_id)
+        is_magnifier = getattr(action, "item", None) == Item.MAGNIFIER
+        engine_step(self.state, self.learner_id, action)
+        if is_magnifier:
+            cur = self.state.chamber.current()
+            self._known = "live" if cur == Shell.LIVE else ("blank" if cur == Shell.BLANK else "unknown")
+        self._on_chamber_change()
+        if not self._terminal() and self.state.current_id != self.learner_id:
+            self._run_opponents()
+        terminated = self._terminal()
+        return self._obs(), self._reward(), terminated, False, self._info()
