@@ -25,7 +25,7 @@ from social_roulette.rl.action_space import ActionCodec, ACTION_N
 class SocialRouletteSelfPlayEnv(gym.Env):
     metadata = {"render_modes": []}
 
-    def __init__(self, opponent_sampler, num_players=5, learner_id=0, shoot_only=False):
+    def __init__(self, opponent_sampler, num_players=5, learner_id=0, shoot_only=False, comms=False):
         super().__init__()
         if opponent_sampler is None:
             raise ValueError("opponent_sampler is required")
@@ -33,6 +33,7 @@ class SocialRouletteSelfPlayEnv(gym.Env):
         self.num_players = num_players
         self.learner_id = learner_id
         self.shoot_only = shoot_only
+        self.comms = comms
         self.observation_space = spaces.Box(-1.0, 5.0, shape=(OBS_DIM,), dtype=np.float32)
         self.action_space = spaces.Discrete(ACTION_N)
         self.state = None
@@ -71,6 +72,7 @@ class SocialRouletteSelfPlayEnv(gym.Env):
         super().reset(seed=seed)
         game_seed = seed if seed is not None else int(self.np_random.integers(0, 1_000_000))
         self.state = new_game(self.num_players, game_seed)
+        self.state.comms_enabled = self.comms
         self._extras = {i: Extras() for i in range(self.num_players)}
         for e in self._extras.values():
             e.sync(self.state)

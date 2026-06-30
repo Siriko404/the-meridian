@@ -3,10 +3,11 @@ import numpy as np
 from social_roulette.engine.engine import new_game
 from social_roulette.engine.actions import Shoot
 from social_roulette.rl.action_space import ActionCodec, ACTION_N
+from social_roulette.comms.vocab import SPEAK_N
 
 
 def test_action_n():
-    assert ACTION_N == 24
+    assert ACTION_N == 24 + SPEAK_N
 
 
 def test_shoot_decode_roundtrip():

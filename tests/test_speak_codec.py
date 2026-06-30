@@ -19,5 +19,6 @@ def test_decode_speak_roundtrips_target_to_absolute():
 
 def test_mask_includes_speak_in_talk_phase():
     s = new_game(5, 1)
+    s.comms_enabled = True
     m = ActionCodec.legal_mask(s, s.current_id, shoot_only=False)
     assert m.shape == (ACTION_N,) and m[24:].any()

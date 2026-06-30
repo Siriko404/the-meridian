@@ -14,6 +14,7 @@ def _talky_policy(state, pid, extras):
 
 def test_take_policy_turn_records_message():
     s = new_game(5, 1)
+    s.comms_enabled = True
     extras = {i: Extras() for i in range(5)}
     for e in extras.values():
         e.sync(s)

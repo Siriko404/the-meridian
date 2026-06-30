@@ -5,7 +5,7 @@ from social_roulette.engine.actions import Speak, legal_actions, MSG_CAP
 def test_step_speak_appends_message():
     s = new_game(5, 1)
     pid = s.current_id
-    step(s, pid, Speak(act=4, target=None, value=None))   # AGREE
+    step(s, pid, Speak(act=4, target=None, value=None))   # AGREE (step bypasses the gate)
     assert len(s.messages) == 1 and s.msgs_this_turn == 1
     m = s.messages[0]
     assert m.speaker == pid and m.act == 4
@@ -13,6 +13,7 @@ def test_step_speak_appends_message():
 
 def test_speak_options_present_then_capped():
     s = new_game(5, 1)
+    s.comms_enabled = True
     pid = s.current_id
     assert any(isinstance(a, Speak) for a in legal_actions(s, pid))
     for _ in range(MSG_CAP):
@@ -20,7 +21,13 @@ def test_speak_options_present_then_capped():
     assert not any(isinstance(a, Speak) for a in legal_actions(s, pid))
 
 
+def test_speak_absent_when_comms_disabled():
+    s = new_game(5, 1)
+    assert not any(isinstance(a, Speak) for a in legal_actions(s, s.current_id))
+
+
 def test_speak_silent_on_bonus_turn():
     s = new_game(5, 1)
+    s.comms_enabled = True
     s.bonus_pending = True
     assert not any(isinstance(a, Speak) for a in legal_actions(s, s.current_id))

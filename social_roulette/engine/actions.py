@@ -84,7 +84,7 @@ def legal_actions(state, player_id):
         pay = cheapest_payment(p, 4 if (q.id == player_id and p.flipback_discount) else 5)
         if pay is not None:
             acts.append(Flip(q.id, pay))
-    if not state.bonus_pending and state.msgs_this_turn < MSG_CAP:
+    if state.comms_enabled and not state.bonus_pending and state.msgs_this_turn < MSG_CAP:
         from social_roulette.comms.vocab import SPEAK_TABLE
         n = len(state.players)
         for act, who_rel, value in SPEAK_TABLE:

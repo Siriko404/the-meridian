@@ -53,6 +53,7 @@ class GameState:
     winner: int = None
     messages: list = field(default_factory=list)
     msgs_this_turn: int = 0
+    comms_enabled: bool = False   # Stage 3 opt-in; off => no Speak in legal_actions
 
 
 def player_by_id(state, pid):
