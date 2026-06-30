@@ -45,5 +45,10 @@ Prove training is **stable** and the agent improves against **competent** (not s
 - [ ] 5. Throughput pilot script → steps/sec. **PAUSE → ask user compute budget.**
 - [ ] 6. Self-play loop + eval (pairwise matrix) → run within budget → gates → results doc.
 
-## Open user decision
-Compute budget (wall-clock cap) — **deferred until pilot gives real steps/sec.**
+## Throughput pilot result (2026-06-30, measured)
+| Opponents | steps/sec (CPU) | proj. 1M | proj. 4M |
+|---|---|---|---|
+| random (Stage-1 env) | 1089 | — | — |
+| model (self-play) | **528** | 31 min | **2.1 h** |
+
+Slowdown = **2.1×** (advisor's 20-100× worst case did NOT materialize — MLP predict is cheap, game-logic step dominates). GPU unnecessary. **Budget: G=4 × 1M steps ≈ 2.1 h.** Gen-1 canary gates after the first 31 min.
