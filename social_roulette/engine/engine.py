@@ -12,6 +12,7 @@ from .actions import UseItem, Flip, Trade, Shoot, EndSubactions
 
 def _on_turn_start(state, pid):
     state.saw_used_this_turn = False
+    state.msgs_this_turn = 0
 
 
 def _set_turn_to(state, start_id):

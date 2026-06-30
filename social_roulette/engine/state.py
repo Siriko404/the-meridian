@@ -31,6 +31,15 @@ class Chamber:
 
 
 @dataclass
+class Msg:
+    turn: int
+    speaker: int      # absolute seat id
+    act: int
+    target: int       # absolute seat id, or None
+    value: int        # 0/1, or None
+
+
+@dataclass
 class GameState:
     players: list
     order: list
@@ -42,6 +51,8 @@ class GameState:
     saw_used_this_turn: bool = False
     bonus_pending: bool = False
     winner: int = None
+    messages: list = field(default_factory=list)
+    msgs_this_turn: int = 0
 
 
 def player_by_id(state, pid):
