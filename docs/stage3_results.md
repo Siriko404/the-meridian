@@ -37,16 +37,17 @@ Scrambling the messages a receiver hears does **not** reduce its win-rate (the p
 ### Receiver vs sender (two distinct causal paths)
 The win-rate ablation above is the **receiver** path (*others' messages → my behavior → my win-rate*): null. The **sender** path (*my messages → others' behavior → my win-rate*) is separate and tested independently — seat 0 broadcasts normally while the field is made deaf to it; n=2500.
 
-| ablation | intact | ablated | Δ | verdict |
-|---|---|---|---|---|
-| receiver (deaf to others) | 0.1996 | 0.2132 | −0.014 (p=0.12) | null |
-| sender (field deaf to me) | _running_ | _running_ | _running_ | _pending_ |
+| ablation | intact | ablated | Δ | p | verdict |
+|---|---|---|---|---|---|
+| receiver (deaf to others) | 0.1996 | 0.2132 | −0.014 | 0.12 | null |
+| sender (field deaf to me) | 0.1996 | 0.2116 | −0.012 | 0.15 | null |
+
+Both pathways null, both point estimates slightly favoring *no* comms (noise). n=2500/arm, powered for a 0.03 effect.
 
 ## 3. Verdict
 - **Capability: yes.** Agents can speak a rule-based emoji language and perceive others' messages in their observation.
-- **Use (receiver): no.** Hearing real vs scrambled messages does not change win-rate. The babbling/cheap-talk equilibrium, predicted by theory before building.
-- **Use (sender):** measured separately (table above); under the receiver null + policy symmetry, expected null, but tested rather than assumed.
-- This is **a clean scientific result**, designed for from the start: "do self-interested agents talk?" → on the receiver side, no.
+- **Use: no — both pathways.** Hearing real vs scrambled messages doesn't change win-rate (receiver, p=0.12); broadcasting to a field that hears you vs a deaf field doesn't either (sender, p=0.15). The babbling/cheap-talk equilibrium — predicted by theory (Crawford-Sobel) before a line was built, confirmed empirically on both causal paths.
+- This is **a clean scientific result**, designed for from the start: "do self-interested agents talk?" → no.
 
 ## 4. Honest limits
 - **One generation, 250k self-play steps, single seed.** A bigger run *could* surface a small effect, but the theory says the gradient toward honest signaling is near-zero under pure self-interest, and the win-rate ablation is powered for a 0.03 effect and shows none.

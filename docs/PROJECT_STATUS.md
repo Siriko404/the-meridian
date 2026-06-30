@@ -68,7 +68,7 @@ Built + validated. See `docs/stage2_results.md` + `docs/superpowers/specs/2026-0
 ## Stage 3 — status (2026-06-30)
 Built + measured. See `docs/stage3_results.md` + spec/plan `…2026-06-30-stage3-comms*`.
 - **Channel works:** emoji `[ACT][WHO][VALUE]`, 5-act v1 set, ≤2 msgs/turn, public, lying allowed, normal-turns-only. Agents **speak** (masked Speak action → `MESSAGE` event) and **perceive** (last-8-message window in obs, re-relativized). Comms gated behind `state.comms_enabled` (opt-in) so Stage-1/2 baselines are untouched. Seat-invariance preserved (seed-vs-seed = 0.193).
-- **Verdict = cheap-talk NULL (expected):** win-rate ablation — scrambling a receiver's incoming messages does NOT cost wins (intact 0.1996 vs scrambled 0.2132, p=0.12). Decisions are *sensitive* to messages (flip-rate 0.55) but identically so in a random-trained seed → incidental, not learned. Under individual reward, agents don't use the channel for gain.
+- **Verdict = cheap-talk NULL (expected), both pathways:** receiver ablation (intact 0.1996 vs scrambled 0.2132, p=0.12) AND sender ablation (intact 0.1996 vs field-deaf 0.2116, p=0.15) — neither hearing nor broadcasting helps win-rate; n=2500/arm, powered for 0.03. Decisions are *sensitive* to messages (flip-rate 0.55) but identically so in a random-trained seed → incidental, not learned. Under individual reward, agents don't use the channel for gain.
 - **Methodological catch:** flip-rate = input-sensitivity, NOT benefit; only the outcome (win-rate) ablation measures use. Rich 28-act vocab remains designed-on-paper (expand only if a regime shows use).
 - Artifacts: `models/stage3seed`, `models/stage3/gen1`. 168 tests green.
 
