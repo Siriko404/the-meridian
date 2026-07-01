@@ -12,7 +12,7 @@ extras_map:        {seat_id: Extras} — every seat re-syncs announced counts af
 from social_roulette.engine.engine import step
 from social_roulette.engine.constants import Shell, Item
 from social_roulette.engine.state import living_ids, player_by_id
-from social_roulette.engine.actions import legal_actions, Shoot, Flip, Speak
+from social_roulette.engine.actions import legal_actions, Shoot, Flip, Speak, Trade
 from social_roulette.engine.endgame import legal_targets
 
 
@@ -86,6 +86,11 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
             step(state, pid, a)
             if rec:
                 rec.flip(turn_idx, pid, tgt, [it.name for it in a.sacrifice], player_by_id(state, tgt).team.name)
+        elif isinstance(a, Trade):
+            to = a.to_id
+            step(state, pid, a)
+            if rec:
+                rec.gift(turn_idx, pid, to, [it.name for it in a.items])
         else:
             is_mag = a.item == Item.MAGNIFIER
             res = step(state, pid, a)

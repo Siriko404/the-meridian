@@ -16,6 +16,7 @@ BONUS = "bonus"
 ELIMINATION = "elimination"
 RELOAD = "reload"
 MESSAGE = "message"        # future: emoji comms (schema ready, unused in Stage 1)
+GIFT = "gift"              # Stage 5: an item handed to a teammate (costly signal)
 MATCH_END = "match_end"
 
 COLUMNS = ["match_id", "seq", "turn", "actor", "type", "target",

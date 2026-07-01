@@ -54,6 +54,10 @@ class GameState:
     messages: list = field(default_factory=list)
     msgs_this_turn: int = 0
     comms_enabled: bool = False   # Stage 3 opt-in; off => no Speak in legal_actions
+    social_enabled: bool = False  # Stage 5 opt-in; off => no Trade/gift in legal_actions
+    # Stage 5 interaction memory (objective public record; each seat reads its own row):
+    harm: dict = field(default_factory=dict)   # (victim_id, actor_id) -> cumulative damage taken from actor
+    help: dict = field(default_factory=dict)   # (receiver_id, giver_id) -> cumulative gift point-value received
 
 
 def player_by_id(state, pid):

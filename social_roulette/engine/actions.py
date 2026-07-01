@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from .constants import Item, POINT_VALUE, MAX_LIVES
-from .state import player_by_id, living_players
+from .state import player_by_id, living_players, can_receive
 from .items import cap_reached
 from .endgame import legal_targets
 
@@ -92,4 +92,10 @@ def legal_actions(state, player_id):
             if target is not None and not player_by_id(state, target).alive:
                 continue
             acts.append(Speak(act, target, value))
+    if state.social_enabled and not state.bonus_pending:
+        for it in list(p.inventory):
+            for q in others:
+                mate = player_by_id(state, q)
+                if mate.team == p.team and can_receive(mate, it):
+                    acts.append(Trade(q, [it]))
     return acts

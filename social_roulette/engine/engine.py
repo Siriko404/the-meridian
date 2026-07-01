@@ -1,5 +1,5 @@
-from .constants import Team, ITEM_TABLE, START_LIVES, Item
-from .state import player_by_id, living_ids, Player, Chamber, GameState, Msg
+from .constants import Team, ITEM_TABLE, START_LIVES, Item, POINT_VALUE
+from .state import player_by_id, living_ids, can_receive, Player, Chamber, GameState, Msg
 from .rng import SeededRng
 from .chamber import load_chamber
 from .shooting import resolve_shot
@@ -42,6 +42,9 @@ def _advance_turn(state, from_id):
 def take_shot(state, shooter_id, target_id):
     assert_legal_shot(state, shooter_id, target_id)
     ev = resolve_shot(state, shooter_id, target_id)
+    if ev["damage"] > 0 and shooter_id != target_id:
+        key = (target_id, shooter_id)
+        state.harm[key] = state.harm.get(key, 0) + ev["damage"]
     emptied = state.chamber.is_empty()
     if ev["killed"]:
         order_before = list(state.order)
@@ -113,5 +116,18 @@ def step(state, player_id, action):
         state.msgs_this_turn += 1
         return {}
     if isinstance(action, Trade):
-        raise NotImplementedError("trade is Stage 1")
+        giver = player_by_id(state, player_id)
+        receiver = player_by_id(state, action.to_id)
+        moved = []
+        for it in action.items:
+            if giver.inventory.get(it, 0) > 0 and can_receive(receiver, it):
+                giver.inventory[it] -= 1
+                if giver.inventory[it] == 0:
+                    del giver.inventory[it]
+                receiver.inventory[it] = receiver.inventory.get(it, 0) + 1
+                moved.append(it)
+        if moved:
+            key = (action.to_id, player_id)
+            state.help[key] = state.help.get(key, 0) + sum(POINT_VALUE[it] for it in moved)
+        return {"gift": [it.name for it in moved], "to": action.to_id}
     raise ValueError(f"unknown action {action}")

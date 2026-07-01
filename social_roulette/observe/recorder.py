@@ -59,5 +59,8 @@ class Recorder:
         self._emit(E.MESSAGE, turn=turn, actor=speaker, target=target,
                    extra={"act": act, "value": value})
 
+    def gift(self, turn, giver, receiver, items):
+        self._emit(E.GIFT, turn=turn, actor=giver, target=receiver, extra={"items": items})
+
     def match_end(self, turn, winner):
         self._emit(E.MATCH_END, turn=turn, extra={"winner": winner, "turns": turn})
