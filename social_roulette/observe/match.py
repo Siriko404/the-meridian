@@ -19,10 +19,11 @@ __all__ = ["run_match", "random_policy", "make_model_policy", "Extras"]
 
 
 def run_match(seed, policies=None, num_players=5, match_id=None, record=True, max_turns=4000,
-              comms=False):
+              comms=False, social=False):
     policies = policies or {}
     state = new_game(num_players, seed)
-    state.comms_enabled = comms
+    state.comms_enabled = comms or social
+    state.social_enabled = social
     extras = {i: Extras() for i in range(num_players)}
     for e in extras.values():
         e.sync(state)
