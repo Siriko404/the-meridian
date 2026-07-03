@@ -69,8 +69,9 @@ function reveal(el, text, {dur = 750, cursor = true} = {}) {
   })(t0);
 }
 ```
-Samples explored: `static/decoders_binary.html` (option "1 · L→R" and "4 · Terminal";
-user chose Terminal). Earlier reveal explorations: `static/decoders.html`,
+Samples explored: `static/decoders_binary.html` (options "1 · L→R" and "4 · Terminal";
+user replied "2" = the 2nd shown = **Terminal** — ⚠ did not match a label number, **confirm on resume**).
+Earlier reveal explorations: `static/decoders.html`,
 `static/demo_anim.html` (the **fill-sweep** there — masked bar sweeps, text inverts —
 is kept for **commit buttons** like Shoot/Confirm).
 
@@ -89,3 +90,8 @@ Sound · 3D · particle systems · per-letter physics. Keep it flat, monochrome,
 ## Next
 Wire the aesthetic (circular table, form-teams, logo) + the Terminal decoder +
 event-stream animations into `static/index.html` + `server.py`, then deploy.
+
+**Gotcha:** `server.py` currently serves only `/` via `FileResponse` — there is **no static mount**,
+so the logo file (and any asset) will 404 in the real UI. Add
+`app.mount("/static", StaticFiles(directory=STATIC), name="static")` (from `fastapi.staticfiles`)
+and reference `/static/logo.jpeg`. (The demos dodge this only because `http.server :8010` serves the dir directly.)

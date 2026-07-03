@@ -36,7 +36,9 @@ The project now runs on **two tracks**. The rest of this doc (below) is the olde
   elegant, ZERO gray** (one exception: decoder noise gray), **no emoji**. Logo = title (`static/logo.jpeg`). Teams by **FORM**
   (● filled / ○ hollow). **Circular roulette table**, gun+chamber center, barrel points at current player. **Shoot = white-flash
   inversion** (not red). **CHOSEN text-reveal = "Terminal binary decoder"** (gray `0/1` noise → white letters L→R + white block
-  cursor, ~750ms) — exact code in the spec. **Fill-sweep** kept for commit buttons. Full design + decoder code + the
+  cursor, ~750ms) — exact code in the spec. ⚠ **ASSUMED:** user replied "2" = the 2nd option shown
+  (of "1·L→R" and "4·Terminal") → Terminal; it did NOT match a label number — **confirm on resume** (a decoder is a 1-file swap).
+  **Fill-sweep** kept for commit buttons. Full design + decoder code + the
   **event-stream architecture note** (server must stream recorder EVENTS, not just state, so the client can animate):
   **`docs/superpowers/specs/2026-07-03-ui-redesign-design.md`**. Mockup: `static/mockup.html`; decoder samples: `static/decoders_binary.html`.
 
