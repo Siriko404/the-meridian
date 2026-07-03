@@ -42,7 +42,7 @@ function handle(m){
  if(m.type==='view'){el('lobby').style.display='none';el('game').style.display='';render(m);}
  if(m.type==='chat'){const f=el('feed');f.innerHTML+=`<div><b>${m.from}:</b> ${m.text}</div>`;f.scrollTop=f.scrollHeight;}
  if(m.type==='error'){const f=el('feed');f.innerHTML+=`<div style="color:#f77">⚠ ${m.msg}</div>`;f.scrollTop=f.scrollHeight;}
- if(m.type==='end'){setTimeout(()=>alert('Winner: P'+m.winner),50);}
+ if(m.type==='end'){el('actions').innerHTML=`🏆 <b>Winner: P${m.winner}</b> — game over`;el('peek').textContent='';}
 }
 function render(v){
  mySeat=v.you;
