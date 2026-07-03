@@ -1,0 +1,52 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Binary decoders — 1 & 4 @ 1.4x</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#000;color:#fff;font-family:"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px}
+  .row{width:580px;display:grid;grid-template-columns:180px 1fr;align-items:center;gap:24px;
+    padding:26px 0;border-top:1px solid #fff}
+  .row:last-of-type{border-bottom:1px solid #fff}
+  .lab b{font-weight:700;font-size:13px;letter-spacing:.16em;text-transform:uppercase;display:block;margin-bottom:5px}
+  .lab span{font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+  .fx{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:30px;font-weight:600;letter-spacing:.10em;
+    height:40px;display:flex;align-items:center;white-space:nowrap}
+  .fx .n{color:#585858;font-weight:400}          /* GRAY noise */
+  .fx .cur{color:#fff}
+  .replay{margin-top:28px;font:inherit;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#fff;
+    background:#000;border:1px solid #fff;border-radius:999px;padding:9px 20px;cursor:pointer}
+  .replay:hover{background:#fff;color:#000}
+</style></head><body>
+
+  <div class="row"><div class="lab"><b>1 · L→R</b><span>resolves left to right</span></div><div class="fx" id="a" data-orig="MAGNIFIER"></div></div>
+  <div class="row"><div class="lab"><b>4 · Terminal</b><span>white cursor rides the edge</span></div><div class="fx" id="d" data-orig="RELOAD"></div></div>
+
+  <button class="replay" onclick="all()">▷ replay</button>
+
+<script>
+  const bit=()=>Math.random()<.5?"0":"1";
+  function run(el,{mode='lr',dur=950,cursor=false}={}){
+    const text=el.dataset.orig, n=text.length, t0=performance.now();
+    const rt=new Array(n);
+    const idx=[...Array(n).keys()].filter(i=>text[i]!==" ");
+    const order = mode==='scatter' ? idx.slice().sort(()=>Math.random()-.5) : idx;
+    order.forEach((i,k)=>rt[i]=k/idx.length);
+    (function tick(t){
+      const p=(t-t0)/dur; let html=""; let edge=true;
+      for(let i=0;i<n;i++){
+        if(text[i]===" "){ html+=" "; continue; }
+        if(p>=rt[i]+0.05){ html+=text[i]; }                              // resolved = WHITE
+        else if(cursor&&edge){ html+='<span class="cur">█</span>'; edge=false; }
+        else { html+='<span class="n">'+bit()+'</span>'; }               // noise = GRAY
+      }
+      el.innerHTML=html;
+      if(p<1.15) requestAnimationFrame(tick); else el.textContent=text;
+    })(t0);
+  }
+  const a=id=>document.getElementById(id);
+  function all(){
+    run(a('a'),{mode:'lr',dur:680});               // 950 / 1.4
+    run(a('d'),{mode:'lr',dur:750,cursor:true});    // 1050 / 1.4
+  }
+  all(); setInterval(all, 2600);
+</script></body></html>

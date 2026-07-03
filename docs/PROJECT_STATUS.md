@@ -1,7 +1,55 @@
 # Social Roulette — Project Status (resume anchor)
 
-**Updated:** 2026-06-30 · **Branch:** master · **State:** harness complete (Stages 0-3 + a fear probe). Paused; choosing the next lever.
-Read this first after any context reset.
+**Updated:** 2026-07-03 · **Branch:** master · Read this first after any context reset.
+
+---
+
+## ═══ CURRENT STATE — 2026-07-03 (READ THIS FIRST) ═══
+The project now runs on **two tracks**. The rest of this doc (below) is the older RL-only history.
+
+### TRACK A — RL research (PAUSED)
+- **Stage 5 — emergent alliances:** BUILT + trained + measured → **cooperation NULL.**
+  Added a real gift/Trade action + per-opponent **harm/help memory** in obs, a co-evolution
+  self-play driver, and emergence metrics. Fresh social seed = 0.748; 5 self-play gens (gen4/5 ≈ 0.78).
+  **Outcome ablation:** memory-off & gift-off Δ≈−0.005, p≈0.7 → gifts happen (~2/game) but do NOT
+  raise win-rate. Same THROUGHLINE (no incentive under individual reward). Files: `social_roulette/rl/social_*.py`,
+  `models/stage5seed`+`models/stage5/gen1..5`. Commits d00df0c, f77c54d, 816f4d4.
+- **LLM-play pivot — INVESTIGATED, not built.** Idea: let LLMs play (they carry human social priors) instead of RL.
+  **FREELLMAPI gateway is LIVE** (localhost:3001, OpenAI-compatible, ~64 free models, unified key stored in its
+  `server/data/freeapi.db` `settings` row; repo at `~/OneDrive/Desktop/Projects/OpensourceProjects/freellmapi`).
+  Findings (probed 8 models): **refusals are NOT a problem** (0/8 refused the shotgun game); **rate-limits are THE wall**
+  (3/8 HTTP 429 on the first burst; a real benchmark = ~26 turns/game → 100k–700k calls); **reproducibility fights the
+  gateway** (pinning `gpt-oss-120b` still hopped cerebras↔groq). Seam = `engine.step`; the talk-phase + an LLM NL
+  state/action interface are the hard unbuilt parts. PAUSED here.
+
+### TRACK B — the game as a playable product (ACTIVE)
+- **ONLINE GAME — BUILT + browser-verified.** FastAPI + WebSocket, **invite-code rooms**, humans + random-bot fill to 5,
+  real-time, on the real engine. Anti-cheat **per-seat views** (never full state; includes own Magnifier peek),
+  async `Room` state-machine + per-room lock, server-authoritative action re-validation, reconnect token. **197 tests green.**
+  I drove a **full game to a winner in the actual browser** — every mechanic verified (items/heal, shoot advances turn,
+  bot autoplay, team-flips → legal-target recompute, reload item-draw, handcuff exclusion, Magnifier peek, self-blank→bonus,
+  death, winner). Fixed one bug (winner used a blocking `alert()` → inline banner). Files: **`social_roulette/online/`**
+  (`view.py`, `room.py`, `server.py`, `static/index.html`). Spec+plan: `docs/superpowers/specs|plans/2026-07-03-online-game*`.
+  Run: `./.venv/Scripts/python -m uvicorn social_roulette.online.server:app --port 8000`.
+  **Deploy target = Render free** (pending: your GitHub repo + Render signup; server is host-agnostic — a ~5-min step).
+- **UI REDESIGN — in progress (brainstorm; not yet wired into the game).** Aesthetic LOCKED: **pure B&W noir, minimal,
+  elegant, ZERO gray** (one exception: decoder noise gray), **no emoji**. Logo = title (`static/logo.jpeg`). Teams by **FORM**
+  (● filled / ○ hollow). **Circular roulette table**, gun+chamber center, barrel points at current player. **Shoot = white-flash
+  inversion** (not red). **CHOSEN text-reveal = "Terminal binary decoder"** (gray `0/1` noise → white letters L→R + white block
+  cursor, ~750ms) — exact code in the spec. **Fill-sweep** kept for commit buttons. Full design + decoder code + the
+  **event-stream architecture note** (server must stream recorder EVENTS, not just state, so the client can animate):
+  **`docs/superpowers/specs/2026-07-03-ui-redesign-design.md`**. Mockup: `static/mockup.html`; decoder samples: `static/decoders_binary.html`.
+
+### Dev servers this session (restartable; NOT compaction-critical — they may be dead on resume)
+```
+game    ./.venv/Scripts/python -m uvicorn social_roulette.online.server:app --port 8000
+demos   ./.venv/Scripts/python -m http.server 8010 --directory social_roulette/online/static   (mockup.html, decoders_binary.html)
+freellm supervisor at ~/.freellmapi-supervisor, or: cd freellmapi/server && ../node_modules/.bin/tsx src/index.ts  (:3001)
+```
+
+### NEXT (Track B, the active work)
+Wire the pure-B&W aesthetic (circular table, form-teams, logo) + the **Terminal decoder** + **event-stream animations**
+into the real `static/index.html` + `server.py` (per the ui-redesign spec), test in-browser, then deploy to Render.
 
 ---
 

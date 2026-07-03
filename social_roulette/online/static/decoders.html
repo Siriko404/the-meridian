@@ -1,0 +1,74 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Text decoders — pick one</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#000;color:#fff;font-family:"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:100vh;padding:40px}
+  .row{width:520px;display:grid;grid-template-columns:150px 1fr;align-items:center;gap:24px;
+    padding:22px 0;border-top:1px solid #fff}
+  .row:last-of-type{border-bottom:1px solid #fff}
+  .lab{font-size:11px;letter-spacing:.22em;text-transform:uppercase;line-height:1.8}
+  .lab b{font-weight:700;font-size:13px;display:block;margin-bottom:4px}
+  .lab span{opacity:.6}
+  .fx{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:30px;font-weight:500;letter-spacing:.06em;
+    height:40px;display:flex;align-items:center;white-space:nowrap}
+  .replay{margin-top:20px;font:inherit;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#fff;
+    background:#000;border:1px solid #fff;border-radius:999px;padding:8px 18px;cursor:pointer}
+  .replay:hover{background:#fff;color:#000}
+
+  /* 2 STAGGER */
+  .stagger span{display:inline-block;white-space:pre}
+  .stagger.play span{opacity:0;transform:translateY(.5em);animation:rise .5s cubic-bezier(.16,1,.3,1) forwards;
+    animation-delay:calc(var(--i)*38ms)}
+  @keyframes rise{to{opacity:1;transform:none}}
+
+  /* 3 WIPE */
+  .wipe{position:relative;overflow:hidden}
+  .wipe .t{clip-path:inset(0 100% 0 0)}
+  .wipe .scan{position:absolute;top:0;bottom:0;left:0;width:2px;background:#fff;transform:translateX(-4px);opacity:0}
+  .wipe.play .t{animation:reveal .8s cubic-bezier(.76,0,.24,1) forwards}
+  .wipe.play .scan{animation:scan .8s cubic-bezier(.76,0,.24,1) forwards}
+  @keyframes reveal{to{clip-path:inset(0 0 0 0)}}
+  @keyframes scan{0%{opacity:1;transform:translateX(-4px)}90%{opacity:1}100%{opacity:0;transform:translateX(300px)}}
+
+  /* 4 TYPE cursor */
+  .type .cur{display:inline-block;width:.6em;height:1.05em;background:#fff;margin-left:2px;vertical-align:-2px;
+    animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+</style></head><body>
+
+  <div class="row"><div class="lab"><b>1 · Decode</b><span>scramble → resolve L→R</span></div>
+    <div class="fx" id="d1" data-orig="MAGNIFIER"></div></div>
+  <div class="row"><div class="lab"><b>2 · Stagger</b><span>letters rise + fade in</span></div>
+    <div class="fx stagger" id="d2" data-orig="HANDCUFFS"></div></div>
+  <div class="row"><div class="lab"><b>3 · Wipe</b><span>scanline reveals text</span></div>
+    <div class="fx wipe" id="d3"><span class="t" data-orig="P3'S TURN"></span><span class="scan"></span></div></div>
+  <div class="row"><div class="lab"><b>4 · Type</b><span>typewriter + cursor</span></div>
+    <div class="fx type" id="d4"><span class="tt"></span><span class="cur"></span></div></div>
+
+  <button class="replay" onclick="all()">▷ replay all</button>
+
+<script>
+  const POOL="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const rnd=()=>POOL[Math.floor(Math.random()*POOL.length)];
+
+  function decode(el){ const text=el.dataset.orig, n=text.length, t0=performance.now(), dur=850;
+    (function tick(t){ const p=Math.min(1,(t-t0)/dur), rev=Math.floor(p*n); let s="";
+      for(let i=0;i<n;i++) s += text[i]===" " ? " " : (i<rev ? text[i] : rnd());
+      el.textContent=s; if(p<1) requestAnimationFrame(tick); else el.textContent=text;
+    })(t0); }
+
+  function stagger(el){ const text=el.dataset.orig; el.classList.remove('play');
+    el.innerHTML=[...text].map((c,i)=>`<span style="--i:${i}">${c===" "?"&nbsp;":c}</span>`).join('');
+    void el.offsetWidth; el.classList.add('play'); }
+
+  function wipe(el){ const s=el.querySelector('.t'); s.textContent=s.dataset.orig;
+    el.classList.remove('play'); void el.offsetWidth; el.classList.add('play'); }
+
+  function type(el){ const text="RELOAD", span=el.querySelector('.tt'); span.textContent=""; let i=0;
+    clearInterval(el._iv); el._iv=setInterval(()=>{ span.textContent=text.slice(0,++i); if(i>=text.length) clearInterval(el._iv); },70); }
+
+  function all(){ decode(d1); stagger(d2); wipe(d3); type(d4); }
+  const d1=document.getElementById('d1'),d2=document.getElementById('d2'),d3=document.getElementById('d3'),d4=document.getElementById('d4');
+  all(); setInterval(all, 3000);
+</script></body></html>
