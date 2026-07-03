@@ -1,0 +1,60 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Social Roulette</title>
+<style>
+ body{font-family:system-ui;margin:0;background:#111;color:#eee}
+ #app{max-width:760px;margin:0 auto;padding:16px}
+ .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+ .p{border:1px solid #444;border-radius:8px;padding:8px;min-width:90px;text-align:center}
+ .dead{opacity:.4}.me{outline:2px solid #6cf}
+ .red{color:#f77}.blue{color:#7af}
+ button{background:#2a2a2a;color:#eee;border:1px solid #555;border-radius:6px;padding:8px 10px;cursor:pointer}
+ button:hover{background:#3a3a3a}
+ #feed{height:140px;overflow:auto;background:#000;border:1px solid #333;padding:6px;font-size:13px;margin:8px 0}
+ input{background:#222;color:#eee;border:1px solid #555;border-radius:6px;padding:8px}
+ h2,h3{margin:8px 0}
+</style></head><body><div id="app">
+ <div id="setup"><h2>🔫 Social Roulette</h2>
+  <div class="row"><input id="name" placeholder="your name"><input id="code" placeholder="invite code (blank = new room)"><button onclick="join()">Join</button></div>
+  <p id="hint" style="color:#888">Blank code makes a new room. Share the code shown next.</p></div>
+ <div id="lobby" style="display:none"><h3>Lobby — code <span id="lcode" style="color:#6cf"></span></h3><div id="members"></div><br><button id="startbtn" style="display:none" onclick="send({type:'start'})">Start game (fills empty seats with bots)</button></div>
+ <div id="game" style="display:none">
+  <div class="row" id="players"></div>
+  <p id="chamber"></p><p id="peek" style="color:#fd6"></p>
+  <div class="row" id="actions"></div>
+  <div id="feed"></div>
+  <div class="row"><input id="chat" placeholder="say something…" onkeydown="if(event.key==='Enter')chat()"><button onclick="chat()">Send</button></div>
+ </div></div>
+<script>
+let ws, token=null, mySeat=null, host=false;
+function el(id){return document.getElementById(id)}
+function send(m){ws.send(JSON.stringify(m))}
+function join(){
+ const proto=location.protocol==='https:'?'wss':'ws';
+ ws=new WebSocket(proto+'://'+location.host+'/ws');
+ ws.onopen=()=>send({type:'join',code:el('code').value,name:el('name').value,token});
+ ws.onmessage=ev=>handle(JSON.parse(ev.data));
+ setInterval(()=>{if(ws&&ws.readyState===1)send({type:'ping'})},20000); // keepalive vs host sleep
+}
+function chat(){const t=el('chat').value;if(t){send({type:'chat',text:t});el('chat').value=''}}
+function handle(m){
+ if(m.type==='joined'){token=m.token;mySeat=m.seat;host=m.host;localStorage.token=token;el('setup').style.display='none';el('lobby').style.display='';el('startbtn').style.display=host?'':'none';}
+ if(m.type==='lobby'){el('lcode').textContent=m.code;el('members').innerHTML=m.members.map(x=>x.name+(x.host?' 👑':'')).join(' · ');}
+ if(m.type==='view'){el('lobby').style.display='none';el('game').style.display='';render(m);}
+ if(m.type==='chat'){const f=el('feed');f.innerHTML+=`<div><b>${m.from}:</b> ${m.text}</div>`;f.scrollTop=f.scrollHeight;}
+ if(m.type==='error'){const f=el('feed');f.innerHTML+=`<div style="color:#f77">⚠ ${m.msg}</div>`;f.scrollTop=f.scrollHeight;}
+ if(m.type==='end'){setTimeout(()=>alert('Winner: P'+m.winner),50);}
+}
+function render(v){
+ mySeat=v.you;
+ el('players').innerHTML=v.players.map(p=>{
+  const cls=['p',p.alive?'':'dead',p.id===v.you?'me':'',p.team==='RED'?'red':'blue'].join(' ');
+  return `<div class="${cls}">P${p.id} ${p.team==='RED'?'🔴':'🔵'}<br>❤ ${p.lives}${p.handcuffed?'<br>🔒':''}</div>`;
+ }).join('');
+ el('chamber').textContent=`Chamber: ${v.chamber.fired} fired · announced ${v.chamber.live}/${v.chamber.total} live · your hand: ${JSON.stringify(v.your_hand)}`;
+ el('peek').textContent=v.peek!=='unknown'?`🔍 next shell: ${v.peek}`:'';
+ el('actions').innerHTML=(v.current===v.you&&v.winner==null)
+   ? v.legal.map(a=>`<button onclick="send({type:'action',i:${a.i}})">${a.label}</button>`).join('')
+   : (v.winner!=null?`🏆 Winner: P${v.winner}`:`Waiting for P${v.current}…`);
+}
+if(localStorage.token){token=localStorage.token;}
+</script></body></html>
