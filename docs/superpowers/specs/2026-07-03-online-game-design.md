@@ -25,13 +25,18 @@ bots** so a 5-player game can start with 1+ humans.
   other actions don't** → a human turn = "keep picking legal actions until you shoot",
   with no re-implementation of turn/bonus/reload/elimination (all inside the engine).
 - `Extras` (announced chamber counts + magnifier peek) per seat; recorder/event schema for logging.
+- **Engine flags (v1):** `comms_enabled=False`, `social_enabled=False` — human-only, chat is
+  cosmetic → `legal_actions` yields the real ~15 game actions, NOT the RL Speak/Trade set
+  (otherwise the generic UI would inherit the 39–63 RL action space).
 
 ## New components
 1. **Per-seat view serializer** — *INTEGRITY-CRITICAL.* Given `(state, seat)`, emit a JSON
    view = **public info** (all teams, lives, flips, item-type counts, announced chamber
-   counts, message/event feed) **+ ONLY that seat's own inventory + its `legal_actions`**.
-   The full `GameState` MUST NEVER be serialized to a client (would leak other players'
-   hands + shell order). This is NOT `encode_obs` (that's numeric + ego-relativized for the net).
+   counts, message/event feed) **+ ONLY that seat's own inventory, its `legal_actions`, and
+   its own private peek** (`Extras.known_next_shell` — a Magnifier result is revealed to the
+   seat that paid for it ONLY, never others). The full `GameState` MUST NEVER be serialized
+   to a client (would leak other players' hands + shell order). This is NOT `encode_obs`
+   (that's numeric + ego-relativized for the net).
 2. **Room state-machine (async).** Per room: `{GameState, seat→client, Extras, recorder,
    waiting_on_seat}`. Event-driven: on client action → **acquire per-room asyncio lock** →
    **re-validate** against `legal_actions` (never trust the client) → `engine.step` →
@@ -43,8 +48,10 @@ bots** so a 5-player game can start with 1+ humans.
    empty seats become random bots → run.
 5. **Generic UI** (one static HTML+JS file, no build step). Renders: the table (each
    player: team color, lives, alive, public item-count; self: full hand), chamber counts,
-   event/message feed, chat box, and **MY legal-action buttons rendered generically from
-   `view.legal_actions`** — no bespoke UI per item/flip/trade. Click → send `action{index}`.
+   event/message feed, chat box, and **MY legal-action buttons rendered from
+   `view.legal_actions`** — no per-action *logic*, but a small presentation layer maps each
+   action to a human label + target picker ("Shoot P3", "Use Cigarettes", "Flip P2"). Click
+   → send `action{index}`.
 6. **Bot seat.** `policy(state, pid) -> action` = `random_policy` now; swappable later.
 7. **Hosting.** FastAPI serves the static UI + WS. Deploy to **Render free** (public URL,
    PC-independent). In-memory rooms (ephemeral — acceptable for play sessions).
@@ -59,6 +66,8 @@ bots** so a 5-player game can start with 1+ humans.
 - Each human seat gets a private **session token**. Disconnect → seat temporarily played by
   a random bot; **reconnect with token → reclaim the seat.**
 - Disconnect detection is required (untimed play depends on bot-fallback to avoid a hung game).
+- **Keepalive while a game is active:** the client pings periodically so the free host
+  (Render spins down at 15 min idle) does not drop a *live* untimed game mid-turn.
 
 ## Data flow
 `join → lobby → start → [ loop: current seat (human: await WS action | bot: auto) →
