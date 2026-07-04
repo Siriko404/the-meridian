@@ -106,7 +106,9 @@
       }
       else if (e.type === "item") {
         dotTo(root, order, e.actor);
-        toast(root, `P${e.actor} · ${e.item}${e.target != null ? " → P" + e.target : ""}`, DUR.item);
+        const msg = e.item === "BEER" ? `P${e.actor} · BEER — SHELL OUT`
+          : `P${e.actor} · ${e.item}${e.target != null ? " → P" + e.target : ""}`;
+        toast(root, msg, DUR.item);
         await wait(DUR.item);
       }
       else if (e.type === "elimination") {

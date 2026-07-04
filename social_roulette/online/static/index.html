@@ -45,7 +45,8 @@
 const app = document.getElementById("app");
 let ws, token = localStorage.token || null, host = false;
 let queue = [], busy = false, started = false, ended = false, endWinner = null;
-let curView = null, sel = null;             // sel: null | {menu} | {verb:'shoot'|'flip'} | {verb:'item',item}
+let curView = null, sel = null;             // sel: null | {menu} | {verb:'shoot'|'flip'} | {verb:'item',item} | {pay:{target,cost,chosen}}
+const POINTS = { IMMUNITY: 6, CIGARETTES: 6, MAGNIFIER: 5, SAW: 5, BEER: 4, HANDCUFFS: 4 };  // public (game_guide:110)
 
 const el = id => document.getElementById(id);
 const send = m => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(m)); };
@@ -93,7 +94,14 @@ function buildControls(){
   if (!v){ c.innerHTML = ""; return; }
   if (v.winner != null){ c.innerHTML = `<div class="win">WINNER · P${v.winner}</div>`; SRUI.clearTargets(app); return; }
   if (v.current !== v.you || !v.legal || !v.legal.length){ c.innerHTML = `<div class="wait">P${v.current} deciding…</div>`; SRUI.clearTargets(app); return; }
-  if (sel && sel.menu){
+  if (sel && sel.pay){                                    // flip payment picker — you choose which items pay
+    const pay = sel.pay, total = pay.chosen.reduce((s, it) => s + POINTS[it], 0);
+    const avail = { ...v.your_hand }; pay.chosen.forEach(it => avail[it]--);
+    const items = Object.keys(POINTS).filter(it => (v.your_hand[it] || 0) > 0);
+    c.innerHTML = `<div class="pay"><div class="payhd">FLIP P${pay.target} · ${total}/${pay.cost} PTS</div>
+      <div class="payitems">${items.map(it => `<button class="pick" data-add="${it}"${(avail[it] || 0) <= 0 ? " disabled" : ""}>${it} ${POINTS[it]}</button>`).join("")}</div>
+      <div class="payact"><button data-cancel>Cancel</button>${pay.chosen.length ? `<button data-undo>Undo</button>` : ""}${total >= pay.cost ? `<button class="go" data-confirm>Confirm</button>` : ""}</div></div>`;
+  } else if (sel && sel.menu){
     const items = [...new Set(v.legal.filter(a => a.kind === "item").map(a => a.item))];
     c.innerHTML = items.map(it => `<button class="pick" data-item="${it}">${it}</button>`).join("") + `<button class="pick" data-cancel>Back</button>`;
   } else if (sel){
@@ -113,7 +121,10 @@ function targetsFor(pred){ SRUI.setTargets(app, curView.legal.filter(pred).map(a
 
 el("controls").addEventListener("click", e => {
   const t = e.target.closest("button"); if (!t || !curView) return;
-  if (t.dataset.cancel !== undefined){ if (sel && sel.menu) resetSel(); else if (sel){ sel = { menu: true }; SRUI.clearTargets(app); buildControls(); } else resetSel(); return; }
+  if (t.dataset.add){ sel.pay.chosen.push(t.dataset.add); buildControls(); return; }
+  if (t.dataset.undo !== undefined){ sel.pay.chosen.pop(); buildControls(); return; }
+  if (t.dataset.confirm !== undefined){ const p = sel.pay; SRUI.clearTargets(app); el("controls").innerHTML = `<div class="wait">…</div>`; sel = null; send({ type: "flip", target: p.target, items: p.chosen }); return; }
+  if (t.dataset.cancel !== undefined){ if (sel && sel.verb === "item"){ sel = { menu: true }; SRUI.clearTargets(app); buildControls(); } else resetSel(); return; }
   if (t.dataset.verb === "shoot"){ sel = { verb: "shoot" }; targetsFor(a => a.kind === "shoot"); buildControls(); }
   else if (t.dataset.verb === "flip"){ sel = { verb: "flip" }; targetsFor(a => a.kind === "flip"); buildControls(); }
   else if (t.dataset.verb === "item"){ sel = { menu: true }; SRUI.clearTargets(app); buildControls(); }
@@ -124,9 +135,14 @@ el("controls").addEventListener("click", e => {
   }
 });
 el("seats").addEventListener("click", e => {
-  if (!sel || sel.menu || !curView) return;
+  if (!sel || sel.menu || sel.pay || !curView) return;
   const s = e.target.closest(".seat.selectable"); if (!s) return;
   const tgt = Number(s.dataset.seat);
+  if (sel.verb === "flip"){                                  // open the payment picker instead of sending
+    const a = curView.legal.find(x => x.kind === "flip" && x.target === tgt);
+    if (a){ sel = { pay: { target: tgt, cost: a.cost, chosen: [] } }; SRUI.clearTargets(app); buildControls(); }
+    return;
+  }
   const a = curView.legal.find(a => a.target === tgt &&
     (sel.verb === "item" ? (a.kind === "item" && a.item === sel.item) : a.kind === sel.verb));
   if (a) act(a.i);
