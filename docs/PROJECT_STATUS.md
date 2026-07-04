@@ -25,22 +25,25 @@ The project now runs on **two tracks**. The rest of this doc (below) is the olde
 ### TRACK B — the game as a playable product (ACTIVE)
 - **ONLINE GAME — BUILT + browser-verified.** FastAPI + WebSocket, **invite-code rooms**, humans + random-bot fill to 5,
   real-time, on the real engine. Anti-cheat **per-seat views** (never full state; includes own Magnifier peek),
-  async `Room` state-machine + per-room lock, server-authoritative action re-validation, reconnect token. **197 tests green.**
+  async `Room` state-machine + per-room lock, server-authoritative action re-validation, reconnect token. **181 tests green in this env** (+8 RL modules uncollectable — missing `gymnasium`/`sb3_contrib`).
   I drove a **full game to a winner in the actual browser** — every mechanic verified (items/heal, shoot advances turn,
   bot autoplay, team-flips → legal-target recompute, reload item-draw, handcuff exclusion, Magnifier peek, self-blank→bonus,
   death, winner). Fixed one bug (winner used a blocking `alert()` → inline banner). Files: **`social_roulette/online/`**
   (`view.py`, `room.py`, `server.py`, `static/index.html`). Spec+plan: `docs/superpowers/specs|plans/2026-07-03-online-game*`.
   Run: `./.venv/Scripts/python -m uvicorn social_roulette.online.server:app --port 8000`.
   **Deploy target = Render free** (pending: your GitHub repo + Render signup; server is host-agnostic — a ~5-min step).
-- **UI REDESIGN — in progress (brainstorm; not yet wired into the game).** Aesthetic LOCKED: **pure B&W noir, minimal,
-  elegant, ZERO gray** (one exception: decoder noise gray), **no emoji**. Logo = title (`static/logo.jpeg`). Teams by **FORM**
-  (● filled / ○ hollow). **Circular roulette table**, gun+chamber center, barrel points at current player. **Shoot = white-flash
-  inversion** (not red). **CHOSEN text-reveal = "Terminal binary decoder"** (gray `0/1` noise → white letters L→R + white block
-  cursor, ~750ms) — exact code in the spec. ⚠ **ASSUMED:** user replied "2" = the 2nd option shown
-  (of "1·L→R" and "4·Terminal") → Terminal; it did NOT match a label number — **confirm on resume** (a decoder is a 1-file swap).
-  **Fill-sweep** kept for commit buttons. Full design + decoder code + the
-  **event-stream architecture note** (server must stream recorder EVENTS, not just state, so the client can animate):
-  **`docs/superpowers/specs/2026-07-03-ui-redesign-design.md`**. Mockup: `static/mockup.html`; decoder samples: `static/decoders_binary.html`.
+- **UI — BUILT + refined (mobile-locked, playable).** Full pure-B&W mobile UI on the real engine, locked to ONE
+  phone screen (no scroll/zoom): circular table (teams ●/○, **you seated FIRST**, ring in **TURN ORDER**), center
+  **dial + gliding turn-dot**, **tap-to-target** (verb → item picker → tap a seat), Terminal decoder, slower
+  **labelled** bot cascade, **flip PAYMENT PICKER** (choose which items pay), chamber counts CONFIDENTIAL
+  (announce-only), immunity markers "P3M", beer "SHELL OUT". Files: `social_roulette/online/{room,view,server}.py`
+  + `static/{index.html,sr_ui.js,sr_ui.css}`. Verified live in Chrome across 3 refinement rounds.
+  **Full refinement log + exact mechanics:** `docs/superpowers/specs/2026-07-03-ui-redesign-design.md`.
+  - **⛔ AWAITING USER — decision #3b "see 2 bullets":** whether the REMAINING shell count is visible (this
+    CONTRADICTS the R2 confidential-count rule you set, `game_guide:159`). Pick **A** (hidden, current) /
+    **B** (show remaining count, never nature) / **C** (only whether a next shell exists). Do NOT build until answered.
+  - #1 "ratio deviation" = **NOT a bug** — 20000 loads, 0 outside 30–70% (`chamber.py:13`); likely the *remaining* ratio.
+  Run: `python -m uvicorn social_roulette.online.server:app --port 8015` → http://127.0.0.1:8015.
 
 ### Dev servers this session (restartable; NOT compaction-critical — they may be dead on resume)
 ```

@@ -113,6 +113,40 @@ Shipped as the online UI. Pivoted mid-build to **mobile-first, LOCKED viewport**
   688 and worst-case 620 with slack; 179 tests green.
 - **Caveat:** zoom-lock is best-effort on iOS (Safari ignores `user-scalable=no`).
 
+## Refinement rounds — 2026-07-03 (all committed on master, playtested live)
+Run: `python -m uvicorn social_roulette.online.server:app --port 8015` → http://127.0.0.1:8015 (any port).
+
+- **R2 rules+UX** (ce9cf67, 29b32fa): chamber counts CONFIDENTIAL — announced ONCE at load then
+  hidden (`game_guide:159`; `view` drops `chamber`, counts ride announce/reload EVENTS); turn
+  indicator = center DIAL + gliding pulse-dot (no arrow); immunity markers "P3M" above the
+  recipient (`view.immune_from` = the `immunity_against` casters); slower labelled bot cascade.
+- **R3 you-first + order** (80a9422): the human plays FIRST (rotate seating so no bot acts before
+  the first human turn → no unseen / "stale-looking" opening state) and the ring is laid out in
+  TURN ORDER (`view.order`) so the dot advances to ADJACENT seats.
+- **R3 readability + timing** (06dcb81): ~2× bigger type (still fits 620); announce holds 5s; dot
+  glow breathes once/min over 5s; toasts JS-timed (per-message hold).
+- **R3 flip payment + beer** (f1aff76, 0a42cae): FLIP opens a PAYMENT PICKER — you choose which
+  items pay (`room.flip` + `{type:'flip',target,items}`; `view` exposes flip `cost`; engine
+  `pay_cost` re-validates). BEER toasts "SHELL OUT", clears a stale Magnifier peek, and
+  re-announces if it empties the chamber.
+- **Verified live:** flip picker (P1 BLUE→RED, chosen beers spent, cigarette KEPT); you-first +
+  turn-order; bigger text fits; 5s announce; slower cascade. **181 tests pass** (8 RL modules
+  UNCOLLECTABLE in this env — missing `gymnasium`/`sb3_contrib`; pre-existing, out of scope).
+
+## ⛔ OPEN — user decision #3b ("see 2 bullets"), do NOT build until answered
+User: "players can see 2 bullets … know if next is final; never nature." This CONTRADICTS his own
+earlier instruction (R2: counts confidential/hidden, `game_guide:159`, which IS implemented), and
+the rule is in NO doc. Reconcile A/B/C before building:
+- **(A)** keep hidden [current] · **(B)** always show REMAINING SHELL COUNT (not nature) ·
+  **(C)** show only whether a NEXT shell exists.
+Also: **#1 ratio is NOT a bug** — 20000 loads, 0 outside 30–70% (`chamber.py:13`); user to confirm
+he saw the *remaining* ratio (only the *load* is banded, `game_guide:71`).
+
+## Testing quirk (Chrome re-authorized; don't re-diagnose)
+Driving via the MCP with the tab BACKGROUNDED throttles `requestAnimationFrame` → the setup
+decoder stalls → `curView` stays null. Take a screenshot (foregrounds the tab) to let setup finish.
+Not a real bug (real foreground phones run full speed).
+
 ## Next
-Deploy to Render (needs user's GitHub + Render signup). The `/static` mount 404 is FIXED.
+Answer #3b (above). Then deploy to Render (needs user GitHub + Render signup; `/static` 404 FIXED).
 Run locally: `python -m uvicorn social_roulette.online.server:app --port 8012`.
