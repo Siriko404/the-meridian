@@ -26,7 +26,7 @@
     <div id="topbar"><img src="/static/logo.jpeg" alt=""><div id="turn"></div><div id="roomcode"></div></div>
     <div id="table"><div id="ring">
       <div id="seats"></div>
-      <div id="center"><div id="cylinder"></div><div id="barrel"></div><div id="readout"></div></div>
+      <div id="center"><div id="dial"></div><div id="dotarm"><div id="turndot"></div></div></div>
     </div></div>
     <div id="dock">
       <div id="peek"></div>
@@ -78,7 +78,8 @@ async function drain(){
   busy = true;
   while (queue.length){
     const it = queue.shift();
-    if (!started){ started = true; await SRUI.setup(app, it.view); }
+    if (!started){ started = true; await SRUI.setup(app, it.view);
+      const a = (it.events || []).find(e => e.type === "announce"); if (a) SRUI.announce(app, a); }
     else await SRUI.playEvents(app, it.events, it.view);
     curView = it.view; sel = null; buildControls();
   }

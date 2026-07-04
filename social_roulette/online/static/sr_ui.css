@@ -64,6 +64,12 @@ input::placeholder{color:var(--noise)}
 .seat .pips{display:flex;gap:3px;justify-content:center;margin-top:4px;height:6px}
 .seat .pips i{width:6px;height:6px;background:var(--fg);display:block}
 .seat .held{font-family:var(--mono);font-size:8px;letter-spacing:.12em;color:var(--noise);margin-top:2px}
+/* immunity markers above the head: "P3M" over P1 = P3 put immunity on P1 (P1 can't shoot P3) */
+.seat .imm{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);display:flex;gap:3px;
+  margin-bottom:3px;white-space:nowrap}
+.seat .immtag{font-family:var(--mono);font-size:9px;border:1px solid var(--fg);padding:1px 3px;line-height:1.15}
+.seat .immtag b{font-weight:700;font-size:7px;vertical-align:super;margin-left:1px}
+.seat.dead .imm{display:none}
 .seat.current .badge{box-shadow:0 0 0 3px var(--bg),0 0 0 4.5px var(--fg)}
 .seat.me .name{text-decoration:underline;text-underline-offset:3px}
 .seat.dead{opacity:.3}.seat.dead .badge{border-style:dashed}.seat.dead .form{display:none}
@@ -74,19 +80,16 @@ input::placeholder{color:var(--noise)}
 .seat.dying .badge{animation:collapse .5s cubic-bezier(.7,0,.3,1) forwards}
 @keyframes collapse{0%{transform:scale(1)}55%{transform:scale(.6) rotate(8deg)}100%{transform:scale(.9)}}
 
-/* center gun + cylinder */
+/* center: minimal turn DIAL + a gliding, pulsing dot (no arrow, no chamber count) */
 #center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:34%;height:34%;display:flex;align-items:center;justify-content:center}
-#cylinder{position:absolute;width:100%;height:100%;border:1.5px solid var(--fg);border-radius:50%}
-#cylinder .hole{position:absolute;width:14%;height:14%;border:1.4px solid var(--fg);border-radius:50%;
-  transform:translate(-50%,-50%);transition:background .25s}
-#cylinder .hole.fired{background:var(--fg)}
-#barrel{position:absolute;left:50%;top:50%;height:2.5px;width:85%;background:var(--fg);
-  transform-origin:0 50%;transition:transform .5s cubic-bezier(.5,0,.2,1);pointer-events:none}
-#barrel::after{content:"";position:absolute;right:-2px;top:-4px;border-left:10px solid var(--fg);
-  border-top:5.5px solid transparent;border-bottom:5.5px solid transparent}
-#readout{position:absolute;bottom:-24px;left:50%;transform:translateX(-50%);
-  font-family:var(--mono);font-size:10px;letter-spacing:.08em;white-space:nowrap}
+  width:30%;height:30%;display:flex;align-items:center;justify-content:center}
+#dial{position:absolute;width:100%;height:100%;border:1.5px solid var(--fg);border-radius:50%;opacity:.5}
+#dotarm{position:absolute;left:50%;top:50%;width:50%;height:2px;transform-origin:0 50%;
+  transition:transform .55s cubic-bezier(.5,0,.2,1);pointer-events:none}
+#turndot{position:absolute;right:-6px;top:50%;width:11px;height:11px;border-radius:50%;background:var(--fg);
+  transform:translateY(-50%);animation:beat 1.5s ease-in-out infinite}
+@keyframes beat{0%,100%{transform:translateY(-50%) scale(1);box-shadow:0 0 0 0 var(--fg)}
+  50%{transform:translateY(-50%) scale(1.4);box-shadow:0 0 12px 2px var(--fg)}}
 #center.recoil{animation:recoil .18s ease}
 @keyframes recoil{25%{transform:translate(-50%,-50%) translateX(-5px)}50%{transform:translate(-50%,-50%) translateX(5px)}75%{transform:translate(-50%,-50%) translateX(-3px)}}
 #center.shudder{animation:shudder .28s ease}
