@@ -17,6 +17,18 @@ def test_human_turn_has_legal_and_rejects_bad_input():
         r.apply((seat + 1) % 5, 0)               # not that seat's turn
 
 
+def test_human_goes_first_no_unseen_preplay():
+    """The turn starts at the human wherever the shuffle seated them, so nobody plays
+    before the first human turn — the opening board shows NO pre-applied state (fixes the
+    'stale-looking' immunity) and the human leads the ring (fixes turn-order layout)."""
+    r = Room(human_seats={2}, seed=0)
+    assert r.current == 2 and r.seating[0] == 2
+    v = r.view(2)
+    assert v["order"][0] == 2
+    assert all(p["lives"] == 3 for p in v["players"])          # nothing shot yet
+    assert all(p["immune_from"] == [] for p in v["players"])   # no immunity placed unseen
+
+
 def test_human_action_advances_and_bots_autoplay():
     r = Room(human_seats={0}, seed=0)            # seat 0 human, rest bots
     assert r.current == 0 and r.winner is None   # leading bots auto-played in __init__

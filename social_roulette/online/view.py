@@ -38,7 +38,7 @@ def action_shape(action):
     return {"kind": "other", "item": None, "target": None}
 
 
-def seat_view(state, seat, ex, feed=None):
+def seat_view(state, seat, ex, feed=None, seating=None):
     me = player_by_id(state, seat)
     # immune_from = the caster ids this player is BARRED from shooting (public, like flips).
     # P1.immune_from=[3] renders "P3" above P1 → P3 put immunity on P1; clears when P1 shoots.
@@ -56,6 +56,9 @@ def seat_view(state, seat, ex, feed=None):
     return {
         "you": seat,
         "players": players,
+        # fixed physical seating (turn order) — the ring is laid out by this so turns advance
+        # to ADJACENT seats and the turn-dot proceeds in order (game_guide:166, public).
+        "order": list(seating) if seating is not None else [p.id for p in state.players],
         "your_hand": {it.name: c for it, c in me.inventory.items()},
         "item_counts": counts,
         # NO persistent chamber counts — game_guide:159 announces total/live ONCE at load, then

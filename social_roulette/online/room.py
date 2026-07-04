@@ -44,16 +44,25 @@ class Room:
         self.state = new_game(num_players, seed)
         self.state.comms_enabled = False
         self.state.social_enabled = False
-        self.extras = {i: Extras() for i in range(num_players)}
+        if self.human:
+            # Rotate the (random) seating so the turn STARTS at a human: nobody plays before the
+            # first human turn, so no state is applied unseen (a bot immunity/flip/shot the human
+            # never witnessed would otherwise look like stale data on the opening board).
+            order = self.state.order
+            fh = next(pid for pid in order if pid in self.human)
+            i = order.index(fh)
+            self.state.order = order[i:] + order[:i]
+            self.state.current_id = self.state.order[0]
+        self.seating = list(self.state.order)   # FIXED physical circle — the ring is laid out by this,
+        self.extras = {i: Extras() for i in range(num_players)}   # so turns advance to ADJACENT seats.
         for e in self.extras.values():
             e.sync(self.state)
         self.feed = []
         self.rec = Recorder(seed)
         self._turn = 0
         self.last_events = []
-        self._run_bots()               # auto-play any leading bot seats
-        # leading-bot turns are NOT streamed; the ONE thing the first view carries is the
-        # public opening announce of the chamber counts (game_guide:159 "announced at load").
+        self._run_bots()               # no-op when a human leads; else auto-plays leading bots
+        # the first view carries only the public opening announce (game_guide:159 "announced at load").
         self.last_events = [self._announce()]
 
     def _announce(self):
@@ -73,7 +82,7 @@ class Room:
         return seat not in self.human
 
     def view(self, seat):
-        return seat_view(self.state, seat, self.extras[seat].d(), self.feed)
+        return seat_view(self.state, seat, self.extras[seat].d(), self.feed, self.seating)
 
     def apply(self, seat, i):
         if self.winner is not None or seat != self.state.current_id:
