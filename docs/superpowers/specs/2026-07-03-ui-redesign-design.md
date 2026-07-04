@@ -87,11 +87,32 @@ start-state. (No engine changes; same seam as the online-game spec.)
 ## Out of scope (v1 redesign)
 Sound · 3D · particle systems · per-letter physics. Keep it flat, monochrome, minimal.
 
-## Next
-Wire the aesthetic (circular table, form-teams, logo) + the Terminal decoder +
-event-stream animations into `static/index.html` + `server.py`, then deploy.
+## BUILT — 2026-07-03 (mobile-locked; verified live in Chrome)
+Shipped as the online UI. Pivoted mid-build to **mobile-first, LOCKED viewport** (user:
+"played on mobile … fit on screen without need — even capability — for resizing or scrolling").
 
-**Gotcha:** `server.py` currently serves only `/` via `FileResponse` — there is **no static mount**,
-so the logo file (and any asset) will 404 in the real UI. Add
-`app.mount("/static", StaticFiles(directory=STATIC), name="static")` (from `fastapi.staticfiles`)
-and reference `/static/logo.jpeg`. (The demos dodge this only because `http.server :8010` serves the dir directly.)
+- **Files:** `static/index.html` (WS glue + tap-to-target state machine + anim queue),
+  `static/sr_ui.css` (mobile-locked B&W), `static/sr_ui.js` (pure visual layer:
+  `render`/`playEvents`/`setup`/`decoder`, no WS / no load-time side effects).
+  Backend: `room.py` (event recorder), `server.py` (events broadcast + race-safe
+  delta captured inside the lock + `/static` mount), `view.py` (structured
+  `kind/item/target` on each legal action).
+- **Lock:** `100svh` + `body{overflow:hidden}` + viewport-lock meta; `#app` phone
+  frame `min(100vw,440px)`; ring sized by CONTAINER units (`cqh/cqw`, NOT `vw` —
+  frame-relative, so desktop tests are faithful); `env(safe-area-inset-*)`.
+- **Interaction:** 14 flat buttons → **tap-to-target** (verb → item picker → tap a
+  seat). `(kind,item,target)` is unique across `legal_actions`, so each tap = ONE action.
+- **Animations:** live shot = white-flash inversion · blank = shudder · death =
+  collapse · reload/flip = toast; bot-cascade time budget + click-to-skip; `setup`
+  plays to the ACTUAL first view; Terminal binary decoder for text.
+- **Event stream (load-bearing correction):** the earlier "recorder ALREADY produces
+  these" was only HALF-true — `Room` wired NO recorder (bots passed none; the human
+  bypassed `take_policy_turn`). Now wired; events carry only PUBLIC fields (`extra`
+  dropped → no Magnifier-peek leak). The just-fired shell is public (`game_guide:150-160`).
+- **Verified:** live Chrome playthrough to a winner, 0 console errors; dock fits at
+  688 and worst-case 620 with slack; 179 tests green.
+- **Caveat:** zoom-lock is best-effort on iOS (Safari ignores `user-scalable=no`).
+
+## Next
+Deploy to Render (needs user's GitHub + Render signup). The `/static` mount 404 is FIXED.
+Run locally: `python -m uvicorn social_roulette.online.server:app --port 8012`.
