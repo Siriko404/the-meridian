@@ -129,9 +129,13 @@ Run: `python -m uvicorn social_roulette.online.server:app --port 8015` → http:
   items pay (`room.flip` + `{type:'flip',target,items}`; `view` exposes flip `cost`; engine
   `pay_cost` re-validates). BEER toasts "SHELL OUT", clears a stale Magnifier peek, and
   re-announces if it empties the chamber.
-- **Verified live:** flip picker (P1 BLUE→RED, chosen beers spent, cigarette KEPT); you-first +
-  turn-order; bigger text fits; 5s announce; slower cascade. **181 tests pass** (8 RL modules
-  UNCOLLECTABLE in this env — missing `gymnasium`/`sb3_contrib`; pre-existing, out of scope).
+- **Verified live** (single human + 4 bots, desktop Chrome at a phone-*frame*): flip picker
+  (P1 BLUE→RED, chosen beers spent, cigarette KEPT); you-first + turn-order; bigger text fits; 5s
+  announce; slower cascade. **181 tests pass** (8 RL modules UNCOLLECTABLE here — missing
+  `gymnasium`/`sb3_contrib`; pre-existing, out of scope).
+- **UNVERIFIED (do before deploy):** 2+ real humans / turn-passing between humans · reconnect
+  mid-game · landscape · a real physical phone · the beer "SHELL OUT" toast (backend tested;
+  toast path trusted but not seen this session).
 
 ## ⛔ OPEN — user decision #3b ("see 2 bullets"), do NOT build until answered
 User: "players can see 2 bullets … know if next is final; never nature." This CONTRADICTS his own
