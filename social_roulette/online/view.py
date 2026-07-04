@@ -25,6 +25,19 @@ def action_label(state, action):
     return str(action)
 
 
+def action_shape(action):
+    """Structured form so the mobile UI maps a verb + a seat-tap to ONE legal
+    action (kind, item, target) — no label-string parsing. (kind,item,target) is
+    unique across a turn's legal actions: see engine.actions.legal_actions."""
+    if isinstance(action, Shoot):
+        return {"kind": "shoot", "item": None, "target": action.target_id}
+    if isinstance(action, UseItem):
+        return {"kind": "item", "item": action.item.name, "target": action.target_id}
+    if isinstance(action, Flip):
+        return {"kind": "flip", "item": None, "target": action.target_id}
+    return {"kind": "other", "item": None, "target": None}
+
+
 def seat_view(state, seat, ex, feed=None):
     me = player_by_id(state, seat)
     players = [{"id": p.id, "team": p.team.name, "lives": p.lives,
@@ -35,7 +48,7 @@ def seat_view(state, seat, ex, feed=None):
             counts[it.name] += c
     legal = []
     if state.winner is None and state.current_id == seat:
-        legal = [{"i": i, "label": action_label(state, a)}
+        legal = [{"i": i, "label": action_label(state, a), **action_shape(a)}
                  for i, a in enumerate(legal_actions(state, seat))]
     return {
         "you": seat,

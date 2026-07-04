@@ -10,12 +10,14 @@ import secrets
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from social_roulette.online.room import Room, IllegalAction
 
 app = FastAPI()
 HERE = os.path.dirname(__file__)
 STATIC = os.path.join(HERE, "static")
+app.mount("/static", StaticFiles(directory=STATIC), name="static")   # logo + shared UI assets
 NUM = 5
 
 
@@ -44,10 +46,10 @@ async def _send(ws, msg):
         pass
 
 
-async def _broadcast_views(lb):
+async def _broadcast_views(lb, events=None):
     for m in lb.members:
         if m["ws"] is not None and m["seat"] is not None:
-            await _send(m["ws"], {"type": "view", **lb.room.view(m["seat"])})
+            await _send(m["ws"], {"type": "view", "events": events or [], **lb.room.view(m["seat"])})
 
 
 async def _lobby_state(lb):
@@ -112,7 +114,8 @@ async def ws(ws: WebSocket):
                     except IllegalAction as e:
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
-                await _broadcast_views(lb)
+                    events = lb.room.last_events          # capture delta INSIDE the lock (no cross-apply overwrite)
+                await _broadcast_views(lb, events)
                 if lb.room.winner is not None:
                     for m in lb.members:
                         if m["ws"] is not None:
