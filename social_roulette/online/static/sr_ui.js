@@ -1,16 +1,14 @@
 /* Social Roulette — pure visual layer. No WebSocket, no bootstrap, no load-time
- * side effects. render() draws the BOARD; #controls (verb bar + tap-to-target)
- * are owned by index.html glue.
- *   SRUI.render(root, view)               redraw board
- *   SRUI.setTargets(root, ids)/clearTargets(root)
- *   SRUI.playEvents(root, events, view)   animate deltas (slow, labelled), settle
- *   SRUI.setup(root, view)                opening animation
- *   SRUI.decoder(el, text, opts)/toast(root, text)/announce(root, e) */
+ * side effects. render() draws the BOARD (seats laid out in TURN ORDER); #controls
+ * (verb bar + tap-to-target) are owned by index.html glue.
+ *   SRUI.render(root, view) / setTargets / clearTargets
+ *   SRUI.playEvents(root, events, view)   slow, labelled cascade, then settle
+ *   SRUI.setup(root, view) / decoder / toast(root, text, hold) / announce(root, e) */
 (function (global) {
   "use strict";
   const bit = () => (Math.random() < 0.5 ? "0" : "1");
   const el = (root, id) => root.querySelector("#" + id);
-  let _skip = false;
+  let _skip = false, _tt = null;
   const wait = (ms) => new Promise((res) => (_skip || ms <= 0 ? res() : setTimeout(res, ms)));
 
   function decoder(node, text, opts) {
@@ -42,19 +40,18 @@
   }
   const form = (team) => (team === "RED" ? "filled" : "hollow");
 
-  /* the central turn-dot glides to `seat`'s angle (replaces the old barrel arrow) */
-  function dotTo(root, n, seat) {
-    const arm = el(root, "dotarm");
-    if (arm) arm.style.transform = "rotate(" + seatPos(n, seat).deg + "deg)";
+  /* turn-dot glides to `seat`'s RING position (order index → adjacent seats advance in order) */
+  function dotTo(root, order, seat) {
+    const arm = el(root, "dotarm"), i = order.indexOf(seat);
+    if (arm && i >= 0) arm.style.transform = "rotate(" + seatPos(order.length, i).deg + "deg)";
   }
 
   function render(root, v) {
-    const n = v.players.length;
+    const order = v.order || v.players.map((p) => p.id), n = order.length;
     el(root, "seats").innerHTML = v.players.map((p) => {
-      const pos = seatPos(n, p.id);
+      const pos = seatPos(n, order.indexOf(p.id));
       const cls = ["seat", p.id === v.current ? "current" : "", p.id === v.you ? "me" : "", p.alive ? "" : "dead"].join(" ").trim();
       const pips = Array.from({ length: Math.max(0, p.lives) }, () => "<i></i>").join("");
-      // immunity markers above the head: "P3M" over P1 = P3 put immunity on P1 (P1 can't shoot P3)
       const imm = (p.immune_from || []).map((c) => `<span class="immtag">P${c}<b>M</b></span>`).join("");
       return `<div class="${cls}" data-seat="${p.id}" style="left:${pos.left}%;top:${pos.top}%">
         <div class="imm">${imm}</div>
@@ -62,7 +59,7 @@
         <div class="name">P${p.id}</div><div class="pips">${pips}</div>
         ${p.handcuffed ? '<div class="held">HELD</div>' : ""}</div>`;
     }).join("");
-    dotTo(root, n, v.current);
+    dotTo(root, order, v.current);
     const items = Object.entries(v.your_hand || {}).filter(([, c]) => c > 0);
     el(root, "hand").innerHTML = items.length
       ? items.map(([t, c]) => `<div class="card"><div class="t">${t}</div><div class="c">${c}</div></div>`).join("")
@@ -78,38 +75,46 @@
     ids.forEach((id) => { const s = root.querySelector(`.seat[data-seat="${id}"]`); if (s) s.classList.add("selectable"); });
   }
 
-  function toast(root, text) {
+  /* JS-timed toast so each message can HOLD for a chosen duration (announce = 5s) */
+  function toast(root, text, hold) {
     const t = el(root, "toast");
-    t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
+    clearTimeout(_tt);
+    t.style.transition = "none"; t.style.opacity = "1";
     decoder(t, text, { dur: 440 });
+    _tt = setTimeout(() => { t.style.transition = "opacity .6s"; t.style.opacity = "0"; }, hold || 1500);
   }
-  const announce = (root, e) => toast(root, `${e.total} SHELLS · ${e.live} LIVE`);
+  const announce = (root, e) => toast(root, `${e.total} SHELLS · ${e.live} LIVE`, 5000);
 
-  /* SLOW, LABELLED cascade so a human can read who shot whom (user: "make it slower") */
-  const DUR = { shot: 850, elimination: 720, reload: 900, flip: 650, announce: 1100 };
-  const BEAT = 150;
+  /* SLOW, LABELLED, IN-ORDER cascade so a human can follow who did what after their shot */
+  const DUR = { shot: 1500, item: 1200, elimination: 1400, reload: 1700, flip: 1200, announce: 5000 };
+  const BEAT = 450;
   async function playEvents(root, events, endView) {
     _skip = false; events = events || [];
-    const n = (endView && endView.players.length) || root.querySelectorAll(".seat").length || 5;
+    const order = (endView && endView.order) || (endView && endView.players.map((p) => p.id)) || [0, 1, 2, 3, 4];
     for (const e of events) {
-      if (e.type === "announce" || e.type === "reload") { announce(root, e); await wait(DUR.announce); }
+      if (e.type === "announce" || e.type === "reload") { toast(root, `${e.total} SHELLS · ${e.live} LIVE`, DUR.announce); await wait(DUR.announce); }
       else if (e.type === "shot") {
-        dotTo(root, n, e.actor); await wait(260);                 // dot glides to the acting player first
+        dotTo(root, order, e.actor); await wait(340);              // dot glides to the shooter first
         const live = e.shell === "LIVE", center = el(root, "center");
         const tgt = e.actor === e.target ? "SELF" : `P${e.target}`;
-        toast(root, `P${e.actor} → ${tgt} · ${live ? "BANG" : "CLICK"}`);
+        toast(root, `P${e.actor} → ${tgt} · ${live ? "BANG" : "CLICK"}`, DUR.shot);
         if (live) {
           const f = el(root, "flash"); f.classList.remove("bang"); void f.offsetWidth; f.classList.add("bang");
           center.classList.remove("recoil"); void center.offsetWidth; center.classList.add("recoil");
         } else { center.classList.remove("shudder"); void center.offsetWidth; center.classList.add("shudder"); }
         await wait(DUR.shot);
       }
+      else if (e.type === "item") {
+        dotTo(root, order, e.actor);
+        toast(root, `P${e.actor} · ${e.item}${e.target != null ? " → P" + e.target : ""}`, DUR.item);
+        await wait(DUR.item);
+      }
       else if (e.type === "elimination") {
         const s = root.querySelector(`.seat[data-seat="${e.target}"]`); if (s) s.classList.add("dying");
-        toast(root, `P${e.target} OUT`); await wait(DUR.elimination);
+        toast(root, `P${e.target} OUT`, DUR.elimination); await wait(DUR.elimination);
       }
-      else if (e.type === "flip") { toast(root, `FLIP P${e.target}`); await wait(DUR.flip); }
-      await wait(BEAT);                                            // a readable beat between actions
+      else if (e.type === "flip") { toast(root, `P${e.actor} FLIP P${e.target}`, DUR.flip); await wait(DUR.flip); }
+      await wait(BEAT);
     }
     if (endView) render(root, endView);
   }
@@ -122,14 +127,14 @@
     [...seats, ...cards, dial, arm].forEach((n) => n && (n.style.opacity = "0"));
     const turn = el(root, "turn");
     table.style.transition = "opacity .4s"; table.style.opacity = "1";
-    await decoder(turn, "ASSIGNING TEAMS", { dur: 500 });
-    for (const s of seats) { s.style.transition = "opacity .25s"; s.style.opacity = "1"; await wait(80); }
-    await decoder(turn, "LOADING CHAMBER", { dur: 500 });
+    await decoder(turn, "ASSIGNING TEAMS", { dur: 520 });
+    for (const s of seats) { s.style.transition = "opacity .25s"; s.style.opacity = "1"; await wait(90); }
+    await decoder(turn, "LOADING CHAMBER", { dur: 520 });
     [dial, arm].forEach((x) => x && (x.style.transition = "opacity .4s", x.style.opacity = "1"));
-    await wait(320);
-    await decoder(turn, "DEALING", { dur: 400 });
-    for (const c of cards) { c.style.transition = "opacity .2s"; c.style.opacity = "1"; await wait(100); }
-    await wait(140); turn.dataset.label = ""; render(root, v);
+    await wait(340);
+    await decoder(turn, "DEALING", { dur: 420 });
+    for (const c of cards) { c.style.transition = "opacity .2s"; c.style.opacity = "1"; await wait(110); }
+    await wait(160); turn.dataset.label = ""; render(root, v);
   }
 
   global.SRUI = { render, setTargets, clearTargets, playEvents, setup, decoder, toast, announce, skip: () => (_skip = true), seatPos };
