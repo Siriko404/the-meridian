@@ -97,6 +97,29 @@ class Room:
         self._run_bots()
         self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
 
+    def flip(self, seat, target_id, item_names):
+        """A flip with a player-CHOSEN payment. The engine's pay_cost re-validates that
+        the sacrifice is owned and its point value covers the cost (4 flip-back, else 5)."""
+        if self.winner is not None or seat != self.state.current_id:
+            raise IllegalAction("not your turn")
+        if target_id not in living_ids(self.state):
+            raise IllegalAction("bad flip target")
+        try:
+            sacrifice = [Item[n] for n in item_names]
+        except KeyError:
+            raise IllegalAction("bad payment item")
+        n0 = len(self.rec.rows)
+        try:
+            engine_step(self.state, seat, Flip(target_id, sacrifice))
+        except ValueError as e:
+            raise IllegalAction(str(e))
+        self.rec.flip(self._turn, seat, target_id, [it.name for it in sacrifice],
+                      player_by_id(self.state, target_id).team.name)
+        for e in self.extras.values():
+            e.sync(self.state)
+        self._run_bots()
+        self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
+
     def _emit_human_action(self, seat, action):
         """Step the engine for the human's one committed action and record the
         matching event(s), mirroring take_policy_turn's per-sub-action emission."""
@@ -119,10 +142,16 @@ class Room:
             self.rec.flip(self._turn, seat, tgt, [it.name for it in action.sacrifice],
                           player_by_id(self.state, tgt).team.name)
         else:                                       # UseItem (Trade/Speak impossible: social/comms disabled)
+            it = getattr(action, "item", None)
             engine_step(self.state, seat, action)
-            if getattr(action, "item", None) == Item.MAGNIFIER:
+            if it == Item.MAGNIFIER:
                 self.extras[seat].peek(self.state)
+            elif it == Item.BEER:
+                self.extras[seat].known = "unknown"     # the peeked shell was ejected → clear the stale peek
             self.rec.item_used(self._turn, seat, action.item.name, action.target_id, {})
+            if self.state.chamber is not ch_before and self.state.winner is None:   # Beer emptied it → reload
+                live = sum(1 for s in self.state.chamber.shells if s == Shell.LIVE)
+                self.rec.reload(self._turn, "empty", len(self.state.chamber.shells), live)
 
     def _run_bots(self):
         while self.state.winner is None and self.is_bot(self.state.current_id):

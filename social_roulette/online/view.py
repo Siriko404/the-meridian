@@ -51,8 +51,11 @@ def seat_view(state, seat, ex, feed=None, seating=None):
             counts[it.name] += c
     legal = []
     if state.winner is None and state.current_id == seat:
-        legal = [{"i": i, "label": action_label(state, a), **action_shape(a)}
-                 for i, a in enumerate(legal_actions(state, seat))]
+        for i, a in enumerate(legal_actions(state, seat)):
+            entry = {"i": i, "label": action_label(state, a), **action_shape(a)}
+            if isinstance(a, Flip):   # point cost the client's payment picker must cover (4 = flip-back)
+                entry["cost"] = 4 if (a.target_id == seat and me.flipback_discount) else 5
+            legal.append(entry)
     return {
         "you": seat,
         "players": players,

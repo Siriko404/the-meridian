@@ -122,6 +122,16 @@ async def ws(ws: WebSocket):
                         if m["ws"] is not None:
                             await _send(m["ws"], {"type": "end", "winner": lb.room.winner})
 
+            elif t == "flip" and lb and lb.room and me and me["seat"] is not None:
+                async with lb.lock:                      # flip with a CHOSEN payment {target, items:[names]}
+                    try:
+                        lb.room.flip(me["seat"], int(msg.get("target", -1)), msg.get("items") or [])
+                    except IllegalAction as e:
+                        await _send(ws, {"type": "error", "msg": str(e)})
+                        continue
+                    events = lb.room.last_events
+                await _broadcast_views(lb, events)
+
             elif t == "chat" and lb and me:
                 text = str(msg.get("text", ""))[:200]
                 if lb.room is not None:
