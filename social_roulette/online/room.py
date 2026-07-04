@@ -10,6 +10,8 @@ action + any bot turns it triggered) into `last_events`: the client replays
 them, then settles to the new per-seat view. Events carry only PUBLIC fields
 (fired shell, damage, death, flip) — never the hidden shell order or a peek.
 """
+import json
+
 from social_roulette.engine.engine import new_game, step as engine_step
 from social_roulette.engine.constants import Item, Shell
 from social_roulette.engine.actions import legal_actions, Shoot, Flip
@@ -24,6 +26,11 @@ _ANIM_KEYS = ("type", "actor", "target", "shell", "damage", "killed", "item")
 
 
 def _anim(row):
+    # A reload is a fresh LOAD → its announced total/live are PUBLIC (game_guide:159).
+    # Surface just those two from `extra`; every other event still drops `extra` (no peek leak).
+    if row["type"] == "reload":
+        ex = json.loads(row["extra"]) if row.get("extra") else {}
+        return {"type": "reload", "total": ex.get("new_total"), "live": ex.get("new_live")}
     return {k: row[k] for k in _ANIM_KEYS if k in ("type", "actor") or row.get(k) is not None}
 
 
@@ -45,7 +52,14 @@ class Room:
         self._turn = 0
         self.last_events = []
         self._run_bots()               # auto-play any leading bot seats
-        self.last_events = []          # leading-bot turns are NOT streamed (game begins at first human view)
+        # leading-bot turns are NOT streamed; the ONE thing the first view carries is the
+        # public opening announce of the chamber counts (game_guide:159 "announced at load").
+        self.last_events = [self._announce()]
+
+    def _announce(self):
+        ch = self.state.chamber
+        return {"type": "announce", "total": len(ch.shells),
+                "live": sum(1 for s in ch.shells if s == Shell.LIVE)}
 
     @property
     def winner(self):

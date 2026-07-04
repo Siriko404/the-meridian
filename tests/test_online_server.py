@@ -21,6 +21,7 @@ def test_full_game_over_ws_no_leak():
                 blob = json.dumps(m)
                 assert "shells" not in blob                           # hidden shell ORDER never sent
                 assert "inventory" not in blob                        # no foreign hands
+                assert "chamber" not in m                             # no persistent running count (game_guide:159)
                 for e in m.get("events", []):
                     assert "extra" not in e                           # no raw extra (Magnifier peek) leak
                     if e["type"] == "shot":

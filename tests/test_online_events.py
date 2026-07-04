@@ -4,12 +4,15 @@ hidden info (shell order, foreign peeks) through them."""
 from social_roulette.online.room import Room
 
 
-def test_all_bot_room_streams_nothing():
-    """Leading/all-bot turns that run inside __init__ are NOT streamed — the game
-    'begins' at the first human view, so last_events starts empty."""
+def test_first_view_carries_only_the_announce():
+    """Leading/all-bot turns run in __init__ are NOT streamed. The ONE thing the first
+    view carries is the public opening chamber announce (game_guide:159), never the
+    running count in the persistent view."""
     r = Room(human_seats=set(), seed=0)     # everyone a bot => finishes in __init__
     assert r.winner is not None
-    assert r.last_events == []
+    assert len(r.last_events) == 1 and r.last_events[0]["type"] == "announce"
+    a = r.last_events[0]
+    assert a["total"] > 0 and 0 <= a["live"] <= a["total"]
 
 
 def test_human_shot_emits_shot_event():
@@ -36,7 +39,7 @@ def test_events_never_leak_hidden_state():
         if r.current == 0:
             r.apply(0, 0)
         for e in r.last_events:
-            assert "extra" not in e                             # no raw extra blob
+            assert "extra" not in e                             # no raw extra blob (no peek leak)
             assert "shells" not in e                            # no shell order
             assert set(e).issubset(
-                {"type", "actor", "target", "shell", "damage", "killed", "item"})
+                {"type", "actor", "target", "shell", "damage", "killed", "item", "total", "live"})

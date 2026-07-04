@@ -40,8 +40,11 @@ def action_shape(action):
 
 def seat_view(state, seat, ex, feed=None):
     me = player_by_id(state, seat)
-    players = [{"id": p.id, "team": p.team.name, "lives": p.lives,
-                "alive": p.alive, "handcuffed": p.handcuffed} for p in state.players]
+    # immune_from = the caster ids this player is BARRED from shooting (public, like flips).
+    # P1.immune_from=[3] renders "P3" above P1 → P3 put immunity on P1; clears when P1 shoots.
+    players = [{"id": p.id, "team": p.team.name, "lives": p.lives, "alive": p.alive,
+                "handcuffed": p.handcuffed, "immune_from": sorted(p.immunity_against)}
+               for p in state.players]
     counts = {it: 0 for it in ITEMS}
     for p in state.players:
         for it, c in p.inventory.items():
@@ -55,7 +58,8 @@ def seat_view(state, seat, ex, feed=None):
         "players": players,
         "your_hand": {it.name: c for it, c in me.inventory.items()},
         "item_counts": counts,
-        "chamber": {"total": ex["announced_total"], "live": ex["announced_live"], "fired": state.chamber.pos},
+        # NO persistent chamber counts — game_guide:159 announces total/live ONCE at load, then
+        # players track depletion from memory. Counts ride the announce/reload EVENTS only.
         "peek": ex["known_next_shell"],
         "current": state.current_id,
         "winner": state.winner,

@@ -15,10 +15,11 @@ def test_view_hides_other_hands_and_shell_order():
     assert isinstance(v["your_hand"], dict)
     for p in v["players"]:
         assert "inventory" not in p and "hand" not in p and "items" not in p
-        assert set(p.keys()) <= {"id", "team", "lives", "alive", "handcuffed"}
+        assert set(p.keys()) <= {"id", "team", "lives", "alive", "handcuffed", "immune_from"}
     blob = json.dumps(v)
     assert "LIVE" not in blob and "BLANK" not in blob
-    assert "shells" not in v and "chamber" in v
+    # chamber counts are NEVER persistently sent (announced via events only, game_guide:159)
+    assert "shells" not in v and "chamber" not in v
 
 
 def test_view_shows_only_own_peek():

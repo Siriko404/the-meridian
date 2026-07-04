@@ -105,7 +105,8 @@ async def ws(ws: WebSocket):
                         m["seat"] = seat
                     human_seats = {m["seat"] for m in lb.members if m["seat"] is not None}
                     lb.room = Room(human_seats=human_seats, seed=_seed_from(lb.code))
-                await _broadcast_views(lb)
+                    events = lb.room.last_events        # [announce] — the opening chamber counts
+                await _broadcast_views(lb, events)
 
             elif t == "action" and lb and lb.room and me and me["seat"] is not None:
                 async with lb.lock:
