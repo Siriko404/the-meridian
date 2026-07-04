@@ -1,60 +1,137 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Social Roulette</title>
-<style>
- body{font-family:system-ui;margin:0;background:#111;color:#eee}
- #app{max-width:760px;margin:0 auto;padding:16px}
- .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
- .p{border:1px solid #444;border-radius:8px;padding:8px;min-width:90px;text-align:center}
- .dead{opacity:.4}.me{outline:2px solid #6cf}
- .red{color:#f77}.blue{color:#7af}
- button{background:#2a2a2a;color:#eee;border:1px solid #555;border-radius:6px;padding:8px 10px;cursor:pointer}
- button:hover{background:#3a3a3a}
- #feed{height:140px;overflow:auto;background:#000;border:1px solid #333;padding:6px;font-size:13px;margin:8px 0}
- input{background:#222;color:#eee;border:1px solid #555;border-radius:6px;padding:8px}
- h2,h3{margin:8px 0}
-</style></head><body><div id="app">
- <div id="setup"><h2>🔫 Social Roulette</h2>
-  <div class="row"><input id="name" placeholder="your name"><input id="code" placeholder="invite code (blank = new room)"><button onclick="join()">Join</button></div>
-  <p id="hint" style="color:#888">Blank code makes a new room. Share the code shown next.</p></div>
- <div id="lobby" style="display:none"><h3>Lobby — code <span id="lcode" style="color:#6cf"></span></h3><div id="members"></div><br><button id="startbtn" style="display:none" onclick="send({type:'start'})">Start game (fills empty seats with bots)</button></div>
- <div id="game" style="display:none">
-  <div class="row" id="players"></div>
-  <p id="chamber"></p><p id="peek" style="color:#fd6"></p>
-  <div class="row" id="actions"></div>
-  <div id="feed"></div>
-  <div class="row"><input id="chat" placeholder="say something…" onkeydown="if(event.key==='Enter')chat()"><button onclick="chat()">Send</button></div>
- </div></div>
+<link rel="stylesheet" href="/static/sr_ui.css">
+</head><body><div id="app">
+
+  <section id="setup" class="screen on">
+    <div id="brand"><img src="/static/logo.jpeg" alt="Social Roulette"><div class="sub">Social Roulette</div></div>
+    <div class="field">
+      <input id="name" placeholder="your name" autocomplete="off">
+      <input id="code" placeholder="invite code — blank = new" autocomplete="off">
+      <button onclick="join()">Enter</button>
+    </div>
+    <p class="hint">Blank code opens a new room. Share the code next. Empty seats fill with bots.</p>
+  </section>
+
+  <section id="lobby" class="screen">
+    <div class="sub">Room</div><div id="lcode"></div>
+    <div id="members"></div>
+    <button id="startbtn" style="display:none" onclick="send({type:'start'})">Start game</button>
+    <p class="hint">The host starts; empty seats become bots.</p>
+  </section>
+
+  <section id="game" class="screen">
+    <div id="topbar"><img src="/static/logo.jpeg" alt=""><div id="turn"></div><div id="roomcode"></div></div>
+    <div id="table"><div id="ring">
+      <div id="seats"></div>
+      <div id="center"><div id="cylinder"></div><div id="barrel"></div><div id="readout"></div></div>
+    </div></div>
+    <div id="dock">
+      <div id="peek"></div>
+      <div id="hand"></div>
+      <div id="controls"></div>
+      <div id="feedrow"><div id="feed"></div><button id="saybtn" onclick="toggleChat()">Say</button></div>
+      <div id="chatrow"><input id="chat" placeholder="say something…" autocomplete="off"><button onclick="chat()">Send</button></div>
+    </div>
+  </section>
+
+  <div id="flash"></div><div id="toast"></div>
+</div>
+
+<script src="/static/sr_ui.js"></script>
 <script>
-let ws, token=null, mySeat=null, host=false;
-function el(id){return document.getElementById(id)}
-function send(m){ws.send(JSON.stringify(m))}
+const app = document.getElementById("app");
+let ws, token = localStorage.token || null, host = false;
+let queue = [], busy = false, started = false, ended = false, endWinner = null;
+let curView = null, sel = null;             // sel: null | {menu} | {verb:'shoot'|'flip'} | {verb:'item',item}
+
+const el = id => document.getElementById(id);
+const send = m => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(m)); };
+const show = id => { document.querySelectorAll(".screen").forEach(s => s.classList.remove("on")); el(id).classList.add("on"); };
+const sys = t => { el("feed").innerHTML = `<span style="color:var(--noise)">· ${t}</span>`; };
+
 function join(){
- const proto=location.protocol==='https:'?'wss':'ws';
- ws=new WebSocket(proto+'://'+location.host+'/ws');
- ws.onopen=()=>send({type:'join',code:el('code').value,name:el('name').value,token});
- ws.onmessage=ev=>handle(JSON.parse(ev.data));
- setInterval(()=>{if(ws&&ws.readyState===1)send({type:'ping'})},20000); // keepalive vs host sleep
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(proto + "://" + location.host + "/ws");
+  ws.onopen = () => send({ type: "join", code: el("code").value, name: el("name").value, token });
+  ws.onmessage = ev => handle(JSON.parse(ev.data));
+  ws.onclose = () => sys("disconnected — reload to reconnect");
+  setInterval(() => send({ type: "ping" }), 20000);
 }
-function chat(){const t=el('chat').value;if(t){send({type:'chat',text:t});el('chat').value=''}}
+function chat(){ const t = el("chat").value.trim(); if (t){ send({ type: "chat", text: t }); el("chat").value = ""; } }
+function toggleChat(){ el("chatrow").classList.toggle("on"); if (el("chatrow").classList.contains("on")) el("chat").focus(); }
+
 function handle(m){
- if(m.type==='joined'){token=m.token;mySeat=m.seat;host=m.host;localStorage.token=token;el('setup').style.display='none';el('lobby').style.display='';el('startbtn').style.display=host?'':'none';}
- if(m.type==='lobby'){el('lcode').textContent=m.code;el('members').innerHTML=m.members.map(x=>x.name+(x.host?' 👑':'')).join(' · ');}
- if(m.type==='view'){el('lobby').style.display='none';el('game').style.display='';render(m);}
- if(m.type==='chat'){const f=el('feed');f.innerHTML+=`<div><b>${m.from}:</b> ${m.text}</div>`;f.scrollTop=f.scrollHeight;}
- if(m.type==='error'){const f=el('feed');f.innerHTML+=`<div style="color:#f77">⚠ ${m.msg}</div>`;f.scrollTop=f.scrollHeight;}
- if(m.type==='end'){el('actions').innerHTML=`🏆 <b>Winner: P${m.winner}</b> — game over`;el('peek').textContent='';}
+  if (m.type === "joined"){ token = m.token; host = m.host; localStorage.token = token; show("lobby"); el("startbtn").style.display = host ? "" : "none"; }
+  else if (m.type === "lobby"){ el("lcode").textContent = m.code; el("roomcode").textContent = m.code;
+    el("members").innerHTML = m.members.map(x => `<div class="member">${x.name}${x.host ? " · HOST" : ""}</div>`).join(""); }
+  else if (m.type === "view"){ if (!el("game").classList.contains("on")) show("game"); queue.push({ events: m.events || [], view: m }); drain(); }
+  else if (m.type === "chat"){ el("feed").innerHTML = `<b>${m.from}</b> ${m.text}`; }
+  else if (m.type === "error"){ sys("⚠ " + m.msg); if (curView) buildControls(); }
+  else if (m.type === "end"){ ended = true; endWinner = m.winner; drain(); }
 }
-function render(v){
- mySeat=v.you;
- el('players').innerHTML=v.players.map(p=>{
-  const cls=['p',p.alive?'':'dead',p.id===v.you?'me':'',p.team==='RED'?'red':'blue'].join(' ');
-  return `<div class="${cls}">P${p.id} ${p.team==='RED'?'🔴':'🔵'}<br>❤ ${p.lives}${p.handcuffed?'<br>🔒':''}</div>`;
- }).join('');
- el('chamber').textContent=`Chamber: ${v.chamber.fired} fired · announced ${v.chamber.live}/${v.chamber.total} live · your hand: ${JSON.stringify(v.your_hand)}`;
- el('peek').textContent=v.peek!=='unknown'?`🔍 next shell: ${v.peek}`:'';
- el('actions').innerHTML=(v.current===v.you&&v.winner==null)
-   ? v.legal.map(a=>`<button onclick="send({type:'action',i:${a.i}})">${a.label}</button>`).join('')
-   : (v.winner!=null?`🏆 Winner: P${v.winner}`:`Waiting for P${v.current}…`);
+
+async function drain(){
+  if (busy) return;
+  busy = true;
+  while (queue.length){
+    const it = queue.shift();
+    if (!started){ started = true; await SRUI.setup(app, it.view); }
+    else await SRUI.playEvents(app, it.events, it.view);
+    curView = it.view; sel = null; buildControls();
+  }
+  if (ended && endWinner != null){ ended = false; SRUI.toast(app, `WINNER · P${endWinner}`); }
+  busy = false;
 }
-if(localStorage.token){token=localStorage.token;}
+
+/* ---- controls: verb bar -> item picker -> tap-a-seat (each maps to ONE legal action) ---- */
+function buildControls(){
+  const v = curView, c = el("controls");
+  if (!v){ c.innerHTML = ""; return; }
+  if (v.winner != null){ c.innerHTML = `<div class="win">WINNER · P${v.winner}</div>`; SRUI.clearTargets(app); return; }
+  if (v.current !== v.you || !v.legal || !v.legal.length){ c.innerHTML = `<div class="wait">P${v.current} deciding…</div>`; SRUI.clearTargets(app); return; }
+  if (sel && sel.menu){
+    const items = [...new Set(v.legal.filter(a => a.kind === "item").map(a => a.item))];
+    c.innerHTML = items.map(it => `<button class="pick" data-item="${it}">${it}</button>`).join("") + `<button class="pick" data-cancel>Back</button>`;
+  } else if (sel){
+    const what = sel.verb === "item" ? sel.item : sel.verb.toUpperCase();
+    c.innerHTML = `<div class="prompt"><span>${what} · TAP TARGET</span><button data-cancel>Cancel</button></div>`;
+  } else {
+    const has = k => v.legal.some(a => a.kind === k);
+    let b = "";
+    if (has("shoot")) b += `<button class="verb" data-verb="shoot">Shoot</button>`;
+    if (has("item")) b += `<button class="verb" data-verb="item">Item</button>`;
+    if (has("flip")) b += `<button class="verb" data-verb="flip">Flip</button>`;
+    c.innerHTML = b;
+  }
+}
+function resetSel(){ sel = null; SRUI.clearTargets(app); buildControls(); }
+function targetsFor(pred){ SRUI.setTargets(app, curView.legal.filter(pred).map(a => a.target)); }
+
+el("controls").addEventListener("click", e => {
+  const t = e.target.closest("button"); if (!t || !curView) return;
+  if (t.dataset.cancel !== undefined){ if (sel && sel.menu) resetSel(); else if (sel){ sel = { menu: true }; SRUI.clearTargets(app); buildControls(); } else resetSel(); return; }
+  if (t.dataset.verb === "shoot"){ sel = { verb: "shoot" }; targetsFor(a => a.kind === "shoot"); buildControls(); }
+  else if (t.dataset.verb === "flip"){ sel = { verb: "flip" }; targetsFor(a => a.kind === "flip"); buildControls(); }
+  else if (t.dataset.verb === "item"){ sel = { menu: true }; SRUI.clearTargets(app); buildControls(); }
+  else if (t.dataset.item){
+    const X = t.dataset.item, entries = curView.legal.filter(a => a.kind === "item" && a.item === X);
+    const notarget = entries.find(a => a.target == null);
+    if (notarget){ act(notarget.i); } else { sel = { verb: "item", item: X }; targetsFor(a => a.kind === "item" && a.item === X); buildControls(); }
+  }
+});
+el("seats").addEventListener("click", e => {
+  if (!sel || sel.menu || !curView) return;
+  const s = e.target.closest(".seat.selectable"); if (!s) return;
+  const tgt = Number(s.dataset.seat);
+  const a = curView.legal.find(a => a.target === tgt &&
+    (sel.verb === "item" ? (a.kind === "item" && a.item === sel.item) : a.kind === sel.verb));
+  if (a) act(a.i);
+});
+function act(i){ SRUI.clearTargets(app); el("controls").innerHTML = `<div class="wait">…</div>`; sel = null; send({ type: "action", i }); }
+
+document.addEventListener("pointerdown", () => { if (busy) SRUI.skip(); });
+el("chat").addEventListener("keydown", e => { if (e.key === "Enter") chat(); });
 </script></body></html>
