@@ -11,6 +11,7 @@ them, then settles to the new per-seat view. Events carry only PUBLIC fields
 (fired shell, damage, death, flip) — never the hidden shell order or a peek.
 """
 import json
+import time
 
 from social_roulette.engine.engine import new_game, step as engine_step
 from social_roulette.engine.constants import Item, Shell
@@ -39,7 +40,14 @@ class IllegalAction(Exception):
 
 
 class Room:
-    def __init__(self, human_seats, seed, num_players=5):
+    TALK_S = 60.0
+    DECISION_S = 30.0
+
+    def __init__(self, human_seats, seed, num_players=5, now_fn=time.time):
+        self.now = now_fn
+        self.gen = 0
+        self.phase = None
+        self.phase_ends_at = None
         self.human = set(human_seats)
         self.state = new_game(num_players, seed)
         self.state.comms_enabled = False
@@ -64,6 +72,31 @@ class Room:
         self._run_bots()               # no-op when a human leads; else auto-plays leading bots
         # the first view carries only the public opening announce (game_guide:159 "announced at load").
         self.last_events = [self._announce()]
+        self._begin_phase_for_current()
+
+    def _grace(self):
+        return min(sum(5.0 if e.get("type") in ("announce", "reload") else 1.6
+                       for e in self.last_events), 20.0)
+
+    def _begin_phase_for_current(self):
+        self.gen += 1
+        if self.winner is not None:
+            self.phase = None
+            self.phase_ends_at = None
+            return
+        dur = self.DECISION_S if self.state.bonus_pending else self.TALK_S
+        self.phase = "decision" if self.state.bonus_pending else "talk"
+        self.phase_ends_at = self.now() + self._grace() + dur
+
+    def proceed(self, seat):
+        if self.winner is not None or seat != self.state.current_id:
+            raise IllegalAction("not your turn")
+        if self.phase != "talk":
+            raise IllegalAction("not in talk phase")
+        self.gen += 1
+        self.phase = "decision"
+        self.phase_ends_at = self.now() + self.DECISION_S
+        self.last_events = []
 
     def _announce(self):
         ch = self.state.chamber
@@ -96,6 +129,7 @@ class Room:
             e.sync(self.state)
         self._run_bots()
         self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
+        self._begin_phase_for_current()
 
     def flip(self, seat, target_id, item_names):
         """A flip with a player-CHOSEN payment. The engine's pay_cost re-validates that
@@ -119,6 +153,7 @@ class Room:
             e.sync(self.state)
         self._run_bots()
         self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
+        self._begin_phase_for_current()
 
     def _emit_human_action(self, seat, action):
         """Step the engine for the human's one committed action and record the
