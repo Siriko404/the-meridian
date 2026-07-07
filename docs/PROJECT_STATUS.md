@@ -84,12 +84,24 @@ are RATIFIED by the user — do not re-litigate:
   in-engine samples `game/teams_samples.html`) · no window band · text ≥13 design-px bold with
   setResolution(2) (desktop preview ≈0.78×; phones render bigger). Phaser 4.2 gotchas: setTintFill =
   silent no-op (use setTint) · camera vignette filter works · rAF throttles in backgrounded tabs.
-- **NEXT STEP (brainstorm task #3→#4): write the v2 design spec** — every game moment on this scene,
-  phase/timer UX + the SERVER machinery it needs (async deadlines, fines, auto-shoot = new Room work),
-  trade UI, theme renames as a DISPLAY-layer map (engine enums unchanged), the icon-menu principle,
-  and audit-bug fixes I9 (engine: 2nd same-caster Immunity must be illegal) + C9/V3 (view: stale
-  immunity tag from dead caster, corpse items in public counts). Then superpowers writing-plans → TDD
-  build. v1 web UI (static/index.html + sr_ui.*) still runs and stays until Phase-3 replaces it.
+- **SPEC RATIFIED + AUDITED (2026-07-08):** `docs/superpowers/specs/2026-07-07-ui-v2-phaser-design.md`
+  — walked with user; trade redesigned to bluffable offer/accept swap; items RATIFIED
+  (PASSPORT/BLACKMAIL/SPYCAM/POISON/MAGNET/SEDATIVE); counsel-audited (1 Fable expert, 31 grounded
+  records, gate PASS, `counsel-runs/2026-07-08-uiv2-spec-audit/`), all 14 findings absorbed; user
+  decisions D14 (fine publicly anonymous) + D15 (parametric seats, ship at 5).
+- **PLAN A (SERVER) — ✅ BUILT 2026-07-08 on branch `uiv2-server` (NOT yet merged to master).**
+  Plan `docs/superpowers/plans/2026-07-08-uiv2-server.md`, executed subagent-driven (opus
+  implementers + reviewers, every task review-gated; ledger `.superpowers/sdd/progress.md`).
+  **230 tests green; server boots, /health ok.** Landed: engine I9/C9/V3 fixes ·
+  `economy.fine_cheapest` + atomic `swap` · `ev["draws"]` + `state.last_skipped` ·
+  fine/skip/draw/trade events · Room phase machine (talk 60s / decision 30s, injectable clock,
+  `proceed`, `on_deadline` fines→auto-self-shoot, gen counter) · phase-gated actions · bluffable
+  trade lifecycle + privacy-enriched `events_for(seat)` · full v2 view contract · server deadline
+  tasks + `proceed`/`trade_*` WS messages + chat gate + roster. v1 web UI now DEGRADED by phases
+  (expected; retired in Plan B).
+- **NEXT: whole-branch final review → merge `uiv2-server` → Plan B (Phaser client)** via
+  writing-plans against the landed protocol: TableScene, choreographer + `moments.html` gallery
+  (user ratifies every animation), trays, v1 retirement (spec §6-§8, §11 steps 4-9).
   Unverified: cylinder feel over a full game · KIT tray overlaps bottom seats when open.
 
 ---

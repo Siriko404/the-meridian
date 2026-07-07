@@ -50,7 +50,10 @@ def apply_item(state, player_id, item, target_id=None):
     if item == Item.IMMUNITY:
         if target_id is None or target_id == player_id:
             raise ValueError("immunity needs non-self target")
-        player_by_id(state, target_id).immunity_against.add(player_id)
+        t = player_by_id(state, target_id)
+        if player_id in t.immunity_against:
+            raise ValueError("immunity already placed by this caster")
+        t.immunity_against.add(player_id)
         _consume(state, p, item)
         return {"immunity_on": target_id}
     if item == Item.HANDCUFFS:

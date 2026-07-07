@@ -10,6 +10,7 @@ def test_flip_with_chosen_payment():
     seat = r.current
     tgt = next(t for t in range(5) if t != seat)
     r.state.players[seat].inventory = {Item.BEER: 1, Item.HANDCUFFS: 1, Item.SAW: 1}
+    r.proceed(seat)                                  # flips are decision-only (§4.1) — enter decision
     with pytest.raises(IllegalAction):
         r.flip(seat, tgt, ["BEER"])                  # 4 < 5 → rejected, nothing spent
     before = r.state.players[tgt].team
@@ -52,5 +53,7 @@ def test_human_action_advances_and_bots_autoplay():
         if r.winner is not None:
             break
         if r.current == 0:
+            if r.phase == "talk":
+                r.proceed(0)                     # index 0 == Shoot(self): talk-illegal, enter decision
             r.apply(0, 0)                        # index 0 == Shoot(self)
     assert r.winner is not None

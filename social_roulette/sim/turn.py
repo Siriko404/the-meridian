@@ -49,11 +49,27 @@ def random_policy(state, pid, extras):
     return state.rng.choice(legal_actions(state, pid))
 
 
+def _sanv(v):
+    if isinstance(v, (Shell, Item)):
+        return v.name
+    if isinstance(v, dict):
+        return {k: _sanv(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_sanv(x) for x in v]
+    return v
+
+
 def _san(effect):
-    out = {}
-    for k, v in (effect or {}).items():
-        out[k] = v.name if isinstance(v, Shell) else v
-    return out
+    return {k: _sanv(v) for k, v in (effect or {}).items()}
+
+
+def _rec_draws(rec, turn_idx, res):
+    """Record a reload's per-seat refill (bot path) so the online view can hand each
+    seat ONLY its own attempted/received. No-op when the step produced no draws."""
+    if rec and isinstance(res, dict) and res.get("draws"):
+        rec.draw(turn_idx, {pid: {"attempted": [i.name for i in d["attempted"]],
+                                  "received": [i.name for i in d["received"]]}
+                            for pid, d in res["draws"].items()})
 
 
 def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
@@ -72,6 +88,7 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
             ev = step(state, pid, a)
             if rec:
                 rec.shot(turn_idx, pid, a.target_id, ev["shell"].name, ev["damage"], ev["killed"], saw)
+            _rec_draws(rec, turn_idx, ev)
             shot_done = True
             break
         if isinstance(a, Speak):
@@ -98,6 +115,7 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
                 ex.peek(state)
             if rec:
                 rec.item_used(turn_idx, pid, a.item.name, a.target_id, _san(res))
+            _rec_draws(rec, turn_idx, res)
         for e in extras_map.values():
             e.sync(state)
     if not shot_done:
@@ -106,6 +124,7 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
         ev = step(state, pid, Shoot(tgt))
         if rec:
             rec.shot(turn_idx, pid, tgt, ev["shell"].name, ev["damage"], ev["killed"], saw)
+        _rec_draws(rec, turn_idx, ev)
 
     dead = sorted(alive_before - living_ids(state))
     if rec:
@@ -116,6 +135,10 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
             rec.reload(turn_idx, "death" if dead else "empty", len(state.chamber.shells), live)
         if state.bonus_pending and state.current_id == pid:
             rec.bonus(turn_idx, pid)
+    if state.last_skipped and rec:
+        for pid_s in state.last_skipped:
+            rec.skip(turn_idx, pid_s)
+        state.last_skipped.clear()
     for e in extras_map.values():
         e.sync(state)
     return {"dead": dead}

@@ -62,5 +62,18 @@ class Recorder:
     def gift(self, turn, giver, receiver, items):
         self._emit(E.GIFT, turn=turn, actor=giver, target=receiver, extra={"items": items})
 
+    def fine(self, turn, actor, item):
+        self._emit(E.FINE, turn=turn, actor=actor, extra={"item": item})
+
+    def skip(self, turn, seat):
+        self._emit(E.SKIP, turn=turn, target=seat)
+
+    def draw(self, turn, draws):
+        self._emit(E.DRAW, turn=turn, extra={"draws": draws})
+
+    def trade(self, turn, actor, target, give, want):
+        self._emit(E.TRADE, turn=turn, actor=actor, target=target,
+                   extra={"give": give, "want": want})
+
     def match_end(self, turn, winner):
         self._emit(E.MATCH_END, turn=turn, extra={"winner": winner, "turns": turn})

@@ -60,3 +60,18 @@ def test_legal_actions_includes_items_and_shoot():
     acts = legal_actions(s, 0)
     assert any(isinstance(a, Shoot) for a in acts)
     assert any(isinstance(a, UseItem) and a.item == Item.SAW for a in acts)
+
+
+def test_second_same_caster_immunity_not_offered():
+    from social_roulette.engine.engine import new_game
+    from social_roulette.engine.actions import legal_actions, UseItem
+    from social_roulette.engine.constants import Item
+    s = new_game(5, seed=1)
+    caster = s.current_id
+    target = next(p.id for p in s.players if p.id != caster)
+    s.players[caster].inventory = {Item.IMMUNITY: 2}
+    from social_roulette.engine.state import player_by_id
+    player_by_id(s, target).immunity_against.add(caster)
+    offers = [a for a in legal_actions(s, caster)
+              if isinstance(a, UseItem) and a.item == Item.IMMUNITY and a.target_id == target]
+    assert offers == []

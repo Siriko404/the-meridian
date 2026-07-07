@@ -1,6 +1,6 @@
 # UI v2 — Wartime-Spy Night Train, in Phaser 4 (full redesign)
 
-**Date:** 2026-07-07 · **Status:** spec for user review · **Supersedes** the v1 web UI
+**Date:** 2026-07-07 · **Status:** ratified + counsel-audited · Plan A (server, §4-§5) implemented 2026-07-08 on branch `uiv2-server` · Plan B (client, §6-§8) pending · **Supersedes** the v1 web UI
 (`static/index.html` + `sr_ui.*`) and extends `2026-07-03-online-game-design.md` (server core kept).
 Rules source of truth: `game_guide.md`. Gap list source: `docs/RULES_AUDIT.md`.
 
@@ -191,6 +191,8 @@ derives the event by diffing `handcuffed` flags across the step, giving M23 a re
 dice sequence are synthesized client-side (dice = any hi/lo roll decomposition consistent with
 the announced totals).
 `item_counts` ships already but becomes correct once corpses burn (below).
+
+**Protocol note (audit I2-final-review):** Views carry `gen`; clients replay `events` only when `gen` increased.
 
 ## 5 · Engine fixes (audit I9, C9, V3 — at the source)
 

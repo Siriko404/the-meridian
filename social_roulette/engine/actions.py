@@ -75,7 +75,8 @@ def legal_actions(state, player_id):
             acts.append(UseItem(it))
         elif it == Item.IMMUNITY:
             for o in others:
-                acts.append(UseItem(it, o))
+                if player_id not in player_by_id(state, o).immunity_against:
+                    acts.append(UseItem(it, o))
         elif it == Item.HANDCUFFS:
             for o in others:
                 if not player_by_id(state, o).handcuffed:

@@ -20,6 +20,7 @@ def test_human_shot_emits_shot_event():
     (fired shell / damage / killed) — everything a client needs to animate."""
     r = Room(human_seats={0}, seed=0)        # seat 0 human, rest bots
     assert r.current == 0
+    r.proceed(0)                             # leave talk: index 0 == Shoot(self) is decision-only
     r.apply(0, 0)                            # index 0 == Shoot(self)
     shots = [e for e in r.last_events if e["type"] == "shot"]
     assert shots, "human shot must emit a 'shot' event"
@@ -37,9 +38,30 @@ def test_events_never_leak_hidden_state():
         if r.winner is not None:
             break
         if r.current == 0:
+            if r.phase == "talk":
+                r.proceed(0)                 # index 0 == Shoot(self) is decision-only
             r.apply(0, 0)
         for e in r.last_events:
             assert "extra" not in e                             # no raw extra blob (no peek leak)
             assert "shells" not in e                            # no shell order
+            # "seq" keys the per-seat draw enrichment (events_for pops it before a client sees it);
+            # it is a public recorder row index, never hidden state.
             assert set(e).issubset(
-                {"type", "actor", "target", "shell", "damage", "killed", "item", "total", "live"})
+                {"type", "actor", "target", "shell", "damage", "killed", "item", "total", "live", "seq"})
+
+
+def test_new_event_methods_emit_valid_rows():
+    from social_roulette.observe.recorder import Recorder
+    from social_roulette.observe import events as E
+    import json
+    r = Recorder("m1")
+    r.fine(3, 2, "BEER")
+    r.skip(4, 1)
+    r.draw(5, {0: {"attempted": ["SAW"], "received": []}})
+    r.trade(6, 0, 2, ["BEER"], ["SAW"])
+    types = [row["type"] for row in r.rows]
+    assert types == [E.FINE, E.SKIP, E.DRAW, E.TRADE]
+    assert r.rows[0]["actor"] == 2 and json.loads(r.rows[0]["extra"])["item"] == "BEER"
+    assert r.rows[1]["target"] == 1
+    assert "SAW" in r.rows[2]["extra"]
+    assert json.loads(r.rows[3]["extra"]) == {"give": ["BEER"], "want": ["SAW"]}

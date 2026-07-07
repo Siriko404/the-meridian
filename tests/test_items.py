@@ -74,3 +74,19 @@ def test_cap_reached_and_reset():
     assert I.cap_reached(s, Item.BEER) is True
     I.reset_caps(s)
     assert I.cap_reached(s, Item.BEER) is False
+
+
+def test_apply_second_same_caster_immunity_raises():
+    from social_roulette.engine.engine import new_game
+    from social_roulette.engine.items import apply_item
+    from social_roulette.engine.constants import Item
+    from social_roulette.engine.state import player_by_id
+    import pytest
+    s = new_game(5, seed=1)
+    caster = s.current_id
+    target = next(p.id for p in s.players if p.id != caster)
+    player_by_id(s, caster).inventory = {Item.IMMUNITY: 2}
+    apply_item(s, caster, Item.IMMUNITY, target)
+    with pytest.raises(ValueError):
+        apply_item(s, caster, Item.IMMUNITY, target)
+    assert player_by_id(s, caster).inventory[Item.IMMUNITY] == 1   # 2nd NOT consumed
