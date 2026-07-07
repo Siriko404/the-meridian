@@ -43,3 +43,20 @@ def test_events_never_leak_hidden_state():
             assert "shells" not in e                            # no shell order
             assert set(e).issubset(
                 {"type", "actor", "target", "shell", "damage", "killed", "item", "total", "live"})
+
+
+def test_new_event_methods_emit_valid_rows():
+    from social_roulette.observe.recorder import Recorder
+    from social_roulette.observe import events as E
+    import json
+    r = Recorder("m1")
+    r.fine(3, 2, "BEER")
+    r.skip(4, 1)
+    r.draw(5, {0: {"attempted": ["SAW"], "received": []}})
+    r.trade(6, 0, 2, ["BEER"], ["SAW"])
+    types = [row["type"] for row in r.rows]
+    assert types == [E.FINE, E.SKIP, E.DRAW, E.TRADE]
+    assert r.rows[0]["actor"] == 2 and json.loads(r.rows[0]["extra"])["item"] == "BEER"
+    assert r.rows[1]["target"] == 1
+    assert "SAW" in r.rows[2]["extra"]
+    assert json.loads(r.rows[3]["extra"]) == {"give": ["BEER"], "want": ["SAW"]}
