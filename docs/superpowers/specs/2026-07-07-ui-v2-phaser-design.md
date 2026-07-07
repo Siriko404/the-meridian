@@ -199,7 +199,10 @@ and the Phaser `TableScene` owns the screen. One page, one WS connection through
 ```
 
 Icon-gated trays (all slide over the dock, never cover the arc): **KIT** (briefcase — your items,
-each with count, point value, uses-left; at-cap items greyed "SEALED UNTIL A DEATH"), **LEDGER**
+each with count, point value, uses-left; at-cap items greyed "SEALED UNTIL A DEATH"; **inventory
+caps always visible while open** (guide:40-42, audit S7): a header tally bar of 8 slots —
+filled/empty — showing total load "N/8", and each item card shows its own count as 3 pip slots
+"▮▮▯" against the 3-per-type cap; a full tally is why a draw bounces off in M17), **LEDGER**
 (small icon by the band — the public counts panel: per-item total in play + uses left, audit V3/I10),
 **CHAT** (phone icon — bottom sheet, input enabled only during talk), **TRADE** and **FLIP-PAYMENT**
 trays (contextual, below). Spike's known risk: the KIT tray must clear the bottom seats — verify at
