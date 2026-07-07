@@ -49,6 +49,10 @@ def take_shot(state, shooter_id, target_id):
     if ev["killed"]:
         order_before = list(state.order)
         player_by_id(state, target_id).alive = False
+        victim = player_by_id(state, target_id)
+        victim.inventory = {}                       # guide:69 — items burned
+        for p in state.players:                     # guide:69 — their placed Immunity expires
+            p.immunity_against.discard(target_id)
         state.order = [pid for pid in order_before if pid != target_id]
         reload_on_death(state)
         if emptied:
