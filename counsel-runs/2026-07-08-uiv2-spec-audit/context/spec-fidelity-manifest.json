@@ -1,0 +1,167 @@
+{
+  "aspect": "UI v2 design-spec fidelity: rules coverage, code-reality feasibility, audit closure, internal consistency",
+  "journal": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/counsel-runs/2026-07-08-uiv2-spec-audit/journal/spec-fidelity.jsonl",
+  "manifest": [
+    {
+      "id": "C1",
+      "source": "guide",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/game_guide.md",
+      "what": "The locked game ruleset — the single source of truth for every rule (228 lines)",
+      "must_read": true
+    },
+    {
+      "id": "C2",
+      "source": "spec",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/docs/superpowers/specs/2026-07-07-ui-v2-phaser-design.md",
+      "what": "THE AUDIT TARGET: the UI v2 design spec (phases, timers, trade, moment catalog, engine fixes, protocol, build order)",
+      "must_read": true
+    },
+    {
+      "id": "C3",
+      "source": "audit",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/docs/RULES_AUDIT.md",
+      "what": "Prior rules-fidelity audit: 49 rule rows × engine × UI with file:line citations; the gap list the spec claims to close",
+      "must_read": true
+    },
+    {
+      "id": "C4",
+      "source": "status",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/docs/PROJECT_STATUS.md",
+      "what": "Project anchor: all user-ratified decisions the spec must not contradict (see the NEXT (Track B) section)",
+      "must_read": false
+    },
+    {
+      "id": "C5",
+      "source": "eng_constants",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/constants.py",
+      "what": "Engine: enums, point values, caps, thresholds",
+      "must_read": true
+    },
+    {
+      "id": "C6",
+      "source": "eng_state",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/state.py",
+      "what": "Engine: Player/Chamber/GameState dataclasses, inventory cap helpers",
+      "must_read": true
+    },
+    {
+      "id": "C7",
+      "source": "eng_engine",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/engine.py",
+      "what": "Engine: new_game, step, take_shot, turn advancement, kill/reload/bonus flow",
+      "must_read": true
+    },
+    {
+      "id": "C8",
+      "source": "eng_actions",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/actions.py",
+      "what": "Engine: action dataclasses + legal_actions (the full legality computation)",
+      "must_read": true
+    },
+    {
+      "id": "C9",
+      "source": "eng_items",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/items.py",
+      "what": "Engine: apply_item for all six items, consumption caps",
+      "must_read": true
+    },
+    {
+      "id": "C10",
+      "source": "eng_chamber",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/chamber.py",
+      "what": "Engine: dice-accumulation chamber load with 30-70% band",
+      "must_read": true
+    },
+    {
+      "id": "C11",
+      "source": "eng_economy",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/economy.py",
+      "what": "Engine: pay_cost sacrifice validation + flip_team with flip-back discount",
+      "must_read": true
+    },
+    {
+      "id": "C12",
+      "source": "eng_reload",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/reload.py",
+      "what": "Engine: reload_on_empty/reload_on_death + draw_items_for_all",
+      "must_read": true
+    },
+    {
+      "id": "C13",
+      "source": "eng_endgame",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/endgame.py",
+      "what": "Engine: teams_active, winner, legal_targets, next_living_after",
+      "must_read": true
+    },
+    {
+      "id": "C14",
+      "source": "eng_shooting",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/shooting.py",
+      "what": "Engine: resolve_shot (damage, immunity clear, bonus_pending)",
+      "must_read": true
+    },
+    {
+      "id": "C15",
+      "source": "room",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/online/room.py",
+      "what": "Server: sync Room state-machine — apply/flip paths, bot cascade, event delta (_anim), the layer the spec's phases/timers/trade must extend",
+      "must_read": true
+    },
+    {
+      "id": "C16",
+      "source": "view",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/online/view.py",
+      "what": "Server: per-seat view serializer — the ONLY state a client receives; the spec's new fields land here",
+      "must_read": true
+    },
+    {
+      "id": "C17",
+      "source": "server",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/online/server.py",
+      "what": "Server: FastAPI/WS shell — lobby, message types, per-room lock, broadcast; the spec's timers + new messages land here",
+      "must_read": true
+    },
+    {
+      "id": "C18",
+      "source": "turn",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/sim/turn.py",
+      "what": "Shared bot-turn primitive + Extras (announced counts + peek memory) the views read",
+      "must_read": true
+    },
+    {
+      "id": "C19",
+      "source": "recorder",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/observe/recorder.py",
+      "what": "Event recorder — every event type the server can currently emit (the spec's animations consume these)",
+      "must_read": true
+    },
+    {
+      "id": "C20",
+      "source": "events",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/observe/events.py",
+      "what": "Canonical event-type constants + schema columns",
+      "must_read": true
+    },
+    {
+      "id": "C21",
+      "source": "spike",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/online/static/game/spike.js",
+      "what": "Phaser spike scene — the ratified visual baseline the spec builds on",
+      "must_read": false
+    },
+    {
+      "id": "C22",
+      "source": "v1_html",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/online/static/index.html",
+      "what": "v1 client glue (WS protocol consumption, action indexing, event queue) — the protocol reality the spec extends",
+      "must_read": false
+    },
+    {
+      "id": "C23",
+      "source": "v1_ui",
+      "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/online/static/sr_ui.js",
+      "what": "v1 visual layer (event cascade, setup ceremony, announce) — current animation reality",
+      "must_read": false
+    }
+  ]
+}

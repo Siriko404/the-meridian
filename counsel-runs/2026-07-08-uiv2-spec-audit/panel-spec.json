@@ -1,0 +1,50 @@
+{
+  "run_dir": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/counsel-runs/2026-07-08-uiv2-spec-audit",
+  "template": "C:/Users/sinas/.claude/skills/ask-the-counsel/prompt-template.md",
+  "journal_js": "C:/Users/sinas/.claude/skills/ask-the-counsel/journal.js",
+  "sources": {
+    "guide": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/game_guide.md", "what": "The locked game ruleset — the single source of truth for every rule (228 lines)" },
+    "spec": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/docs/superpowers/specs/2026-07-07-ui-v2-phaser-design.md", "what": "THE AUDIT TARGET: the UI v2 design spec (phases, timers, trade, moment catalog, engine fixes, protocol, build order)" },
+    "audit": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/docs/RULES_AUDIT.md", "what": "Prior rules-fidelity audit: 49 rule rows × engine × UI with file:line citations; the gap list the spec claims to close" },
+    "status": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/docs/PROJECT_STATUS.md", "what": "Project anchor: all user-ratified decisions the spec must not contradict (see the NEXT (Track B) section)" },
+    "eng_constants": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/constants.py", "what": "Engine: enums, point values, caps, thresholds" },
+    "eng_state": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/state.py", "what": "Engine: Player/Chamber/GameState dataclasses, inventory cap helpers" },
+    "eng_engine": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/engine.py", "what": "Engine: new_game, step, take_shot, turn advancement, kill/reload/bonus flow" },
+    "eng_actions": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/actions.py", "what": "Engine: action dataclasses + legal_actions (the full legality computation)" },
+    "eng_items": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/items.py", "what": "Engine: apply_item for all six items, consumption caps" },
+    "eng_chamber": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/chamber.py", "what": "Engine: dice-accumulation chamber load with 30-70% band" },
+    "eng_economy": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/economy.py", "what": "Engine: pay_cost sacrifice validation + flip_team with flip-back discount" },
+    "eng_reload": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/reload.py", "what": "Engine: reload_on_empty/reload_on_death + draw_items_for_all" },
+    "eng_endgame": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/endgame.py", "what": "Engine: teams_active, winner, legal_targets, next_living_after" },
+    "eng_shooting": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/engine/shooting.py", "what": "Engine: resolve_shot (damage, immunity clear, bonus_pending)" },
+    "room": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/online/room.py", "what": "Server: sync Room state-machine — apply/flip paths, bot cascade, event delta (_anim), the layer the spec's phases/timers/trade must extend" },
+    "view": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/online/view.py", "what": "Server: per-seat view serializer — the ONLY state a client receives; the spec's new fields land here" },
+    "server": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/online/server.py", "what": "Server: FastAPI/WS shell — lobby, message types, per-room lock, broadcast; the spec's timers + new messages land here" },
+    "turn": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/sim/turn.py", "what": "Shared bot-turn primitive + Extras (announced counts + peek memory) the views read" },
+    "recorder": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/observe/recorder.py", "what": "Event recorder — every event type the server can currently emit (the spec's animations consume these)" },
+    "events": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/observe/events.py", "what": "Canonical event-type constants + schema columns" },
+    "spike": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/online/static/game/spike.js", "what": "Phaser spike scene — the ratified visual baseline the spec builds on" },
+    "v1_html": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/online/static/index.html", "what": "v1 client glue (WS protocol consumption, action indexing, event queue) — the protocol reality the spec extends" },
+    "v1_ui": { "path": "C:/Users/sinas/OneDrive/Desktop/Projects/TheGame/social_roulette/online/static/sr_ui.js", "what": "v1 visual layer (event cascade, setup ceremony, announce) — current animation reality" }
+  },
+  "experts": [
+    {
+      "slug": "spec-fidelity",
+      "aspect": "UI v2 design-spec fidelity: rules coverage, code-reality feasibility, audit closure, internal consistency",
+      "role": "Hardnosed adversarial spec auditor. You assume the spec has misses — the user already caught one (the inventory-cap display) after two clean-looking passes. Your job is to catch every remaining one BEFORE code is built on this contract. You defer to nothing and nobody: not the spec's confidence, not the prior audit's checkmarks, not the decisions table. Every claim you make must carry verbatim receipts.",
+      "duties": [
+        "RULE SWEEP: walk game_guide.md line by line, rule by rule (every section: setup, lives, chamber/reload, items, item-use rules, consumption limits, economy/flip, trade, alliances, information/visibility, turn structure, bonus turns, timeout, endgame, quick reference). For EACH rule, determine whether the spec gives it a concrete treatment (a UI moment, a server mechanism, an engine fix, or an explicit stated deferral). Record every rule with no treatment or a wrong treatment. Cite the guide line and the spec section for each.",
+        "AUDIT CLOSURE: walk ALL rows of docs/RULES_AUDIT.md (sections 1-8, every S/L/C/I/E/V/T/G row plus the TOP GAPS list). For each row marked ❌ or ⚠, verify the spec either fixes it (name the spec section) or explicitly defers it. Record every row the spec leaves unaddressed or only partially addresses — including edge-case notes inside ✅ rows (e.g. cell text mentioning edges).",
+        "CODE-REALITY CHECK: for every mechanism the spec promises (each view field in §4.6, each event type, each Room transition in §4.3, each engine change in §5, every moment M1-M28's data source), verify against the actual code that either (a) the seam already produces the needed data/event, or (b) the spec explicitly lists the new work required. Record every promise whose data source does not exist and is not called out as new work — an animation with no event, a view field with no producer, a ceremony with no data.",
+        "INTERNAL CONSISTENCY: cross-check the spec against itself — phase legality (§4.1) vs action strip (§6.2) vs moment catalog (§7) vs decisions table (§9) vs testing (§10) vs build order (§11). Record every contradiction or mismatch between sections.",
+        "TIMER/ASYNC SOUNDNESS: scrutinize §4.2-4.3 as a concurrent system — deadline tasks vs the per-room lock, the gen counter, reconnect mid-phase, disconnect of actor and non-actor, the interaction between server-side clocks and the client's sequential event-cascade replay (spec §7 durations), bot cascades that consume wall time, and bonus-turn/killer-extra-turn phase starts. Record every race, starvation, or clock-fairness defect the design as written permits.",
+        "TRADE PROTOCOL SOUNDNESS: scrutinize §4.5 against the engine's Trade semantics (actions.py, engine.py step Trade branch) and the caps — offer lifetime, phase expiry, the counterparty acting while not the current player, settlement atomicity as two gift steps, cap validation of a SWAP (both directions simultaneously), and the privacy claims (public event stripped, parties enriched). Record every hole.",
+        "VISIBILITY SWEEP: build the guide's public/hidden information table (guide Information & Visibility section) and check every spec view field, event, moment, and tray against it — both directions: hidden info leaked (to the wrong seat or to all) and public info withheld. Include the setup ceremony, trade flow, peek chip, ledger panel, caps, and death.",
+        "MOMENT COMPLETENESS: enumerate from the ENGINE CODE every distinct state transition a game can produce (each item effect and failure mode, each shot outcome, kill variants mid-chamber vs chamber-emptying, reload triggers, skip, flip incl. flip-back, cap hit, teams-off, winner, fines, auto self-shoot, bonus chains, killer extra turn) and verify each has a moment or an explicit deferral in §7. Record every transition with no defined presentation."
+      ],
+      "tools": "Read, Grep, Glob, and Bash. Bash is ONLY for journal appends via the enforcer script (node journal.js append) — never for anything else. No web access, no file edits, no subagents.",
+      "cids": ["guide", "spec", "audit", "status", "eng_constants", "eng_state", "eng_engine", "eng_actions", "eng_items", "eng_chamber", "eng_economy", "eng_reload", "eng_endgame", "eng_shooting", "room", "view", "server", "turn", "recorder", "events", "spike", "v1_html", "v1_ui"],
+      "must_read": ["guide", "spec", "audit", "eng_constants", "eng_state", "eng_engine", "eng_actions", "eng_items", "eng_chamber", "eng_economy", "eng_reload", "eng_endgame", "eng_shooting", "room", "view", "server", "turn", "recorder", "events"]
+    }
+  ]
+}
