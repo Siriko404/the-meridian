@@ -21,6 +21,7 @@ def _set_turn_to(state, start_id):
     for _ in range(len(state.order) + 1):
         p = player_by_id(state, cur)
         if p.handcuffed:
+            state.last_skipped.append(cur)
             p.handcuffed = False
             cur = next_living_after(state.order, living, cur)
             continue
@@ -56,7 +57,7 @@ def take_shot(state, shooter_id, target_id):
         state.order = [pid for pid in order_before if pid != target_id]
         reload_on_death(state)
         if emptied:
-            draw_items_for_all(state, 2)
+            ev["draws"] = draw_items_for_all(state, 2)
         state.bonus_pending = False
         state.saw_used_this_turn = False
         state.winner = winner(state)
@@ -68,7 +69,7 @@ def take_shot(state, shooter_id, target_id):
             _set_turn_to(state, shooter_id)
         return ev
     if emptied:
-        reload_on_empty(state)
+        ev["draws"] = reload_on_empty(state)
     if state.bonus_pending:
         state.saw_used_this_turn = False
         return ev
@@ -108,7 +109,7 @@ def step(state, player_id, action):
             raise ValueError("consumption cap reached")
         ev = apply_item(state, player_id, action.item, action.target_id)
         if action.item == Item.BEER and state.chamber.is_empty():
-            reload_on_empty(state)
+            ev["draws"] = reload_on_empty(state)
         return ev
     if isinstance(action, Flip):
         return flip_team(state, player_id, action.target_id, action.sacrifice)

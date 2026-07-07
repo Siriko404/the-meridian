@@ -58,6 +58,7 @@ class GameState:
     # Stage 5 interaction memory (objective public record; each seat reads its own row):
     harm: dict = field(default_factory=dict)   # (victim_id, actor_id) -> cumulative damage taken from actor
     help: dict = field(default_factory=dict)   # (receiver_id, giver_id) -> cumulative gift point-value received
+    last_skipped: list = field(default_factory=list)  # pids skipped by handcuff at turn advance
 
 
 def player_by_id(state, pid):

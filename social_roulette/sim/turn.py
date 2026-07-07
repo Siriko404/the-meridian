@@ -49,11 +49,18 @@ def random_policy(state, pid, extras):
     return state.rng.choice(legal_actions(state, pid))
 
 
+def _sanv(v):
+    if isinstance(v, (Shell, Item)):
+        return v.name
+    if isinstance(v, dict):
+        return {k: _sanv(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_sanv(x) for x in v]
+    return v
+
+
 def _san(effect):
-    out = {}
-    for k, v in (effect or {}).items():
-        out[k] = v.name if isinstance(v, Shell) else v
-    return out
+    return {k: _sanv(v) for k, v in (effect or {}).items()}
 
 
 def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
