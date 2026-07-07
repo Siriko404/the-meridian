@@ -39,19 +39,19 @@ dining-car table sit agents of two rival agencies. The dealer is **the Handler**
 Lives = **cover identities**. Elimination = **burned** (cover blown). A team flip = a **turned**
 agent. Game name TBD (user decision, deferred — "THE MERIDIAN" names the train, not the game).
 
-| Engine enum | Display (draft) | Effect | Pts | Icon (sheet idx, draft) |
+| Engine enum | Display (**RATIFIED 2026-07-08**) | Effect | Pts | Icon (sheet idx, draft) |
 |---|---|---|---|---|
-| CIGARETTES | **PAPERS** | +1 life | 6 | 37 ledger |
-| IMMUNITY | **COVER** | place: target can't shoot you | 6 | build-time pick (40 briefcase is reserved for KIT) |
-| MAGNIFIER | **MANIFEST** | peek next shell | 5 | 14 envelope |
-| SAW | **POISON** | next shot ×2 | 5 | 11 poison |
-| BEER | **INTERCEPT** | eject current shell | 4 | build-time pick |
-| HANDCUFFS | **BURN** | target skips next turn | 4 | 25 cigarette |
+| CIGARETTES | **PASSPORT** | +1 life (restores a cover) | 6 | 37 ledger |
+| IMMUNITY | **BLACKMAIL** | place: target can't shoot you (you have dirt on them) | 6 | 14 envelope |
+| MAGNIFIER | **SPYCAM** | peek next shell | 5 | build-time pick (camera-like) |
+| SAW | **POISON** | next shot ×2 (tips the round) | 5 | 11 poison |
+| BEER | **MAGNET** | eject current shell (pulls the round) | 4 | build-time pick |
+| HANDCUFFS | **SEDATIVE** | target skips next turn (out cold) | 4 | build-time pick (40 briefcase stays reserved for KIT) |
 
 Teams (drafts): **AGENCY NORTH** (bloc A, white plate) vs **AGENCY SOUTH** (bloc B, black plate).
 Humans wear their lobby name (truncated 8 chars, uppercase). Bots draw theme codenames from a fixed
 list (drafts): VESPER, CROW, JACKAL, NOMAD, WREN, HALCYON, MOTH, PIKE.
-The rename map lives in ONE client-side table (`THEME = {CIGARETTES:{name:"PAPERS", icon:…}, …}`);
+The rename map lives in ONE client-side table (`THEME = {CIGARETTES:{name:"PASSPORT", icon:…}, …}`);
 protocol and engine keep enum names. A final naming pass edits one table.
 
 ## 3 · Architecture
@@ -242,19 +242,19 @@ v1's terminal decoder, ported to Phaser (per-char timed reveal on a mono bitmap-
 | M13 | Self-blank bonus (L3) | "CLICK" → actor plate stamps "BONUS TURN · SILENT" → fresh 30s DECISION |
 | M14 | Death (C9) | Frame corners break apart; plate turns black, name struck; **red "BURNED" stamp**; face alpha→0.35 (pixels untouched — whole-object fade, never a tint); pips clear; their chips (COVER placed by them) dissolve table-wide |
 | M15 | Killer's extra turn (C5) | Band: "EXTRA TURN · \<NAME\>" + full TALK phase re-opens |
-| M16 | Reload (C1/C4) | Compressed M2 (~2× speed); death-reload prefixed "IN THEIR HONOR"; announce 5s (M3). After INTERCEPT-emptied reload: band "STILL YOUR SHOT" (C3) |
+| M16 | Reload (C1/C4) | Compressed M2 (~2× speed); death-reload prefixed "IN THEIR HONOR"; announce 5s (M3). After MAGNET-emptied reload: band "STILL YOUR SHOT" (C3) |
 | M17 | Item draw (C2/S7) | Your 2 draws: die tumble → icon slides into KIT with name; **over-cap: the icon bounces off the KIT with "FULL"** (the silently-swallowed draw becomes visible); others: card-backs absorb |
 
 **Items** (public use event → choreography; private results stay private):
 
 | # | Item | Choreography |
 |---|---|---|
-| M18 | PAPERS (heal) | Heart icon flies KIT→your pips; pip refills |
-| M19 | MANIFEST (peek) | Envelope to center, opens — **your view only:** peek chip fills "NEXT: LIVE" (red) / "NEXT: BLANK" (white), persists until that shell moves (server Extras logic, unchanged); others see "\<NAME\> CHECKED THE MANIFEST" |
+| M18 | PASSPORT (heal) | Passport icon flies KIT→your pips; pip refills |
+| M19 | SPYCAM (peek) | Camera icon to center, shutter blink — **your view only:** peek chip fills "NEXT: LIVE" (red) / "NEXT: BLANK" (white), persists until that shell moves (server Extras logic, unchanged); others see "\<NAME\> USED A SPYCAM" |
 | M20 | POISON (saw, I4) | Red edge-glow on the cylinder + "×2 ARMED" chip pinned at the dial until the shot resolves (public state, visible to all) |
-| M21 | COVER (immunity) | Shield chip flies caster→target; target plate gains "COVER · \<caster\>" chip; clears when the target shoots — **or when the caster dies** (C9) |
-| M22 | INTERCEPT (beer) | Shell pops out of the cylinder top, flies off-screen; "SHELL OUT"; empty → M16 |
-| M23 | BURN (handcuffs, I6) | Chip "SKIPPED NEXT" on target; **at the skip itself:** rotation pauses at their seat, "SKIPPED" stamp, chip clears, rotation continues — the invisible skip becomes a beat |
+| M21 | BLACKMAIL (immunity) | Envelope chip flies caster→target; target plate gains "BLACKMAIL · \<caster\>" chip; clears when the target shoots — **or when the caster dies** (C9) |
+| M22 | MAGNET (beer) | Shell pops out of the cylinder top, flies off-screen; "SHELL OUT"; empty → M16 |
+| M23 | SEDATIVE (handcuffs, I6) | Chip "SEDATED" on target; **at the skip itself:** rotation pauses at their seat, "SKIPPED" stamp, chip clears, rotation continues — the invisible skip becomes a beat |
 | M24 | Cap hit (I10) | Toast "\<ITEM\> EXHAUSTED — TABLE LIMIT"; icon greys in every KIT/LEDGER until a death resets |
 
 **Economy + endgame:**
