@@ -66,9 +66,11 @@ async def _deadline(lb, gen):
 
 
 def _schedule_deadline(lb):
-    if lb.deadline_task is not None:
+    # Never cancel the currently-running _deadline task (it is about to return on its own);
+    # cancelling self would surface CancelledError at the winner end-broadcast and truncate it.
+    if lb.deadline_task is not None and lb.deadline_task is not asyncio.current_task():
         lb.deadline_task.cancel()
-        lb.deadline_task = None
+    lb.deadline_task = None
     if lb.room is not None and lb.room.winner is None and lb.room.phase_ends_at is not None:
         lb.deadline_task = asyncio.create_task(_deadline(lb, lb.room.gen))
 

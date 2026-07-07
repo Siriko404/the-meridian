@@ -68,6 +68,24 @@ def test_decision_deadline_fines_then_auto_shoots():
     assert r.current != seat or r.state.bonus_pending or r.winner is not None
 
 
+def test_talk_deadline_clears_declined_trade_private():
+    from social_roulette.engine.state import player_by_id
+    r, t = clockroom()
+    seat = r.current
+    me = player_by_id(r.state, seat)
+    mate = next(pid for pid in range(5)
+                if pid != seat and player_by_id(r.state, pid).alive
+                and player_by_id(r.state, pid).team == me.team)
+    r.trade_offer(seat, mate, [], [])          # empty offer shape is valid; decline never swaps
+    r.trade_respond(mate, accept=False)
+    assert any(e["type"] == "trade_private" for e in r.events_for(seat))   # note is live this phase
+    t[0] = r.phase_ends_at + 0.1
+    assert r.on_deadline() is True                                          # real talk -> decision
+    assert r.phase == "decision"
+    assert all(e["type"] != "trade_private" for e in r.events_for(seat))    # stale note must not replay
+    assert all(e["type"] != "trade_private" for e in r.events_for(mate))
+
+
 def test_talk_phase_gates_shoot_and_flip():
     r, t = clockroom()
     seat = r.current

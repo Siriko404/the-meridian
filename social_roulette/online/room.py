@@ -120,6 +120,8 @@ class Room:
             return False
         if self.now() < self.phase_ends_at:
             return False
+        self._trade_result = None          # any REAL transition clears a stale trade note (parity with apply/proceed)
+        self._last_trade_items = None
         if self.phase == "talk":
             self.gen += 1
             self.phase = "decision"
