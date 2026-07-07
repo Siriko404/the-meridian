@@ -1,6 +1,6 @@
 # UI v2 — Wartime-Spy Night Train, in Phaser 4 (full redesign)
 
-**Date:** 2026-07-07 · **Status:** spec for user review · **Supersedes** the v1 web UI
+**Date:** 2026-07-07 · **Status:** ratified + counsel-audited · Plan A (server, §4-§5) implemented 2026-07-08 on branch `uiv2-server` · Plan B (client, §6-§8) pending · **Supersedes** the v1 web UI
 (`static/index.html` + `sr_ui.*`) and extends `2026-07-03-online-game-design.md` (server core kept).
 Rules source of truth: `game_guide.md`. Gap list source: `docs/RULES_AUDIT.md`.
 
