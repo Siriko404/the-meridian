@@ -23,39 +23,25 @@ class DiningCar extends Phaser.Scene {
       .setOrigin(0.5).setLetterSpacing(4).setResolution(2);
     g.lineStyle(1, WHITE, 0.5).lineBetween(24, 66, W - 24, 66);
 
-    // ---- window band: three frames, the war passing outside ----
-    const wy = 92, wh = 96;
-    g.lineStyle(2, WHITE, 0.9);
-    [24, 148, 272].forEach(x => g.strokeRect(x, wy, 94, wh));
-    g.lineStyle(1, WHITE, 0.35);
-    [24, 148, 272].forEach(x => g.lineBetween(x + 47, wy, x + 47, wy + wh));
-    // streaks of passing light
-    for (const [x1, y] of [[30, 120], [160, 150], [286, 132], [70, 168]]) {
-      const s = this.add.rectangle(x1, y, 26, 2, WHITE, 0.28);
-      this.tweens.add({ targets: s, x: x1 - 40, alpha: 0, duration: 900, repeat: -1, delay: Math.random() * 800 });
-    }
-    // the red signal lamp sliding past (the ONLY red on screen while nothing is lethal)
-    const sig = this.add.circle(300, 126, 3, RED);
-    this.tweens.add({ targets: sig, x: 40, duration: 5200, repeat: -1, ease: "Linear" });
-
-    // ---- seats: 5 agents on an arc; the FRAME + NAMEPLATE is the team ----
-    // bloc A (even seats): heavy 4px frame + INVERTED white nameplate (black text)
-    // bloc B (odd seats):  thin  2px frame + black nameplate (white text)
+    // ---- seats: 5 agents on an arc; TEAM = POLARITY ----
+    // one agency lives white-on-black, the other black-on-white. The whole tile is
+    // the uniform; a flip inverts the player (a "turned" agent literally inverts).
     const seats = [];
-    const cx = W / 2, cy = 452, rx = 142, ry = 150;
+    const cx = W / 2, cy = 430, rx = 142, ry = 150;
     for (let i = 0; i < 5; i++) {
       const a = -Math.PI / 2 + i * (Math.PI * 2 / 5);
       const x = cx + rx * Math.cos(a), y = cy + ry * Math.sin(a);
-      const blocA = i % 2 === 0;
-      const frame = this.add.rectangle(x, y, 78, 78).setStrokeStyle(blocA ? 4 : 2, WHITE, 0.95);
-      if (blocA) this.add.rectangle(x, y, 88, 88).setStrokeStyle(1, WHITE, 0.5);   // double rim
+      const night = i % 2 === 0;                                     // bloc NIGHT vs bloc DAY
+      const tile = this.add.rectangle(x, y, 78, 78, night ? 0x000000 : 0xffffff)
+        .setStrokeStyle(2, WHITE, 0.95);
       const face = this.add.image(x, y, "faces", i).setScale(2);
-      const plate = this.add.rectangle(x, y + 53, 58, 22, blocA ? 0xffffff : 0x000000)
+      if (!night) face.setTint(0x000000);                            // black ink face on white tile
+      const plate = this.add.rectangle(x, y + 53, 58, 22, night ? 0x000000 : 0xffffff)
         .setStrokeStyle(2, WHITE, 0.95);
       const name = this.add.text(x, y + 53, "P" + i, { fontFamily: "Consolas,monospace", fontSize: "17px",
-        color: blocA ? "#000000" : "#ffffff", fontStyle: "bold" }).setOrigin(0.5).setResolution(2);
+        color: night ? "#ffffff" : "#000000", fontStyle: "bold" }).setOrigin(0.5).setResolution(2);
       const pips = [0, 1, 2].map(k => this.add.image(x - 21 + k * 21, y + 78, "icons", 20).setScale(1.5));
-      seats.push({ x, y, frame, face, angleDeg: -90 + i * 72 });
+      seats.push({ x, y, frame: tile, face, angleDeg: -90 + i * 72 });
     }
 
     // ---- center: the CYLINDER as the turn dial (the archived dial+dot, made diegetic) ----
@@ -94,7 +80,7 @@ class DiningCar extends Phaser.Scene {
       const s = seats[turn];
       this.tweens.add({ targets: cyl, angle: s.angleDeg + 90, duration: 420, ease: "Back.easeOut" }); // click-step
       seats.forEach((q, k) => {
-        q.frame.setStrokeStyle(k % 2 === 0 ? 4 : 2, WHITE, k === turn ? 1 : 0.55);
+        q.frame.setStrokeStyle(k === turn ? 4 : 2, WHITE, k === turn ? 1 : 0.6);
         this.tweens.add({ targets: q.face, scale: k === turn ? 2.3 : 2, duration: 260 });
       });
       turn = (turn + 1) % 5;
