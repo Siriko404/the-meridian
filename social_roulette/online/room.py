@@ -17,6 +17,7 @@ from social_roulette.engine.engine import new_game, step as engine_step
 from social_roulette.engine.constants import Item, Shell
 from social_roulette.engine.actions import legal_actions, Shoot, Flip
 from social_roulette.engine.state import player_by_id, living_ids
+from social_roulette.engine.economy import fine_cheapest
 from social_roulette.sim.turn import take_policy_turn, random_policy, Extras
 from social_roulette.observe.recorder import Recorder
 from social_roulette.online.view import seat_view
@@ -97,6 +98,38 @@ class Room:
         self.phase = "decision"
         self.phase_ends_at = self.now() + self.DECISION_S
         self.last_events = []
+
+    def on_deadline(self):
+        if self.winner is not None or self.phase is None:
+            return False
+        if self.now() < self.phase_ends_at:
+            return False
+        if self.phase == "talk":
+            self.gen += 1
+            self.phase = "decision"
+            self.phase_ends_at = self.now() + self.DECISION_S
+            self._expire_offer()          # defined Task 9; stub `pass` for now
+            self.last_events = []
+            return True
+        seat = self.state.current_id
+        fined = fine_cheapest(self.state, seat)
+        if fined is not None:
+            self.gen += 1
+            self.rec.fine(self._turn, seat, fined.name)
+            self.last_events = [{"type": "fine", "actor": seat}]     # public: NO item (D14)
+            self.phase_ends_at = self.now() + self.DECISION_S
+            return True
+        n0 = len(self.rec.rows)
+        self._emit_human_action(seat, Shoot(seat))
+        for e in self.extras.values():
+            e.sync(self.state)
+        self._run_bots()
+        self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
+        self._begin_phase_for_current()
+        return True
+
+    def _expire_offer(self):
+        pass
 
     def _announce(self):
         ch = self.state.chamber
