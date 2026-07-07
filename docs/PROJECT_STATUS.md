@@ -89,19 +89,32 @@ are RATIFIED by the user — do not re-litigate:
   (PASSPORT/BLACKMAIL/SPYCAM/POISON/MAGNET/SEDATIVE); counsel-audited (1 Fable expert, 31 grounded
   records, gate PASS, `counsel-runs/2026-07-08-uiv2-spec-audit/`), all 14 findings absorbed; user
   decisions D14 (fine publicly anonymous) + D15 (parametric seats, ship at 5).
-- **PLAN A (SERVER) — ✅ BUILT 2026-07-08 on branch `uiv2-server` (NOT yet merged to master).**
+- **PLAN A (SERVER) — ✅ MERGED TO MASTER 2026-07-08 (merge `0cdea26`, 236 tests green).**
   Plan `docs/superpowers/plans/2026-07-08-uiv2-server.md`, executed subagent-driven (opus
-  implementers + reviewers, every task review-gated; ledger `.superpowers/sdd/progress.md`).
-  **230 tests green; server boots, /health ok.** Landed: engine I9/C9/V3 fixes ·
-  `economy.fine_cheapest` + atomic `swap` · `ev["draws"]` + `state.last_skipped` ·
-  fine/skip/draw/trade events · Room phase machine (talk 60s / decision 30s, injectable clock,
-  `proceed`, `on_deadline` fines→auto-self-shoot, gen counter) · phase-gated actions · bluffable
-  trade lifecycle + privacy-enriched `events_for(seat)` · full v2 view contract · server deadline
-  tasks + `proceed`/`trade_*` WS messages + chat gate + roster. v1 web UI now DEGRADED by phases
-  (expected; retired in Plan B).
-- **NEXT: whole-branch final review → merge `uiv2-server` → Plan B (Phaser client)** via
-  writing-plans against the landed protocol: TableScene, choreographer + `moments.html` gallery
-  (user ratifies every animation), trays, v1 retirement (spec §6-§8, §11 steps 4-9).
+  implementers + reviewers, every task review-gated; audit trail `.superpowers/sdd/progress.md`,
+  committed). Landed: engine I9/C9/V3 fixes · `economy.fine_cheapest` + atomic `swap` ·
+  `ev["draws"]` + `state.last_skipped` · fine/skip/draw/trade events · Room phase machine
+  (talk 60s / decision 30s, injectable clock, `proceed`, `on_deadline` fines→auto-self-shoot,
+  gen counter) · phase-gated actions (incl. `flip()` decision-gate) · bluffable trade lifecycle +
+  privacy-enriched `events_for(seat)` · full v2 view contract incl. `gen` (clients replay events
+  only when gen increases — spec §4.6 note) · server deadline tasks + `proceed`/`trade_*` WS
+  messages + chat gate + roster + lock-captured per-seat broadcast payloads + payload-crash
+  hardening. **Fable whole-branch review found 2 Criticals (both PLAN-authored: T7's "re-begin
+  phase after every action" reset decision→talk on item use; `flip()` ungated) + 3 Importants —
+  all fixed (`5936ed1`, `6f027da`), merge-gate re-review PASS. LESSON for Plan B's plan review:
+  check phase/state-transition CONDITIONS, not just call sites.**
+  v1 web UI now DEGRADED by phases (expected; retired in Plan B).
+- **Accepted debt (final-review triage, non-blocking):** gift-event receiver enrichment missing
+  (Plan B: diff `your_hand`, or add later) · bot-cascade draw rows may precede the reload row
+  (Plan B choreographer must NOT assume reload→draw order in bot cascades; human path IS
+  reload→draw) · deadline-task liveness if wall clock steps backward · non-int WS field coercions
+  (join `code`, trade `give/want` lists) can still kill a socket · offer-lifecycle broadcasts leak
+  traffic-level "something private happened" · `trade_offer` accepts bot targets (withdraw
+  recovers) · post-winner chat muted (undecided) · `last_skipped` drain-contract comment.
+- **NEXT: Plan B (Phaser client) via writing-plans** against the landed protocol: TableScene,
+  choreographer + `moments.html` gallery (user ratifies every animation), trays, v1 retirement
+  (spec §6-§8, §11 steps 4-9). Run server: `./.venv/Scripts/python -m uvicorn
+  social_roulette.online.server:app --port 8016`.
   Unverified: cylinder feel over a full game · KIT tray overlaps bottom seats when open.
 
 ---
