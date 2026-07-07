@@ -37,7 +37,7 @@ def test_self_blank_bonus_goes_straight_to_decision():
     r.apply(seat, i)
     assert r.current == seat and r.state.bonus_pending
     assert r.phase == "decision"
-    # assert r.view(seat)["bonus"] is True   # re-enabled in Task 10
+    assert r.view(seat)["bonus"] is True   # re-enabled in Task 10
 
 
 def test_talk_deadline_advances_to_decision():

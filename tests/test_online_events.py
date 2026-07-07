@@ -44,8 +44,10 @@ def test_events_never_leak_hidden_state():
         for e in r.last_events:
             assert "extra" not in e                             # no raw extra blob (no peek leak)
             assert "shells" not in e                            # no shell order
+            # "seq" keys the per-seat draw enrichment (events_for pops it before a client sees it);
+            # it is a public recorder row index, never hidden state.
             assert set(e).issubset(
-                {"type", "actor", "target", "shell", "damage", "killed", "item", "total", "live"})
+                {"type", "actor", "target", "shell", "damage", "killed", "item", "total", "live", "seq"})
 
 
 def test_new_event_methods_emit_valid_rows():

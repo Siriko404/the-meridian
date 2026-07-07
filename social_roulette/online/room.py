@@ -30,9 +30,14 @@ _ANIM_KEYS = ("type", "actor", "target", "shell", "damage", "killed", "item")
 def _anim(row):
     # A reload is a fresh LOAD → its announced total/live are PUBLIC (game_guide:159).
     # Surface just those two from `extra`; every other event still drops `extra` (no peek leak).
-    if row["type"] == "reload":
+    t = row["type"]
+    if t == "reload":
         ex = json.loads(row["extra"]) if row.get("extra") else {}
         return {"type": "reload", "total": ex.get("new_total"), "live": ex.get("new_live")}
+    if t == "fine":
+        return {"type": "fine", "actor": row["actor"]}                # public: NO item (D14)
+    if t == "draw":
+        return {"type": "draw", "seq": row["seq"]}                    # seq keys the per-seat enrichment lookup
     return {k: row[k] for k in _ANIM_KEYS if k in ("type", "actor") or row.get(k) is not None}
 
 
@@ -57,6 +62,7 @@ class Room:
         self.pending_offer = None
         self._trade_result = None
         self._last_trade_items = None
+        self.extra_turn = False          # set true when a kill grants the killer another turn (read by view)
         if self.human:
             # Rotate the (random) seating so the turn STARTS at a human: nobody plays before the
             # first human turn, so no state is applied unseen (a bot immunity/flip/shot the human
@@ -98,6 +104,8 @@ class Room:
             raise IllegalAction("not your turn")
         if self.phase != "talk":
             raise IllegalAction("not in talk phase")
+        self._trade_result = None
+        self._last_trade_items = None
         self.gen += 1
         self.phase = "decision"
         self.phase_ends_at = self.now() + self.DECISION_S
@@ -129,7 +137,9 @@ class Room:
         for e in self.extras.values():
             e.sync(self.state)
         self._run_bots()
+        self._drain_skips()
         self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
+        self._derive_extra_turn()
         self._begin_phase_for_current()
         return True
 
@@ -158,6 +168,8 @@ class Room:
         for n in list(give) + list(want):
             if n not in Item.__members__:
                 raise IllegalAction("bad item name")
+        self._trade_result = None
+        self._last_trade_items = None
         self.gen += 1
         self.pending_offer = {"from": seat, "to": to, "give": list(give), "want": list(want)}
 
@@ -205,10 +217,49 @@ class Room:
         return seat not in self.human
 
     def view(self, seat):
+        from social_roulette.engine.items import consumption_limit
+        from social_roulette.engine.endgame import teams_active
         v = seat_view(self.state, seat, self.extras[seat].d(), self.feed, self.seating)
         allowed = self._PHASE_KINDS.get(self.phase, set())
         v["legal"] = [a for a in v["legal"] if a["kind"] in allowed]   # drops engine Trade (kind "other") too
+        me = player_by_id(self.state, seat)
+        v.update({
+            "phase": self.phase, "phase_ends_at": self.phase_ends_at, "server_now": self.now(),
+            "bonus": self.state.bonus_pending, "extra_turn": self.extra_turn,
+            "saw_active": self.state.saw_active,
+            "use_counts": {it.name: c for it, c in self.state.use_counts.items()},
+            "use_limit": consumption_limit(self.state),
+            "teams_active": teams_active(self.state),
+            "flipback_discount": me.flipback_discount,     # own discount only — never another seat's
+        })
+        if self.pending_offer and seat in (self.pending_offer["from"], self.pending_offer["to"]):
+            v["pending_offer"] = dict(self.pending_offer)
         return v
+
+    def events_for(self, seat):
+        """Per-seat enrichment of the shared public `last_events`: a draw event gains
+        THIS seat's own refill; a settled trade gains its items ONLY for the two
+        parties; and a declined/cancelled offer surfaces a private note to the parties.
+        Never leaks another seat's hand or the shell order."""
+        out = []
+        for e in self.last_events:
+            e = dict(e)
+            if e["type"] == "draw":
+                row = next((r for r in self.rec.rows if r["seq"] == e.get("seq")), None)
+                if row:
+                    draws = json.loads(row["extra"])["draws"]
+                    mine = draws.get(str(seat)) or draws.get(seat)   # JSON round-trip stringifies keys
+                    if mine:
+                        e["you"] = mine
+                e.pop("seq", None)
+            if e["type"] == "trade" and seat in (e.get("actor"), e.get("target")):
+                if self._last_trade_items is not None:
+                    e["items"] = self._last_trade_items
+            out.append(e)
+        tr = self._trade_result
+        if tr and tr["kind"] in ("declined", "cancelled") and seat in tr["parties"]:
+            out.append({"type": "trade_private", "kind": tr["kind"]})
+        return out
 
     def apply(self, seat, i):
         if self.winner is not None or seat != self.state.current_id:
@@ -218,12 +269,16 @@ class Room:
             raise IllegalAction("no such action")
         if not self._allowed(acts[i]):
             raise IllegalAction("not allowed in this phase")
+        self._trade_result = None
+        self._last_trade_items = None
         n0 = len(self.rec.rows)
         self._emit_human_action(seat, acts[i])
         for e in self.extras.values():
             e.sync(self.state)
         self._run_bots()
+        self._drain_skips()
         self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
+        self._derive_extra_turn()
         self._begin_phase_for_current()
 
     def flip(self, seat, target_id, item_names):
@@ -237,6 +292,8 @@ class Room:
             sacrifice = [Item[n] for n in item_names]
         except KeyError:
             raise IllegalAction("bad payment item")
+        self._trade_result = None
+        self._last_trade_items = None
         n0 = len(self.rec.rows)
         try:
             engine_step(self.state, seat, Flip(target_id, sacrifice))
@@ -247,7 +304,9 @@ class Room:
         for e in self.extras.values():
             e.sync(self.state)
         self._run_bots()
+        self._drain_skips()
         self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
+        self._derive_extra_turn()
         self._begin_phase_for_current()
 
     def _emit_human_action(self, seat, action):
@@ -266,6 +325,8 @@ class Room:
                 live = sum(1 for s in self.state.chamber.shells if s == Shell.LIVE)
                 self.rec.reload(self._turn, "death" if len(living_ids(self.state)) < len(alive_before) else "empty",
                                 len(self.state.chamber.shells), live)
+            self._record_draws(ev)
+            self._drain_skips()
         elif isinstance(action, Flip):
             tgt = action.target_id
             engine_step(self.state, seat, action)
@@ -273,7 +334,7 @@ class Room:
                           player_by_id(self.state, tgt).team.name)
         else:                                       # UseItem (Trade/Speak impossible: social/comms disabled)
             it = getattr(action, "item", None)
-            engine_step(self.state, seat, action)
+            ev = engine_step(self.state, seat, action)
             if it == Item.MAGNIFIER:
                 self.extras[seat].peek(self.state)
             elif it == Item.BEER:
@@ -282,6 +343,30 @@ class Room:
             if self.state.chamber is not ch_before and self.state.winner is None:   # Beer emptied it → reload
                 live = sum(1 for s in self.state.chamber.shells if s == Shell.LIVE)
                 self.rec.reload(self._turn, "empty", len(self.state.chamber.shells), live)
+            self._record_draws(ev)
+            self._drain_skips()
+
+    def _record_draws(self, ev):
+        """A reload refill (empty/beer/self-death) fans out per-seat draws — record them
+        so events_for can hand each seat ONLY its own attempted/received (privacy)."""
+        if ev and ev.get("draws"):
+            self.rec.draw(self._turn, {pid: {"attempted": [i.name for i in d["attempted"]],
+                                             "received": [i.name for i in d["received"]]}
+                                       for pid, d in ev["draws"].items()})
+
+    def _drain_skips(self):
+        """A handcuffed seat skipped at turn-advance is a PUBLIC event — flush the
+        engine's buffer into skip rows (chronologically after the action that caused it)."""
+        for pid in self.state.last_skipped:
+            self.rec.skip(self._turn, pid)
+        self.state.last_skipped.clear()
+
+    def _derive_extra_turn(self):
+        """True when this delta killed someone AND the killer still holds the turn
+        (a bonus turn) — the UI shows a 'go again' cue. Never true once the match ends."""
+        self.extra_turn = self.winner is None and any(
+            e.get("type") == "elimination" and e.get("actor") == self.state.current_id
+            for e in self.last_events)
 
     def _run_bots(self):
         while self.state.winner is None and self.is_bot(self.state.current_id):
