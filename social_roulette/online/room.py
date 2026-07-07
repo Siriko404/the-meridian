@@ -229,6 +229,7 @@ class Room:
         v["legal"] = [a for a in v["legal"] if a["kind"] in allowed]   # drops engine Trade (kind "other") too
         me = player_by_id(self.state, seat)
         v.update({
+            "gen": self.gen,
             "phase": self.phase, "phase_ends_at": self.phase_ends_at, "server_now": self.now(),
             "bonus": self.state.bonus_pending, "extra_turn": self.extra_turn,
             "saw_active": self.state.saw_active,

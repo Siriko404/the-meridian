@@ -167,3 +167,16 @@ def test_flip_gated_to_decision_phase():
     assert r.state.players[tgt].team != before
     assert r.phase == "decision"                    # flip does not re-begin the phase (C1)
     assert r.phase_ends_at == ends
+
+
+def test_view_carries_increasing_gen():
+    # I2: view exposes gen and it strictly increases across a mutation.
+    from social_roulette.engine.constants import Item
+    from social_roulette.engine.state import player_by_id
+    r, t = clockroom()
+    seat = r.current
+    player_by_id(r.state, seat).inventory = {Item.MAGNIFIER: 1}
+    r.proceed(seat)
+    g0 = r.view(seat)["gen"]
+    r.apply(seat, _item_index(r, seat, "MAGNIFIER"))
+    assert r.view(seat)["gen"] > g0

@@ -192,6 +192,8 @@ dice sequence are synthesized client-side (dice = any hi/lo roll decomposition c
 the announced totals).
 `item_counts` ships already but becomes correct once corpses burn (below).
 
+**Protocol note (audit I2-final-review):** Views carry `gen`; clients replay `events` only when `gen` increased.
+
 ## 5 · Engine fixes (audit I9, C9, V3 — at the source)
 
 | # | Fix | Where |

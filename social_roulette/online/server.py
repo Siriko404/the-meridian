@@ -53,12 +53,15 @@ async def _deadline(lb, gen):
         await asyncio.sleep(max(0.0, lb.room.phase_ends_at - time.time()))
     except asyncio.CancelledError:
         return
+    payloads = None
     async with lb.lock:
         if lb.room is None or lb.room.gen != gen:
             return
         acted = lb.room.on_deadline()
+        if acted:
+            payloads = _capture_payloads(lb)
     if acted:
-        await _broadcast_views(lb)
+        await _broadcast_views(lb, payloads)
         if lb.room.winner is not None:
             for m in lb.members:
                 if m["ws"] is not None:
@@ -75,13 +78,24 @@ def _schedule_deadline(lb):
         lb.deadline_task = asyncio.create_task(_deadline(lb, lb.room.gen))
 
 
-async def _broadcast_views(lb, events=None):
+def _capture_payloads(lb):
+    # Snapshot each seat's per-seat delta + view WHILE the room lock is held, so a
+    # concurrent handler/deadline cannot mutate the room between sends (I1: per-seat
+    # events_for/view were formerly recomputed mid-broadcast, outside any lock, with
+    # awaits in between — losing or duplicating deltas). Callers pass this to _broadcast_views.
+    return {m["seat"]: {"events": lb.room.events_for(m["seat"]), **lb.room.view(m["seat"])}
+            for m in lb.members if m["seat"] is not None}
+
+
+async def _broadcast_views(lb, payloads=None):
     roster = {m["seat"]: m["name"] for m in lb.members if m["seat"] is not None}
     for m in lb.members:
         if m["ws"] is not None and m["seat"] is not None:
-            ev = lb.room.events_for(m["seat"]) if events is None else events
-            await _send(m["ws"], {"type": "view", "events": ev, "roster": roster,
-                                  **lb.room.view(m["seat"])})
+            # Mutating paths pass a lock-captured snapshot; the no-mutation join rebroadcast
+            # (payloads is None) computes fresh — the room is not changing under it.
+            p = payloads[m["seat"]] if payloads is not None else {
+                "events": lb.room.events_for(m["seat"]), **lb.room.view(m["seat"])}
+            await _send(m["ws"], {"type": "view", "roster": roster, **p})
     _schedule_deadline(lb)
 
 
@@ -138,16 +152,23 @@ async def ws(ws: WebSocket):
                         m["seat"] = seat
                     human_seats = {m["seat"] for m in lb.members if m["seat"] is not None}
                     lb.room = Room(human_seats=human_seats, seed=_seed_from(lb.code))
-                await _broadcast_views(lb)              # per-seat events_for carries the opening announce
+                    payloads = _capture_payloads(lb)
+                await _broadcast_views(lb, payloads)     # per-seat events_for carries the opening announce
 
             elif t == "action" and lb and lb.room and me and me["seat"] is not None:
+                try:
+                    i = int(msg.get("i", -1))
+                except (ValueError, TypeError):
+                    await _send(ws, {"type": "error", "msg": "bad payload"})
+                    continue
                 async with lb.lock:
                     try:
-                        lb.room.apply(me["seat"], int(msg.get("i", -1)))
+                        lb.room.apply(me["seat"], i)
                     except IllegalAction as e:
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
-                await _broadcast_views(lb)               # per-seat events_for carries the delta
+                    payloads = _capture_payloads(lb)
+                await _broadcast_views(lb, payloads)     # per-seat events_for carries the delta
                 if lb.room.winner is not None:
                     for m in lb.members:
                         if m["ws"] is not None:
@@ -160,17 +181,24 @@ async def ws(ws: WebSocket):
                     except IllegalAction as e:
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
-                await _broadcast_views(lb)
+                    payloads = _capture_payloads(lb)
+                await _broadcast_views(lb, payloads)
 
             elif t == "trade_offer" and lb and lb.room and me and me["seat"] is not None:
+                try:
+                    to = int(msg.get("to", -1))
+                except (ValueError, TypeError):
+                    await _send(ws, {"type": "error", "msg": "bad payload"})
+                    continue
                 async with lb.lock:
                     try:
-                        lb.room.trade_offer(me["seat"], int(msg.get("to", -1)),
+                        lb.room.trade_offer(me["seat"], to,
                                             msg.get("give") or [], msg.get("want") or [])
                     except IllegalAction as e:
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
-                await _broadcast_views(lb)
+                    payloads = _capture_payloads(lb)
+                await _broadcast_views(lb, payloads)
 
             elif t == "trade_respond" and lb and lb.room and me and me["seat"] is not None:
                 async with lb.lock:
@@ -179,7 +207,8 @@ async def ws(ws: WebSocket):
                     except IllegalAction as e:
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
-                await _broadcast_views(lb)
+                    payloads = _capture_payloads(lb)
+                await _broadcast_views(lb, payloads)
 
             elif t == "trade_withdraw" and lb and lb.room and me and me["seat"] is not None:
                 async with lb.lock:
@@ -188,16 +217,23 @@ async def ws(ws: WebSocket):
                     except IllegalAction as e:
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
-                await _broadcast_views(lb)
+                    payloads = _capture_payloads(lb)
+                await _broadcast_views(lb, payloads)
 
             elif t == "flip" and lb and lb.room and me and me["seat"] is not None:
-                async with lb.lock:                      # flip with a CHOSEN payment {target, items:[names]}
+                try:                                     # flip with a CHOSEN payment {target, items:[names]}
+                    target = int(msg.get("target", -1))
+                except (ValueError, TypeError):
+                    await _send(ws, {"type": "error", "msg": "bad payload"})
+                    continue
+                async with lb.lock:
                     try:
-                        lb.room.flip(me["seat"], int(msg.get("target", -1)), msg.get("items") or [])
+                        lb.room.flip(me["seat"], target, msg.get("items") or [])
                     except IllegalAction as e:
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
-                await _broadcast_views(lb)
+                    payloads = _capture_payloads(lb)
+                await _broadcast_views(lb, payloads)
 
             elif t == "chat" and lb and me:
                 if lb.room is not None and (me["seat"] is None or not lb.room.can_chat(me["seat"])):

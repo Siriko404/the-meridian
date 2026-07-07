@@ -82,6 +82,29 @@ def test_proceed_trade_messages_and_chat_gate():
         assert saw_decision
 
 
+def test_malformed_payload_does_not_kill_socket():
+    """I3: a bad int coercion (action i) must not crash the WS loop — the server
+    answers 'bad payload' and the socket still services a subsequent ping."""
+    c = TestClient(app)
+    with c.websocket_connect("/ws") as ws:
+        ws.send_json({"type": "join", "code": "TESTROOM5", "name": "A"})
+        started = False
+        for _ in range(50):
+            m = ws.receive_json()
+            if m["type"] == "joined":
+                ws.send_json({"type": "start"})
+            elif m["type"] == "view" and not started:
+                started = True
+                ws.send_json({"type": "action", "i": "garbage"})   # non-int → bad payload
+            elif m["type"] == "error":
+                assert m["msg"] == "bad payload"
+                ws.send_json({"type": "ping"})                     # socket must still be alive
+            elif m["type"] == "pong":
+                break
+        else:
+            assert False, "never received pong after malformed payload"
+
+
 def test_trade_offer_rejected_outside_talk_over_ws():
     c = TestClient(app)
     with c.websocket_connect("/ws") as ws:
