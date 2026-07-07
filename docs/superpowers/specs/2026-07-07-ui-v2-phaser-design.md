@@ -128,19 +128,26 @@ only entries legal in the current phase (talk: UseItem+Trade; decision: UseItem+
 `apply()` re-validates both the index **and** the phase. `social_enabled=True` turns Trade on
 (engine already supports it; random bots will occasionally gift — acceptable flavor).
 
-### 4.5 Trade (audit E5)
+### 4.5 Trade (audit E5) — bluffable offer/accept swap (user-designed 2026-07-08)
 
-- **One-way gifts** (the engine's Trade): active player → living teammate, TALK phase only,
-  **all** requested items must pass the receiver's caps or the whole trade is rejected
-  (guide:138 "blocked"; explicit rejection beats the engine's silent partial move — Room
-  pre-validates, engine unchanged). Swaps = two gifts negotiated in chat, trust-based —
-  the guide enforces no fairness (:137) and alliances are explicitly unenforced (:145);
-  betrayal-of-a-half-completed-swap is on-theme.
-- **Privacy:** the trade EVENT is public ("VESPER passed materials to WREN") but item identities
-  appear only in the giver's and receiver's views. Room strips `items` from the public event and
-  enriches the two parties' copies (first per-seat event enrichment; the seam already broadcasts
-  per-seat, so this is a filter, not a redesign).
-- New WS message: `{type:"trade", to:<seat>, items:[<enum names>]}`.
+- **Only the active player trades**, TALK phase only, living **teammates** only.
+- **Flow:** actor taps a teammate's avatar (tradable teammates glow) → **offer menu** opens:
+  set what you GIVE and what you WANT (item types + counts). **Offers are NOT bound to your
+  real inventory — bluffing is a designed mechanic.** The offer goes privately to that teammate,
+  who gets an ACCEPT / DECLINE tray.
+- **Settlement (on accept):** server checks both sides actually own their promised items AND the
+  swap clears both inventories' caps (guide:138 "blocked"). Any failure → both parties get
+  "TRADE CANCELLED — A PARTY LACKED THE GOODS" and nothing moves (the honest side thereby learns
+  the other bluffed — bluffing carries exposure risk by design). Success → the swap applies
+  **atomically** under the room lock as two engine gift steps (engine unchanged).
+- One-way gift = an offer with an empty WANT side. One pending offer at a time; pending offers
+  expire when the talk phase ends. Decline is silent to the rest of the table.
+- **Privacy:** the negotiation and item identities are visible only to the two parties. The table
+  publicly sees only a **settled** trade ("VESPER and WREN made an exchange", no contents) —
+  Room strips items from the public event and enriches the two parties' copies. Cancelled or
+  declined offers are never public.
+- New WS messages: `{type:"trade_offer", to:<seat>, give:[names], want:[names]}` ·
+  `{type:"trade_respond", accept:<bool>}`.
 
 ### 4.6 Protocol additions (view + messages)
 
@@ -149,7 +156,7 @@ View gains: `phase` (`"talk"|"decision"|null` — null while bots cascade), `pha
 `saw_active` (public: the commit event was public), `use_counts` + `use_limit` (public, audit I10),
 `teams_active` (bool, audit G3), `flipback_discount` (own view only, audit E4),
 `roster` (seat→display name — v1 never sent names to the table).
-New client→server: `proceed`, `trade`. New event types: `fine`. `item_counts` ships already but
+New client→server: `proceed`, `trade_offer`, `trade_respond`. New event types: `fine`, `trade`. `item_counts` ships already but
 becomes correct once corpses burn (below).
 
 ## 5 · Engine fixes (audit I9, C9, V3 — at the source)
@@ -203,7 +210,8 @@ build; drop the arc's `cy` if it collides.
 Verb → (item picker if needed) → legal seats highlight with **red corner brackets** → tap seat →
 confirm. `(kind, item, target)` uniquely keys a legal action (v1 invariant, kept). FLIP opens the
 payment tray (pick which items pay, running total vs cost, flip-back 4 shown when your discount is
-live — audit E4). TRADE (talk only): pick teammate → pick 1+ items → confirm.
+live — audit E4). TRADE (talk only): teammates glow → tap one → offer tray (GIVE/WANT) →
+their accept → settle-or-cancel (4.5).
 
 ## 7 · THE MOMENT CATALOG (every game moment, its choreography)
 
@@ -254,7 +262,7 @@ v1's terminal decoder, ported to Phaser (per-char timed reveal on a mono bitmap-
 | # | Moment | Choreography |
 |---|---|---|
 | M25 | Flip | Payment tray → confirm → target's plate **inverts polarity live** (white↔black snap + frame weight swap) — the flip IS the visual; "\<A\> TURNED \<B\>" |
-| M26 | Trade | Card-back(s) fly giver→receiver publicly; item names render only for the two parties (4.5) |
+| M26 | Trade | Actor taps TRADE → teammates **glow** → tap one → offer tray (GIVE / WANT pickers, unbound from inventory) → counterparty's ACCEPT/DECLINE tray (private) → **settle:** card-backs fly BOTH ways publicly, real items render only for the two parties · **cancel:** private "TRADE CANCELLED" stamp to both (4.5) |
 | M27 | Teams off (G3) | At 2 alive: "AGENCIES DISSOLVED · FREE FOR ALL" band; both plates equalize (black, white text, equal 3px frames) — team semantics visibly end |
 | M28 | Winner | Winner's portrait centered, "LAST AGENT STANDING · \<NAME\>"; credits line (JJ99 · Darkmoonfire, per ATTRIBUTION.md) |
 
@@ -273,7 +281,7 @@ Target brackets (M11) · final-5s countdown digits (M8) · pip-shatter particles
 |---|---|---|
 | D1 | Flips + shots are **decision-phase only**; trades talk-only | guide:169/:172 parallel enumeration; bonus turn (:189) = "items and flip" confirms flips live in the silent phase |
 | D2 | "Timer runs out with no action" = **no shot committed** | anti-stall intent; item-use can't end a turn, so any weaker reading allows infinite stalling |
-| D3 | Trade = **one-way gifts**; swaps are two gifts negotiated in chat (trust-based) | engine's Trade is a gift; guide allows any terms incl. gifts (:137) and enforces nothing (:145); betrayal is on-theme |
+| D3 | Trade = **bluffable offer/accept swap** — offers unbound from inventory; on accept the server validates both sides + caps, else "cancelled" warning to both; settles as two atomic gift steps (engine unchanged) | user-designed 2026-07-08 (supersedes the gifts-only draft); guide:137-138 (any terms; over-cap blocked) |
 | D4 | Trade event public, **item identities private** to the two parties | "who holds which item" is hidden info (guide:154) |
 | D5 | **Dead players are muted** | a dead player can hold a live peek → leak channel; spies who are burned leave the table |
 | D6 | **Bots skip phases/timers** (cascade pace) | timers bound human stalling; 60s bot talk phases would make 1-human games unplayable |
@@ -292,7 +300,9 @@ Target brackets (M11) · final-5s countdown digits (M8) · pip-shatter particles
 - **Room (pytest, no sockets):** begin_turn sets TALK (or BONUS→DECISION) · proceed gates to actor ·
   talk-deadline → DECISION · decision-deadline → fine (+reset) → … → auto self-shoot when broke ·
   phase-filtered legal sets (no Shoot/Flip in talk view; no Trade in decision) · apply rejects
-  phase-illegal actions · trade validation (phase/team/alive/caps all-or-nothing) · chat gate
+  phase-illegal actions · trade: offer gated (phase/team/alive/one-pending) · accept settles a
+  valid swap atomically · bluffed give, bluffed want, and cap-breaking swaps each cancel with no
+  state change · offers expire at talk-phase end · decline is private · chat gate
   (talk-only, living-only) · gen counter no-ops stale deadlines · extra_turn flag set/cleared ·
   trade privacy (public event stripped; parties enriched).
 - **View:** new fields present · no-leak tests extended over trade events (no foreign hands, no
