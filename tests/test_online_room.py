@@ -52,5 +52,7 @@ def test_human_action_advances_and_bots_autoplay():
         if r.winner is not None:
             break
         if r.current == 0:
+            if r.phase == "talk":
+                r.proceed(0)                     # index 0 == Shoot(self): talk-illegal, enter decision
             r.apply(0, 0)                        # index 0 == Shoot(self)
     assert r.winner is not None

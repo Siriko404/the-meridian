@@ -17,7 +17,7 @@ from social_roulette.engine.engine import new_game, step as engine_step
 from social_roulette.engine.constants import Item, Shell
 from social_roulette.engine.actions import legal_actions, Shoot, Flip
 from social_roulette.engine.state import player_by_id, living_ids
-from social_roulette.engine.economy import fine_cheapest
+from social_roulette.engine.economy import fine_cheapest, swap
 from social_roulette.sim.turn import take_policy_turn, random_policy, Extras
 from social_roulette.observe.recorder import Recorder
 from social_roulette.online.view import seat_view
@@ -43,6 +43,7 @@ class IllegalAction(Exception):
 class Room:
     TALK_S = 60.0
     DECISION_S = 30.0
+    _PHASE_KINDS = {"talk": {"item"}, "decision": {"item", "flip", "shoot"}}
 
     def __init__(self, human_seats, seed, num_players=5, now_fn=time.time):
         self.now = now_fn
@@ -52,7 +53,10 @@ class Room:
         self.human = set(human_seats)
         self.state = new_game(num_players, seed)
         self.state.comms_enabled = False
-        self.state.social_enabled = False
+        self.state.social_enabled = True     # bots may gift/trade during their cascade
+        self.pending_offer = None
+        self._trade_result = None
+        self._last_trade_items = None
         if self.human:
             # Rotate the (random) seating so the turn STARTS at a human: nobody plays before the
             # first human turn, so no state is applied unseen (a bot immunity/flip/shot the human
@@ -97,6 +101,7 @@ class Room:
         self.gen += 1
         self.phase = "decision"
         self.phase_ends_at = self.now() + self.DECISION_S
+        self._expire_offer()          # leaving talk voids any pending offer
         self.last_events = []
 
     def on_deadline(self):
@@ -129,7 +134,59 @@ class Room:
         return True
 
     def _expire_offer(self):
-        pass
+        self.pending_offer = None
+
+    def _allowed(self, action):
+        from social_roulette.engine.actions import Trade as _Trade
+        if isinstance(action, _Trade):
+            return False                                  # humans trade via offers only (a20)
+        kind = ("shoot" if isinstance(action, Shoot) else
+                "flip" if isinstance(action, Flip) else "item")
+        return kind in self._PHASE_KINDS.get(self.phase, set())
+
+    def trade_offer(self, seat, to, give, want):
+        if self.winner is not None or seat != self.state.current_id:
+            raise IllegalAction("not your turn")
+        if self.phase != "talk":
+            raise IllegalAction("trades happen in the talk phase")
+        if self.pending_offer is not None:
+            raise IllegalAction("an offer is already pending")
+        me = player_by_id(self.state, seat)
+        mate = player_by_id(self.state, to)
+        if not mate.alive or to == seat or mate.team != me.team:
+            raise IllegalAction("can only trade with a living teammate")
+        for n in list(give) + list(want):
+            if n not in Item.__members__:
+                raise IllegalAction("bad item name")
+        self.gen += 1
+        self.pending_offer = {"from": seat, "to": to, "give": list(give), "want": list(want)}
+
+    def trade_withdraw(self, seat):
+        if self.pending_offer is None or self.pending_offer["from"] != seat:
+            raise IllegalAction("no offer of yours is pending")
+        self.gen += 1
+        self.pending_offer = None
+
+    def trade_respond(self, seat, accept):
+        if self.pending_offer is None or self.pending_offer["to"] != seat:
+            raise IllegalAction("no offer for you is pending")
+        off = self.pending_offer
+        self.gen += 1
+        self.pending_offer = None
+        if not accept:
+            self._trade_result = {"kind": "declined", "parties": (off["from"], off["to"])}
+            return
+        give = [Item[n] for n in off["give"]]
+        want = [Item[n] for n in off["want"]]
+        try:
+            swap(self.state, off["from"], off["to"], give, want)
+        except ValueError:
+            self._trade_result = {"kind": "cancelled", "parties": (off["from"], off["to"])}
+            return
+        self.rec.trade(self._turn, off["from"], off["to"], off["give"], off["want"])
+        self._trade_result = {"kind": "settled", "parties": (off["from"], off["to"])}
+        self._last_trade_items = {"give": off["give"], "want": off["want"]}
+        self.last_events = [{"type": "trade", "actor": off["from"], "target": off["to"]}]
 
     def _announce(self):
         ch = self.state.chamber
@@ -148,7 +205,10 @@ class Room:
         return seat not in self.human
 
     def view(self, seat):
-        return seat_view(self.state, seat, self.extras[seat].d(), self.feed, self.seating)
+        v = seat_view(self.state, seat, self.extras[seat].d(), self.feed, self.seating)
+        allowed = self._PHASE_KINDS.get(self.phase, set())
+        v["legal"] = [a for a in v["legal"] if a["kind"] in allowed]   # drops engine Trade (kind "other") too
+        return v
 
     def apply(self, seat, i):
         if self.winner is not None or seat != self.state.current_id:
@@ -156,6 +216,8 @@ class Room:
         acts = legal_actions(self.state, seat)
         if not (0 <= i < len(acts)):
             raise IllegalAction("no such action")
+        if not self._allowed(acts[i]):
+            raise IllegalAction("not allowed in this phase")
         n0 = len(self.rec.rows)
         self._emit_human_action(seat, acts[i])
         for e in self.extras.values():

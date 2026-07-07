@@ -20,6 +20,7 @@ def test_human_shot_emits_shot_event():
     (fired shell / damage / killed) — everything a client needs to animate."""
     r = Room(human_seats={0}, seed=0)        # seat 0 human, rest bots
     assert r.current == 0
+    r.proceed(0)                             # leave talk: index 0 == Shoot(self) is decision-only
     r.apply(0, 0)                            # index 0 == Shoot(self)
     shots = [e for e in r.last_events if e["type"] == "shot"]
     assert shots, "human shot must emit a 'shot' event"
@@ -37,6 +38,8 @@ def test_events_never_leak_hidden_state():
         if r.winner is not None:
             break
         if r.current == 0:
+            if r.phase == "talk":
+                r.proceed(0)                 # index 0 == Shoot(self) is decision-only
             r.apply(0, 0)
         for e in r.last_events:
             assert "extra" not in e                             # no raw extra blob (no peek leak)

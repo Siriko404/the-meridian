@@ -27,8 +27,11 @@ def test_full_game_over_ws_no_leak():
                     if e["type"] == "shot":
                         assert e["shell"] in ("LIVE", "BLANK")
                         saw_shot_event = True
-                if m["current"] == m["you"] and m["winner"] is None and m["legal"]:
-                    ws.send_json({"type": "action", "i": 0})          # self-shoot
+                if m["current"] == m["you"] and m["winner"] is None:
+                    if any(a["kind"] == "shoot" for a in m["legal"]):
+                        ws.send_json({"type": "action", "i": 0})      # self-shoot (decision phase)
+                    else:
+                        ws.send_json({"type": "proceed"})             # talk phase: advance to decision
             elif m["type"] == "end":
                 winner = m["winner"]
                 break

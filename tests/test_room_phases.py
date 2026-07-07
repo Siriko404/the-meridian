@@ -66,3 +66,14 @@ def test_decision_deadline_fines_then_auto_shoots():
     assert r.on_deadline() is True                       # broke -> auto self-shoot
     assert any(e["type"] == "shot" for e in r.last_events)
     assert r.current != seat or r.state.bonus_pending or r.winner is not None
+
+
+def test_talk_phase_gates_shoot_and_flip():
+    r, t = clockroom()
+    seat = r.current
+    v = r.view(seat)
+    kinds = {a["kind"] for a in v["legal"]}
+    assert "shoot" not in kinds and "flip" not in kinds and "trade" not in kinds
+    r.proceed(seat)
+    kinds2 = {a["kind"] for a in r.view(seat)["legal"]}
+    assert "shoot" in kinds2 and "trade" not in kinds2
