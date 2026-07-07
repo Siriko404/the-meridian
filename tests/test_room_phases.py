@@ -95,3 +95,75 @@ def test_talk_phase_gates_shoot_and_flip():
     r.proceed(seat)
     kinds2 = {a["kind"] for a in r.view(seat)["legal"]}
     assert "shoot" in kinds2 and "trade" not in kinds2
+
+
+def _item_index(r, seat, name):
+    return next(a["i"] for a in r.view(seat)["legal"]
+               if a["kind"] == "item" and a["item"] == name)
+
+
+def test_item_use_during_decision_keeps_phase_and_deadline():
+    # C1: a non-turn-ending item use in DECISION must NOT re-begin the phase.
+    from social_roulette.engine.constants import Item
+    from social_roulette.engine.state import player_by_id
+    r, t = clockroom()
+    seat = r.current
+    player_by_id(r.state, seat).inventory = {Item.MAGNIFIER: 1}
+    r.proceed(seat)
+    ends = r.phase_ends_at
+    g0 = r.gen
+    r.apply(seat, _item_index(r, seat, "MAGNIFIER"))
+    assert r.phase == "decision"                 # NOT dropped back to a fresh talk
+    assert r.phase_ends_at == ends               # window not reset/extended
+    assert r.gen == g0 + 1                        # exactly one gen bump
+
+
+def test_item_use_during_talk_keeps_talk_deadline():
+    # C1: an item use in TALK must not extend the talk window either.
+    from social_roulette.engine.constants import Item
+    from social_roulette.engine.state import player_by_id
+    r, t = clockroom()
+    seat = r.current
+    player_by_id(r.state, seat).inventory = {Item.MAGNIFIER: 1}
+    ends = r.phase_ends_at
+    g0 = r.gen
+    r.apply(seat, _item_index(r, seat, "MAGNIFIER"))
+    assert r.phase == "talk"
+    assert r.phase_ends_at == ends
+    assert r.gen == g0 + 1
+
+
+def test_magnet_reload_during_decision_keeps_phase_and_deadline():
+    # C1: a MAGNET (Beer) that empties the chamber reloads but must NOT extend the window.
+    from social_roulette.engine.constants import Item, Shell
+    from social_roulette.engine.state import player_by_id
+    r, t = clockroom()
+    seat = r.current
+    player_by_id(r.state, seat).inventory = {Item.BEER: 1}
+    r.proceed(seat)
+    r.state.chamber.shells[:] = [Shell.BLANK]
+    r.state.chamber.pos = 0
+    ends = r.phase_ends_at
+    r.apply(seat, _item_index(r, seat, "BEER"))
+    assert any(e["type"] == "reload" for e in r.last_events)   # reload really fired
+    assert r.phase == "decision"
+    assert r.phase_ends_at == ends
+
+
+def test_flip_gated_to_decision_phase():
+    # C2: flips settle only in DECISION; a talk-phase flip is rejected.
+    from social_roulette.engine.constants import Item
+    from social_roulette.engine.state import player_by_id
+    r, t = clockroom()
+    seat = r.current
+    tgt = next(x for x in range(5) if x != seat)
+    player_by_id(r.state, seat).inventory = {Item.BEER: 1, Item.HANDCUFFS: 1}
+    with pytest.raises(IllegalAction):
+        r.flip(seat, tgt, ["BEER", "HANDCUFFS"])   # still in talk → rejected
+    r.proceed(seat)
+    ends = r.phase_ends_at
+    before = r.state.players[tgt].team
+    r.flip(seat, tgt, ["BEER", "HANDCUFFS"])        # decision → succeeds
+    assert r.state.players[tgt].team != before
+    assert r.phase == "decision"                    # flip does not re-begin the phase (C1)
+    assert r.phase_ends_at == ends

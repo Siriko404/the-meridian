@@ -284,13 +284,22 @@ class Room:
         self._drain_skips()
         self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
         self._derive_extra_turn()
-        self._begin_phase_for_current()
+        # The turn only resolves via a SHOT (fines/auto-shoot flow through the same shot
+        # path). A non-turn-ending action (item use, incl. a MAGNET reload) must NOT re-begin
+        # the phase — that would drop DECISION back to a fresh 60s TALK (§4.1/§4.3). Re-begin
+        # only when the delta actually ended the turn; otherwise just bump gen once.
+        if self.winner is not None or any(e.get("type") == "shot" for e in self.last_events):
+            self._begin_phase_for_current()
+        else:
+            self.gen += 1
 
     def flip(self, seat, target_id, item_names):
         """A flip with a player-CHOSEN payment. The engine's pay_cost re-validates that
         the sacrifice is owned and its point value covers the cost (4 flip-back, else 5)."""
         if self.winner is not None or seat != self.state.current_id:
             raise IllegalAction("not your turn")
+        if self.phase != "decision":
+            raise IllegalAction("flips happen in the decision phase")
         if target_id not in living_ids(self.state):
             raise IllegalAction("bad flip target")
         try:
@@ -312,7 +321,7 @@ class Room:
         self._drain_skips()
         self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
         self._derive_extra_turn()
-        self._begin_phase_for_current()
+        self.gen += 1                 # a flip never ends the turn → never re-begin the phase (C1/§4.1)
 
     def _emit_human_action(self, seat, action):
         """Step the engine for the human's one committed action and record the
