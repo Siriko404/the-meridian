@@ -17,10 +17,10 @@ class DiningCar extends Phaser.Scene {
     const g = this.add.graphics();
 
     // ---- destination board ----
-    this.add.text(W / 2, 30, "THE MERIDIAN", { fontFamily: "Consolas,monospace", fontSize: "20px", color: "#ffffff" })
-      .setOrigin(0.5).setLetterSpacing(6);
-    this.add.text(W / 2, 52, "LAST SERVICE · CAR 4", { fontFamily: "Consolas,monospace", fontSize: "10px", color: "#8a8a8a" })
-      .setOrigin(0.5).setLetterSpacing(4);
+    this.add.text(W / 2, 28, "THE MERIDIAN", { fontFamily: "Consolas,monospace", fontSize: "26px", color: "#ffffff" })
+      .setOrigin(0.5).setLetterSpacing(6).setResolution(2);
+    this.add.text(W / 2, 53, "LAST SERVICE · CAR 4", { fontFamily: "Consolas,monospace", fontSize: "14px", color: "#aaaaaa" })
+      .setOrigin(0.5).setLetterSpacing(4).setResolution(2);
     g.lineStyle(1, WHITE, 0.5).lineBetween(24, 66, W - 24, 66);
 
     // ---- window band: three frames, the war passing outside ----
@@ -46,9 +46,9 @@ class DiningCar extends Phaser.Scene {
       const x = cx + rx * Math.cos(a), y = cy + ry * Math.sin(a);
       const frame = this.add.rectangle(x, y, 78, 78).setStrokeStyle(2, WHITE, 0.9);
       const face = this.add.image(x, y, "faces", i).setScale(2);
-      const name = this.add.text(x, y + 52, "P" + i, { fontFamily: "Consolas,monospace", fontSize: "13px", color: "#ffffff" }).setOrigin(0.5);
-      // cover-identity pips (lives): 3 tiny hearts
-      const pips = [0, 1, 2].map(k => this.add.image(x - 14 + k * 14, y + 70, "icons", 20).setScale(1));
+      const name = this.add.text(x, y + 55, "P" + i, { fontFamily: "Consolas,monospace", fontSize: "20px", color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5).setResolution(2);
+      // cover-identity pips (lives): 3 hearts
+      const pips = [0, 1, 2].map(k => this.add.image(x - 21 + k * 21, y + 76, "icons", 20).setScale(1.5));
       // team badge: filled vs hollow square (form, not color)
       const badge = i % 2 === 0
         ? this.add.rectangle(x - 30, y - 30, 10, 10, WHITE)
@@ -79,12 +79,12 @@ class DiningCar extends Phaser.Scene {
       { f: 37, n: "PAPERS" }, { f: 40, n: "COVER" }, { f: 14, n: "MANIFEST" },
       { f: 11, n: "POISON" }, { f: 38, n: "INTERCEPT" }, { f: 25, n: "BURN" },
     ];
-    const ty = 736, tw = 56;
+    const ty = 740, tw = 60;
     items.forEach((it, k) => {
-      const x = 34 + k * (tw + 6) + tw / 2;
-      this.add.rectangle(x, ty, tw, 66).setStrokeStyle(1, WHITE, 0.6);
-      this.add.image(x, ty - 12, "icons", it.f).setScale(2.2);
-      this.add.text(x, ty + 20, it.n, { fontFamily: "Consolas,monospace", fontSize: "7px", color: "#bbbbbb" }).setOrigin(0.5);
+      const x = 22 + k * (tw + 2) + tw / 2;
+      this.add.rectangle(x, ty, tw, 82).setStrokeStyle(1, WHITE, 0.6);
+      this.add.image(x, ty - 18, "icons", it.f).setScale(2.6);
+      this.add.text(x, ty + 24, it.n, { fontFamily: "Consolas,monospace", fontSize: "13px", color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5).setResolution(2);
     });
 
 
