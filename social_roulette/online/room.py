@@ -99,6 +99,9 @@ class Room:
         self.phase = "decision" if self.state.bonus_pending else "talk"
         self.phase_ends_at = self.now() + self._grace() + dur
 
+    def can_chat(self, seat):
+        return self.phase == "talk" and player_by_id(self.state, seat).alive
+
     def proceed(self, seat):
         if self.winner is not None or seat != self.state.current_id:
             raise IllegalAction("not your turn")

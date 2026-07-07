@@ -7,6 +7,7 @@ leaves an empty seat; reconnect with the same token reclaims the seat.
 import asyncio
 import os
 import secrets
+import time
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
@@ -27,6 +28,7 @@ class Lobby:
         self.members = []          # list of {"name","token","seat","ws","host"}
         self.room = None           # Room once started
         self.lock = asyncio.Lock()
+        self.deadline_task = None   # pending asyncio task that fires the phase deadline
 
     def by_token(self, token):
         return next((m for m in self.members if m["token"] == token), None)
@@ -46,10 +48,39 @@ async def _send(ws, msg):
         pass
 
 
+async def _deadline(lb, gen):
+    try:
+        await asyncio.sleep(max(0.0, lb.room.phase_ends_at - time.time()))
+    except asyncio.CancelledError:
+        return
+    async with lb.lock:
+        if lb.room is None or lb.room.gen != gen:
+            return
+        acted = lb.room.on_deadline()
+    if acted:
+        await _broadcast_views(lb)
+        if lb.room.winner is not None:
+            for m in lb.members:
+                if m["ws"] is not None:
+                    await _send(m["ws"], {"type": "end", "winner": lb.room.winner})
+
+
+def _schedule_deadline(lb):
+    if lb.deadline_task is not None:
+        lb.deadline_task.cancel()
+        lb.deadline_task = None
+    if lb.room is not None and lb.room.winner is None and lb.room.phase_ends_at is not None:
+        lb.deadline_task = asyncio.create_task(_deadline(lb, lb.room.gen))
+
+
 async def _broadcast_views(lb, events=None):
+    roster = {m["seat"]: m["name"] for m in lb.members if m["seat"] is not None}
     for m in lb.members:
         if m["ws"] is not None and m["seat"] is not None:
-            await _send(m["ws"], {"type": "view", "events": events or [], **lb.room.view(m["seat"])})
+            ev = lb.room.events_for(m["seat"]) if events is None else events
+            await _send(m["ws"], {"type": "view", "events": ev, "roster": roster,
+                                  **lb.room.view(m["seat"])})
+    _schedule_deadline(lb)
 
 
 async def _lobby_state(lb):
@@ -105,8 +136,7 @@ async def ws(ws: WebSocket):
                         m["seat"] = seat
                     human_seats = {m["seat"] for m in lb.members if m["seat"] is not None}
                     lb.room = Room(human_seats=human_seats, seed=_seed_from(lb.code))
-                    events = lb.room.last_events        # [announce] — the opening chamber counts
-                await _broadcast_views(lb, events)
+                await _broadcast_views(lb)              # per-seat events_for carries the opening announce
 
             elif t == "action" and lb and lb.room and me and me["seat"] is not None:
                 async with lb.lock:
@@ -115,8 +145,7 @@ async def ws(ws: WebSocket):
                     except IllegalAction as e:
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
-                    events = lb.room.last_events          # capture delta INSIDE the lock (no cross-apply overwrite)
-                await _broadcast_views(lb, events)
+                await _broadcast_views(lb)               # per-seat events_for carries the delta
                 if lb.room.winner is not None:
                     for m in lb.members:
                         if m["ws"] is not None:
@@ -129,8 +158,35 @@ async def ws(ws: WebSocket):
                     except IllegalAction as e:
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
-                    events = lb.room.last_events
-                await _broadcast_views(lb, events)
+                await _broadcast_views(lb)
+
+            elif t == "trade_offer" and lb and lb.room and me and me["seat"] is not None:
+                async with lb.lock:
+                    try:
+                        lb.room.trade_offer(me["seat"], int(msg.get("to", -1)),
+                                            msg.get("give") or [], msg.get("want") or [])
+                    except IllegalAction as e:
+                        await _send(ws, {"type": "error", "msg": str(e)})
+                        continue
+                await _broadcast_views(lb)
+
+            elif t == "trade_respond" and lb and lb.room and me and me["seat"] is not None:
+                async with lb.lock:
+                    try:
+                        lb.room.trade_respond(me["seat"], bool(msg.get("accept")))
+                    except IllegalAction as e:
+                        await _send(ws, {"type": "error", "msg": str(e)})
+                        continue
+                await _broadcast_views(lb)
+
+            elif t == "trade_withdraw" and lb and lb.room and me and me["seat"] is not None:
+                async with lb.lock:
+                    try:
+                        lb.room.trade_withdraw(me["seat"])
+                    except IllegalAction as e:
+                        await _send(ws, {"type": "error", "msg": str(e)})
+                        continue
+                await _broadcast_views(lb)
 
             elif t == "flip" and lb and lb.room and me and me["seat"] is not None:
                 async with lb.lock:                      # flip with a CHOSEN payment {target, items:[names]}
@@ -139,10 +195,12 @@ async def ws(ws: WebSocket):
                     except IllegalAction as e:
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
-                    events = lb.room.last_events
-                await _broadcast_views(lb, events)
+                await _broadcast_views(lb)
 
             elif t == "chat" and lb and me:
+                if lb.room is not None and (me["seat"] is None or not lb.room.can_chat(me["seat"])):
+                    await _send(ws, {"type": "error", "msg": "silence"})
+                    continue
                 text = str(msg.get("text", ""))[:200]
                 if lb.room is not None:
                     lb.room.feed.append(f"{me['name']}: {text}")
