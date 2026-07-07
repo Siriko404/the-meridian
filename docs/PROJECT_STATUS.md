@@ -52,9 +52,19 @@ demos   ./.venv/Scripts/python -m http.server 8010 --directory social_roulette/o
 freellm supervisor at ~/.freellmapi-supervisor, or: cd freellmapi/server && ../node_modules/.bin/tsx src/index.ts  (:3001)
 ```
 
-### NEXT (Track B, the active work)
-Wire the pure-B&W aesthetic (circular table, form-teams, logo) + the **Terminal decoder** + **event-stream animations**
-into the real `static/index.html` + `server.py` (per the ui-redesign spec), test in-browser, then deploy to Render.
+### NEXT (Track B, the active work) — ⟲ FULL UI REDESIGN (2026-07-06)
+User verdict on the v1 UI: not good (look + game-feel + flow + process), rules details repeatedly missed,
+promised dealer animations (dice/cylinder/cards) never shipped. Decision (ratified): **full redesign** —
+keep engine + server + event stream, discard the current look/layout. Godot was investigated and REJECTED
+(iOS-browser crashes, 40MB wasm vs 27KB, no Mac for native export; web stack stays).
+- **Phase 1 ✅ — rules audit:** `docs/RULES_AUDIT.md` — every guide rule vs engine vs UI, with file:line.
+  Top gaps: social layer absent (talk/decision phases, timers, fines T2-T4) · dealer ceremony has no body
+  (dice/coin/deal/draw animations) · Trade disabled (`social_enabled=False`) · public item counts never
+  rendered (+ corpse-items bug `view.py:48-51`) · invisible states (bonus turn, killer extra turn, saw armed,
+  teams-off) · stale immunity tag from dead caster · engine gap: 2nd same-caster Immunity not blocked (I9).
+- **Phase 2 (next):** motion + look mockup playing EVERY game moment on fake data; user ratifies each moment
+  visually BEFORE build. Open design decisions D1-D5 in the audit (timers? trade? human-first? aesthetic? #3b).
+- **Phase 3:** build to the ratified contract; fix I9 + C9/V3 bugs along the way.
 
 ---
 
