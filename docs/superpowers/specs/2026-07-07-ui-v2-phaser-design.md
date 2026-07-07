@@ -28,7 +28,7 @@ Sound · LLM bots · smarter bots · durable rooms · spectator mode · native a
 | Style | 1-bit noir pixel, **red = danger ONLY**; community assets (JJ99 portraits + Darkmoonfire icons, see `ATTRIBUTION.md`); **faces are SACRED** (never tint/invert/redraw); Claude never hand-draws figurative art |
 | Menus | **Every screen-occupying menu opens from a tapped icon** (standing principle) |
 | Team marker | Nameplate polarity + thick/thin frame on avatar AND plate (bloc A: white plate/black text/4px; bloc B: black plate/white text/2px). Turn = stroke brightness, never weight |
-| Turn indicator | Fluted revolver-cylinder dial at table center; chambered bore points at current seat; click-step rotation (`Back.easeOut`, 420ms) |
+| Turn indicator | Fluted revolver-cylinder dial at table center; chambered bore points at current seat; click-step rotation (`Back.easeOut`, 420ms). **The dial is a SEAT dial only** — one bore per seat (parametric), it never tracks or depletes shells (audit a11: a shell-tracking dial would leak the remaining count, breaking #3b=A) |
 | Scope | Full guide timers (60s talk / 30s decision / fines / auto self-shoot) · trade UI in · human plays first (v1 rotation kept) · **#3b = A**: chamber counts shown once at load/reload, never again |
 | Type | Consolas/monospace, ≥13 design-px bold, `setResolution(2)` |
 
@@ -57,7 +57,7 @@ protocol and engine keep enum names. A final naming pass edits one table.
 ## 3 · Architecture
 
 ```
-Python engine (pure, deterministic)      ← 3 bug fixes, no new concepts
+Python engine (pure, deterministic)      ← 3 bug fixes + 3 small primitives (§5), no new concepts
    ↑ step / legal_actions
 Room (sync state-machine, room.py)       ← NEW: phases, deadlines, fines, trade, chat gate
    ↑ called under per-room asyncio.Lock
@@ -102,7 +102,11 @@ TALK deadline fires → advance to DECISION (no fine — the fine is for failing
 
 - "No action taken" (guide:175) is read as **no shot committed** — the turn only ends by shooting,
   so anything weaker permits an infinite stall (use one cheap item per window forever).
-- Fines burn **cap-free** (a penalty, like sacrifice — guide:99) and emit a `fine` event.
+- The identical machinery applies to **BONUS phases** (guide:192 extends fines/auto-shoot to bonus
+  turns; a BONUS phase is a DECISION phase per §4.1).
+- Fines burn **cap-free** (a penalty, like sacrifice — guide:99) and emit a `fine` event whose
+  **public payload names no item** (user-ratified 2026-07-08): the table sees only "FINED"; the
+  LEDGER count moving is the only public clue. The fined player's own view knows (their hand shrank).
 - The fine is an **engine function** (`economy.fine_cheapest(state, pid)`) so the RNG tie-break
   rides `state.rng` (deterministic, replayable) and inventory invariants stay engine-owned.
 - A disconnected human's turn runs the same clock: fines tick, then auto self-shoot. No bot
@@ -120,13 +124,23 @@ TALK deadline fires → advance to DECISION (no fine — the fine is for failing
   Room transition and broadcast. Every broadcast reschedules the next deadline.
 - Client renders the countdown from `phase_ends_at` + `server_now` (clock-offset corrected);
   it never enforces anything.
+- **Phase-anchor rule (audit a4):** the deadline is anchored at broadcast time PLUS a cascade
+  grace = the nominal replay duration of the events shipped in that broadcast, capped at 20s —
+  so a long dice ceremony or bot chain cannot eat the human's window, while the hard server-side
+  ceiling preserves the anti-stall guarantee. A mid-decision MAGNET reload does NOT extend the
+  30s window. Chat broadcasts carry no state change and never (re)schedule deadlines (a25 caveat).
 
 ### 4.4 Phase-filtered actions
 
 `legal_actions` (engine) stays phase-blind. Room computes the engine list, then the view includes
-only entries legal in the current phase (talk: UseItem+Trade; decision: UseItem+Flip+Shoot).
-`apply()` re-validates both the index **and** the phase. `social_enabled=True` turns Trade on
-(engine already supports it; random bots will occasionally gift — acceptable flavor).
+only entries legal in the current phase (talk: UseItem; decision: UseItem+Flip+Shoot).
+`apply()` re-validates both the index **and** the phase. `social_enabled=True` turns Trade on for
+the engine — but **the engine's indexed single-item Trade entries are EXCLUDED from human views
+and rejected in `apply()`** (audit a20): human trading happens ONLY through the §4.5
+offer/accept channel (the indexed path would settle instantly and bypass accept + privacy).
+Bots keep using the engine Trade directly (their gifts emit `gift` events; the client renders a
+`gift` exactly like a settled trade — card-backs, identities stripped publicly, a human receiver's
+copy enriched — audit a13).
 
 ### 4.5 Trade (audit E5) — bluffable offer/accept swap (user-designed 2026-07-08)
 
@@ -135,19 +149,27 @@ only entries legal in the current phase (talk: UseItem+Trade; decision: UseItem+
   set what you GIVE and what you WANT (item types + counts). **Offers are NOT bound to your
   real inventory — bluffing is a designed mechanic.** The offer goes privately to that teammate,
   who gets an ACCEPT / DECLINE tray.
-- **Settlement (on accept):** server checks both sides actually own their promised items AND the
-  swap clears both inventories' caps (guide:138 "blocked"). Any failure → both parties get
+- **Settlement (on accept):** server validates against the **POST-SWAP inventories** (audit a5/a29):
+  each side must own every promised give, and each side's `inventory − gives + gets` must satisfy
+  ≤3/type and ≤8 total (guide:138 "blocked"). Any failure → both parties get
   "TRADE CANCELLED — A PARTY LACKED THE GOODS" and nothing moves (the honest side thereby learns
-  the other bluffed — bluffing carries exposure risk by design). Success → the swap applies
-  **atomically** under the room lock as two engine gift steps (engine unchanged).
+  the other bluffed — bluffing carries exposure risk by design). Success → a new engine
+  **`swap` step** applies the transfer all-or-nothing with NO mid-flight `can_receive` re-checks
+  (two sequential gift steps are order-dependent and silently drop items — e.g. two players at the
+  3-cap swapping the same type; that counterexample is why the engine gains a primitive).
 - One-way gift = an offer with an empty WANT side. One pending offer at a time; pending offers
-  expire when the talk phase ends. Decline is silent to the rest of the table.
+  expire when the talk phase ends — and the actor may **WITHDRAW** a pending offer to re-target
+  (audit a6: an AFK counterparty must not lock out all trading for the phase). Decline is silent
+  to the rest of the table.
+- **Reconnect-safe (audit a19):** the pending offer rides the two parties' VIEWS
+  (`pending_offer: {from, to, give, want}`, own-relevant seats only) — a refresh mid-talk
+  re-renders the ACCEPT/DECLINE tray instead of silently killing the trade.
 - **Privacy:** the negotiation and item identities are visible only to the two parties. The table
   publicly sees only a **settled** trade ("VESPER and WREN made an exchange", no contents) —
   Room strips items from the public event and enriches the two parties' copies. Cancelled or
   declined offers are never public.
 - New WS messages: `{type:"trade_offer", to:<seat>, give:[names], want:[names]}` ·
-  `{type:"trade_respond", accept:<bool>}`.
+  `{type:"trade_respond", accept:<bool>}` · `{type:"trade_withdraw"}`.
 
 ### 4.6 Protocol additions (view + messages)
 
@@ -155,9 +177,20 @@ View gains: `phase` (`"talk"|"decision"|null` — null while bots cascade), `pha
 `server_now`, `bonus` (bool), `extra_turn` (bool — killer's earned turn, Room-derived),
 `saw_active` (public: the commit event was public), `use_counts` + `use_limit` (public, audit I10),
 `teams_active` (bool, audit G3), `flipback_discount` (own view only, audit E4),
-`roster` (seat→display name — v1 never sent names to the table).
-New client→server: `proceed`, `trade_offer`, `trade_respond`. New event types: `fine`, `trade`. `item_counts` ships already but
-becomes correct once corpses burn (below).
+`roster` (seat→display name — v1 never sent names to the table),
+`pending_offer` (the two trade parties only, §4.5).
+New client→server: `proceed`, `trade_offer`, `trade_respond`, `trade_withdraw`.
+New event types: `fine` (public payload names NO item — §4.2), `trade`,
+**`draw`** (audit a1/a2: `draw_items_for_all` currently records nothing — it will return each
+seat's attempted+received items; Room emits one `draw` event per reload whose public copy carries
+only counts, each seat's own copy enriched with its item names INCLUDING over-cap bounces),
+**`skip`** (audit a18: the engine skips a handcuffed seat silently inside turn advancement; Room
+derives the event by diffing `handcuffed` flags across the step, giving M23 a real beat).
+**Setup-ceremony data source (audit a3):** the first per-seat view + the announce event —
+`match_start` never reaches the wire; teams/order/your-hand are in the view; the coin-flip and
+dice sequence are synthesized client-side (dice = any hi/lo roll decomposition consistent with
+the announced totals).
+`item_counts` ships already but becomes correct once corpses burn (below).
 
 ## 5 · Engine fixes (audit I9, C9, V3 — at the source)
 
@@ -167,6 +200,9 @@ becomes correct once corpses burn (below).
 | C9 | On death, the dead player's placed Immunity **expires**: remove their id from every `immunity_against` set | `engine.take_shot` kill branch |
 | V3 | On death, **burn the corpse's inventory** (`inventory = {}`) — guide:69; public `item_counts` then auto-corrects (today `view.py:48-51` counts burned items) | `engine.take_shot` kill branch |
 | new | `economy.fine_cheapest(state, pid)` — burn cheapest item, rng tie-break, returns the item (None if broke) | `economy.py` |
+| new | `swap(state, a_id, b_id, give_a, give_b)` — all-or-nothing two-way transfer, validated against post-swap inventories, NO mid-flight `can_receive` re-checks (audit a5) | `engine.py` or `economy.py` |
+| new | `draw_items_for_all` returns per-seat `{attempted, received}` so the Room can emit `draw` events (audit a1/a2) | `reload.py` |
+| doc | Flip-back-discount edge ACCEPTED as-is (audit a10): every flip of you by another player grants the 4-pt window — guide:129-literal; see §9 D13 | no change |
 
 All 181 existing tests must stay green; each fix lands with its own tests.
 
@@ -178,7 +214,9 @@ Join (name + code) and lobby stay **plain HTML overlays** restyled to the theme 
 paste and autocomplete are free in HTML and cost real work in canvas. On `start`, the overlay drops
 and the Phaser `TableScene` owns the screen. One page, one WS connection throughout.
 
-### 6.2 TableScene layout (390×844)
+### 6.2 TableScene layout (390×844) — **parametric seat count** (user-ratified 2026-07-08):
+arc positions computed for N seats; v2 SHIPS at N=5 (server `NUM=5` unchanged) but nothing in the
+layout hard-codes 5, so the guide's 6–10 player rooms unlock later without redesign (audit a14).
 
 ```
 ┌──────────────────────────────┐
@@ -186,8 +224,8 @@ and the Phaser `TableScene` owns the screen. One page, one WS connection through
 │ board type, decodes on change│
 ├──────────────────────────────┤
 │                              │
-│      5 seats on the arc      │ portrait tile + plate + heart pips
-│      (cx 195, cy ~430)       │ + status chips (COVER/SKIP/BURNED)
+│      N seats on the arc      │ portrait tile + plate + heart pips
+│      (cx 195, cy ~430)       │ + status chips (BLACKMAIL/SEDATED/BURNED)
 │         ◉ cylinder dial      │
 │                              │
 ├──────────────────────────────┤
@@ -201,8 +239,11 @@ and the Phaser `TableScene` owns the screen. One page, one WS connection through
 Icon-gated trays (all slide over the dock, never cover the arc): **KIT** (briefcase — your items,
 at-cap items greyed "SEALED UNTIL A DEATH"; **caps always visible while open** (guide:40-42/:96,
 audit S7/I10), as numbers: header tally "N/8" (total load), and beside each item card two numbers —
-**your count** of that item and **how many uses the table has left to consume** (the floor(living
-×1.3) consumption cap minus uses so far); a full tally is why a draw bounces off in M17), **LEDGER**
+**your count rendered "n/3"** (the per-type cap made explicit, audit a15) and **how many uses the
+table has left to consume** (the floor(living×1.3) consumption cap minus uses so far); a full
+tally is why a draw bounces off in M17. **PASSPORT at max life** (guide:84, audit a9/I2): shown
+greyed "AT FULL COVER" — a distinct state from cap-greyed — and it stays SELECTABLE in the
+FLIP-payment and TRADE trays (the guide keeps locked items sacrificable and tradable)), **LEDGER**
 (small icon by the band — the public counts panel: per-item total in play + uses left, audit V3/I10),
 **CHAT** (phone icon — bottom sheet, input enabled only during talk), **TRADE** and **FLIP-PAYMENT**
 trays (contextual, below). Spike's known risk: the KIT tray must clear the bottom seats — verify at
@@ -226,7 +267,7 @@ v1's terminal decoder, ported to Phaser (per-char timed reveal on a mono bitmap-
 | # | Moment | Choreography |
 |---|---|---|
 | M1 | Coin flip (odd split, S1) | White/black disc flips (scaleX tween), lands on the extra-seat agency; plates then stamp seat-by-seat (120ms stagger) — polarity snaps in |
-| M2 | **Chamber load — the dice ceremony (S3)** | Two pip-dice tumble at center (geometric primitives); per roll the **higher** flies to a TOTAL counter, **lower** to LIVE; counters accumulate until live > players; "30–70% · SEALED" stamp; bores fill black one-by-one (order hidden); cylinder spin-shuffles with decelerating click-ticks |
+| M2 | **Chamber load — the dice ceremony (S3)** | Two pip-dice tumble at center (geometric primitives); per roll the **higher** flies to a TOTAL counter, **lower** to LIVE; counters accumulate until live > players; "30–70% · SEALED" stamp; a **transient loading-cylinder graphic** fills bore-by-bore, spin-shuffles with decelerating click-ticks, then fades — the persistent SEAT dial never tracks shells (audit a11). Dice values are client-synthesized as any hi/lo decomposition consistent with the announced totals (audit gap note) |
 | M3 | Announce (V6, #3b=A) | "N SHELLS · M LIVE" big type, 5s hold — then never again |
 | M4 | Deal (S6) | Per seat: 3 quick d6 tumbles; **your** seat: item icons flip up + slide into KIT with name reveals; other seats: 3 card-backs fan and absorb into the tile |
 | M5 | First turn | Cylinder heavy-clicks to seat 1; band decodes "TALK · 0:60" |
@@ -238,15 +279,15 @@ v1's terminal decoder, ported to Phaser (per-char timed reveal on a mono bitmap-
 | M6 | Turn advance | Cylinder click-step to seat (ratified); active frame brightens; band: "\<NAME\> · TALK 0:60" |
 | M7 | Talk phase (T2) | Countdown in band; chat icon pulses once (unlocked); actor sees PROCEED |
 | M8 | Decision phase (T3) | Band **inverts** (white bg — pressure); "0:30" counts; chat locks; final 10s tick-pulse; **final 5s digits go red** (danger) |
-| M9 | Timeout fine (T4) | "FINED · \<ITEM\>" stamp on actor's plate; the item icon falls from their tile and crumbles; timer resets 0:30 |
+| M9 | Timeout fine (T4) | "FINED" stamp on actor's plate; a **generic card-back** falls from their tile and crumbles — the item is NOT named publicly (user-ratified: the LEDGER count moving is the only clue); the fined player's own KIT shows the loss; timer resets 0:30 |
 | M10 | Auto self-shoot (T4) | "NO ASSETS · THE HANDLER DECIDES" band → forced self-shot (M12) |
-| M11 | Target pick | Legal seats get red corner brackets; tap → "\<VERB\> \<NAME\> — CONFIRM" strip |
+| M11 | Target pick | Legal seats get red corner brackets; tap → "\<VERB\> \<NAME\> — CONFIRM" strip. **When your only legal target is yourself** (guide:186, audit L4): band explains "NO LEGAL TARGETS — YOU FACE THE GUN (FLIP SOMEONE TO CHANGE THAT)" |
 | M12 | **Shot** | Cylinder micro-overwinds and locks (already pointing at the shooter) + 400ms hold (tension) → **LIVE:** 60ms full-white flash + camera shake + target tile recoil + pip(s) shatter + "−1"/"−2" floats (L2) · **BLANK:** dry click, small cylinder shudder, "CLICK" |
 | M13 | Self-blank bonus (L3) | "CLICK" → actor plate stamps "BONUS TURN · SILENT" → fresh 30s DECISION |
-| M14 | Death (C9) | Frame corners break apart; plate turns black, name struck; **red "BURNED" stamp**; face alpha→0.35 (pixels untouched — whole-object fade, never a tint); pips clear; their chips (COVER placed by them) dissolve table-wide |
+| M14 | Death (C9) | Frame corners break apart; plate turns black, name struck; **red "BURNED" stamp**; face alpha→0.35 (pixels untouched — whole-object fade, never a tint); pips clear; **only the BLACKMAIL chips they placed dissolve** — a SEDATED chip they placed STAYS and the target still skips (guide:69, audit a12) |
 | M15 | Killer's extra turn (C5) | Band: "EXTRA TURN · \<NAME\>" + full TALK phase re-opens |
 | M16 | Reload (C1/C4) | Compressed M2 (~2× speed); death-reload prefixed "IN THEIR HONOR"; announce 5s (M3). After MAGNET-emptied reload: band "STILL YOUR SHOT" (C3) |
-| M17 | Item draw (C2/S7) | Your 2 draws: die tumble → icon slides into KIT with name; **over-cap: the icon bounces off the KIT with "FULL"** (the silently-swallowed draw becomes visible); others: card-backs absorb |
+| M17 | Item draw (C2/S7) | Fed by the new per-seat **`draw` event** (§4.6). Your 2 draws: die tumble → icon slides into KIT with name; **over-cap: the icon bounces off the KIT with "FULL"** (the silently-swallowed draw becomes visible); others: card-backs absorb (counts only — no identities) |
 
 **Items** (public use event → choreography; private results stay private):
 
@@ -256,8 +297,8 @@ v1's terminal decoder, ported to Phaser (per-char timed reveal on a mono bitmap-
 | M19 | SPYCAM (peek) | Camera icon to center, shutter blink — **your view only:** peek chip fills "NEXT: LIVE" (red) / "NEXT: BLANK" (white), persists until that shell moves (server Extras logic, unchanged); others see "\<NAME\> USED A SPYCAM" |
 | M20 | POISON (saw, I4) | Red edge-glow on the cylinder + "×2 ARMED" chip pinned at the dial until the shot resolves (public state, visible to all) |
 | M21 | BLACKMAIL (immunity) | Envelope chip flies caster→target; target plate gains "BLACKMAIL · \<caster\>" chip; clears when the target shoots — **or when the caster dies** (C9) |
-| M22 | MAGNET (beer) | Shell pops out of the cylinder top, flies off-screen; "SHELL OUT"; empty → M16 |
-| M23 | SEDATIVE (handcuffs, I6) | Chip "SEDATED" on target; **at the skip itself:** rotation pauses at their seat, "SKIPPED" stamp, chip clears, rotation continues — the invisible skip becomes a beat |
+| M22 | MAGNET (beer) | Shell pops from the dial's **center axis** (not a bore — the seat dial never shows shells, audit a11), flies off-screen; "SHELL OUT"; empty → M16 |
+| M23 | SEDATIVE (handcuffs, I6) | Chip "SEDATED" on target; **at the skip itself** (fed by the new `skip` event, §4.6): rotation pauses at their seat, "SKIPPED" stamp, chip clears, rotation continues — the invisible skip becomes a beat |
 | M24 | Cap hit (I10) | Toast "\<ITEM\> EXHAUSTED — TABLE LIMIT"; icon greys in every KIT/LEDGER until a death resets |
 
 **Economy + endgame:**
@@ -265,8 +306,9 @@ v1's terminal decoder, ported to Phaser (per-char timed reveal on a mono bitmap-
 | # | Moment | Choreography |
 |---|---|---|
 | M25 | Flip | Payment tray → confirm → target's plate **inverts polarity live** (white↔black snap + frame weight swap) — the flip IS the visual; "\<A\> TURNED \<B\>" |
-| M26 | Trade | Actor taps TRADE → teammates **glow** → tap one → offer tray (GIVE / WANT pickers, unbound from inventory) → counterparty's ACCEPT/DECLINE tray (private) → **settle:** card-backs fly BOTH ways publicly, real items render only for the two parties · **cancel:** private "TRADE CANCELLED" stamp to both (4.5) |
+| M26 | Trade | Actor taps TRADE → teammates **glow** → tap one → offer tray (GIVE / WANT pickers, unbound from inventory) → counterparty's ACCEPT/DECLINE tray (private) → **settle:** exactly **ONE card-back per direction** regardless of item counts (audit a16 — counts would narrow inventory inference), real items render only for the two parties · **cancel:** private "TRADE CANCELLED" stamp to both (4.5). Bot `gift` events render the same way |
 | M27 | Teams off (G3) | At 2 alive: "AGENCIES DISSOLVED · FREE FOR ALL" band; both plates equalize (black, white text, equal 3px frames) — team semantics visibly end |
+| M27b | Endgame flip pressure (G2, audit a8) | While teams are ON and every living player is one color (3+ alive): persistent band line "ONE AGENCY HOLDS THE TRAIN — TURN SOMEONE, OR FACE THE GUN" — surfaces the guide's flip-as-elimination-engine pressure (guide:199) |
 | M28 | Winner | Winner's portrait centered, "LAST AGENT STANDING · \<NAME\>"; credits line (JJ99 · Darkmoonfire, per ATTRIBUTION.md) |
 
 **Dev harness (the ratification gate):** `static/game/moments.html` replays the whole catalog
@@ -284,7 +326,7 @@ Target brackets (M11) · final-5s countdown digits (M8) · pip-shatter particles
 |---|---|---|
 | D1 | Flips + shots are **decision-phase only**; trades talk-only | guide:169/:172 parallel enumeration; bonus turn (:189) = "items and flip" confirms flips live in the silent phase |
 | D2 | "Timer runs out with no action" = **no shot committed** | anti-stall intent; item-use can't end a turn, so any weaker reading allows infinite stalling |
-| D3 | Trade = **bluffable offer/accept swap** — offers unbound from inventory; on accept the server validates both sides + caps, else "cancelled" warning to both; settles as two atomic gift steps (engine unchanged) | user-designed 2026-07-08 (supersedes the gifts-only draft); guide:137-138 (any terms; over-cap blocked) |
+| D3 | Trade = **bluffable offer/accept swap** — offers unbound from inventory; on accept the server validates both sides + caps, else "cancelled" warning to both; settles via the engine `swap` primitive, all-or-nothing (audit a5) | user-designed 2026-07-08 (supersedes the gifts-only draft); guide:137-138 (any terms; over-cap blocked) |
 | D4 | Trade event public, **item identities private** to the two parties | "who holds which item" is hidden info (guide:154) |
 | D5 | **Dead players are muted** | a dead player can hold a live peek → leak channel; spies who are burned leave the table |
 | D6 | **Bots skip phases/timers** (cascade pace) | timers bound human stalling; 60s bot talk phases would make 1-human games unplayable |
@@ -294,18 +336,28 @@ Target brackets (M11) · final-5s countdown digits (M8) · pip-shatter particles
 | D10 | Real lobby names on plates; bots get theme codenames | plates showed "P0"–"P4" while names existed unused |
 | D11 | Disconnected actor: clock runs → fines → auto self-shoot (no bot substitution) | timers already make stalls self-resolving; less machinery |
 | D12 | Death look: red BURNED stamp + broken frame + whole-face alpha fade | faces-sacred rule: opacity fade of the untouched sprite, never pixel changes |
+| D13 | Flip-back-discount edge ACCEPTED: every flip of you by another player grants the 4-pt window, even one restoring your color | audit a10; guide:129-literal ("if your color was flipped by someone else, you may flip back"); no engine change |
+| D14 | Fine is publicly anonymous: "FINED", no item named; LEDGER movement is the only public clue | user-ratified 2026-07-08 (audit a17) |
+| D15 | Seat layout parametric; v2 ships at 5 players | user-ratified 2026-07-08 (audit a14; guide:14 has no max) |
+| D16 | Trade settle shows one card-back per direction (counts masked); gift-vs-swap direction visibility accepted | audit a16; identities stay hidden per guide:154 |
 
 ## 10 · Testing
 
 - **Engine (pytest):** I9 illegal (legal_actions omits + apply_item raises) · death burns corpse
   inventory · death expires the dead caster's placed Immunity · `fine_cheapest` (cheapest by value,
-  rng tie-break, None when broke) · existing 181 stay green.
+  rng tie-break, None when broke) · `swap` all-or-nothing (incl. the both-at-cap same-type
+  counterexample, post-swap-net cap validation, unowned-give rejection) · `draw_items_for_all`
+  returns attempted+received per seat · existing 181 stay green.
 - **Room (pytest, no sockets):** begin_turn sets TALK (or BONUS→DECISION) · proceed gates to actor ·
   talk-deadline → DECISION · decision-deadline → fine (+reset) → … → auto self-shoot when broke ·
   phase-filtered legal sets (no Shoot/Flip in talk view; no Trade in decision) · apply rejects
   phase-illegal actions · trade: offer gated (phase/team/alive/one-pending) · accept settles a
   valid swap atomically · bluffed give, bluffed want, and cap-breaking swaps each cancel with no
-  state change · offers expire at talk-phase end · decline is private · chat gate
+  state change · offers expire at talk-phase end · withdraw frees the pending slot ·
+  pending_offer rides both parties' views (reconnect) · indexed engine-Trade entries excluded from
+  human views and rejected in apply · `draw` event public copy carries no identities, own copy
+  carries names + bounces · `skip` event emitted on handcuff skip · fine event public payload
+  names no item · decline is private · chat gate
   (talk-only, living-only) · gen counter no-ops stale deadlines · extra_turn flag set/cleared ·
   trade privacy (public event stripped; parties enriched).
 - **View:** new fields present · no-leak tests extended over trade events (no foreign hands, no
@@ -329,4 +381,5 @@ Target brackets (M11) · final-5s countdown digits (M8) · pip-shatter particles
 ## 12 · Out of scope / deferred
 
 Sound design · haptics · Render deploy (right after v2 verification) · final naming pass (game,
-agencies, items, train livery) · LLM/social bots · spectators · persistence.
+agencies, train livery — item names RATIFIED) · 6–10 player rooms (layout is parametric-ready;
+server unlock deferred, D15) · LLM/social bots · spectators · persistence.
