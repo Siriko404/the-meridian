@@ -52,19 +52,45 @@ demos   ./.venv/Scripts/python -m http.server 8010 --directory social_roulette/o
 freellm supervisor at ~/.freellmapi-supervisor, or: cd freellmapi/server && ../node_modules/.bin/tsx src/index.ts  (:3001)
 ```
 
-### NEXT (Track B, the active work) — ⟲ FULL UI REDESIGN (2026-07-06)
-User verdict on the v1 UI: not good (look + game-feel + flow + process), rules details repeatedly missed,
-promised dealer animations (dice/cylinder/cards) never shipped. Decision (ratified): **full redesign** —
-keep engine + server + event stream, discard the current look/layout. Godot was investigated and REJECTED
-(iOS-browser crashes, 40MB wasm vs 27KB, no Mac for native export; web stack stays).
-- **Phase 1 ✅ — rules audit:** `docs/RULES_AUDIT.md` — every guide rule vs engine vs UI, with file:line.
-  Top gaps: social layer absent (talk/decision phases, timers, fines T2-T4) · dealer ceremony has no body
-  (dice/coin/deal/draw animations) · Trade disabled (`social_enabled=False`) · public item counts never
-  rendered (+ corpse-items bug `view.py:48-51`) · invisible states (bonus turn, killer extra turn, saw armed,
-  teams-off) · stale immunity tag from dead caster · engine gap: 2nd same-caster Immunity not blocked (I9).
-- **Phase 2 (next):** motion + look mockup playing EVERY game moment on fake data; user ratifies each moment
-  visually BEFORE build. Open design decisions D1-D5 in the audit (timers? trade? human-first? aesthetic? #3b).
-- **Phase 3:** build to the ratified contract; fix I9 + C9/V3 bugs along the way.
+### NEXT (Track B, the active work) — ⟲ FULL REDESIGN v2, in PHASER 4 (updated 2026-07-07)
+v1 web UI rejected (look/feel/flow/process + missed rules + missing dealer animations). All decisions below
+are RATIFIED by the user — do not re-litigate:
+- **Stack: Phaser 4 (4.2.0 vendored at `static/vendor/phaser.min.js`) + existing Python server/engine/WS.**
+  Godot REJECTED twice on evidence (iOS-browser crash history, 40MB wasm vs 27KB, native needs a Mac).
+  User directive: **"proceed ONLY in the engine"** — no HTML/SVG mockups; visuals are judged in running
+  Phaser scenes only.
+- **Scope locked:** full guide timers (talk 1min / decision 30s / fines / auto self-shoot) · Trade UI in ·
+  human plays first · #3b = A (counts stay hidden after the one announce) · chamber floor already >100% of
+  living at every load (verified 40k loads) — no change.
+- **Copyright (ratified): full re-theme.** Buckshot's 1:1 item cluster was the smoking gun (mechanics stay,
+  every fiction/name changes; `docs/RULES_AUDIT.md` still governs rules). **THEME LOCKED: fictional world
+  at war → wartime SPY / sealed night train** (picked from generals/spies/nations trio after several
+  rejected rounds — broadcast/theater/boardgame and armistice/tin/paper all killed). Working title
+  "SLEEPER CAR" — user hates it, name TBD ("DEAD DROP" taken twice; "Orient Express" is trademarked —
+  the train's invented name: "THE MERIDIAN"). Lives = cover identities · teams = two agencies · flip =
+  a turned double agent · dealer = the Handler · item DRAFT names: PAPERS heal·6, COVER immunity·6,
+  MANIFEST peek·5, POISON ×2·5, INTERCEPT eject·4, BURN skip·4.
+- **ART POLICY (standing, 4 rejections deep): Claude NEVER hand-draws figurative art in code.** Community
+  CC assets FIRST; image-gen ONLY when absolutely necessary; **faces are SACRED** (never tint/invert).
+  Vendored packs (`static/game/assets/ATTRIBUTION.md`): JJ99 Noir 1-bit Portraits (12× 36px, commercial
+  OK) + Darkmoonfire 1-Bit Mystery Icons (45× 16px, CC-BY-SA, credit due). Icon indices: revolver=0
+  heart=20 ledger=37 briefcase=40 envelope=14 poison=11 phone=38 cigarette=25 pocket-watch=45.
+  Style: **1-bit noir pixel + single red accent (red = danger ONLY)** — Obra Dinn / Downwell pedigree.
+- **SPIKE BUILT + user-refined** (`static/game/spike.html|js`; serve `python -m http.server 8010
+  --directory social_roulette/online/static` → /game/spike.html): fluted revolver-CYLINDER turn dial
+  (shallow flutes ratified; the chambered bore points at the current seat, click-step rotation) · KIT
+  tray behind a briefcase icon (**STANDING PRINCIPLE: every screen-occupying menu opens from a tapped
+  icon**) · teams = **nameplate polarity + thick/thin frames on avatar AND plate** (user-picked from
+  in-engine samples `game/teams_samples.html`) · no window band · text ≥13 design-px bold with
+  setResolution(2) (desktop preview ≈0.78×; phones render bigger). Phaser 4.2 gotchas: setTintFill =
+  silent no-op (use setTint) · camera vignette filter works · rAF throttles in backgrounded tabs.
+- **NEXT STEP (brainstorm task #3→#4): write the v2 design spec** — every game moment on this scene,
+  phase/timer UX + the SERVER machinery it needs (async deadlines, fines, auto-shoot = new Room work),
+  trade UI, theme renames as a DISPLAY-layer map (engine enums unchanged), the icon-menu principle,
+  and audit-bug fixes I9 (engine: 2nd same-caster Immunity must be illegal) + C9/V3 (view: stale
+  immunity tag from dead caster, corpse items in public counts). Then superpowers writing-plans → TDD
+  build. v1 web UI (static/index.html + sr_ui.*) still runs and stays until Phase-3 replaces it.
+  Unverified: cylinder feel over a full game · KIT tray overlaps bottom seats when open.
 
 ---
 
