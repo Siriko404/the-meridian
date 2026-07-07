@@ -31,17 +31,17 @@ class DiningCar extends Phaser.Scene {
     for (let i = 0; i < 5; i++) {
       const a = -Math.PI / 2 + i * (Math.PI * 2 / 5);
       const x = cx + rx * Math.cos(a), y = cy + ry * Math.sin(a);
-      const night = i % 2 === 0;                                     // bloc NIGHT vs bloc DAY
-      const tile = this.add.rectangle(x, y, 78, 78, night ? 0x000000 : 0xffffff)
-        .setStrokeStyle(2, WHITE, 0.95);
-      const face = this.add.image(x, y, "faces", i).setScale(2);
-      if (!night) face.setTint(0x000000);                            // black ink face on white tile
-      const plate = this.add.rectangle(x, y + 53, 58, 22, night ? 0x000000 : 0xffffff)
-        .setStrokeStyle(2, WHITE, 0.95);
+      // TEAM = nameplate polarity + thick/thin frame on BOTH avatar and plate (user-picked).
+      // bloc A: WHITE plate (black text) + 4px frames · bloc B: black plate (white text) + 2px frames.
+      const blocA = i % 2 === 0, tk = blocA ? 4 : 2;
+      const tile = this.add.rectangle(x, y, 78, 78, 0x000000).setStrokeStyle(tk, WHITE, 0.95);
+      const face = this.add.image(x, y, "faces", i).setScale(2);    // faces are SACRED: never tinted/inverted
+      const plate = this.add.rectangle(x, y + 53, 58, 22, blocA ? 0xffffff : 0x000000)
+        .setStrokeStyle(tk, WHITE, 0.95);
       const name = this.add.text(x, y + 53, "P" + i, { fontFamily: "Consolas,monospace", fontSize: "17px",
-        color: night ? "#ffffff" : "#000000", fontStyle: "bold" }).setOrigin(0.5).setResolution(2);
+        color: blocA ? "#000000" : "#ffffff", fontStyle: "bold" }).setOrigin(0.5).setResolution(2);
       const pips = [0, 1, 2].map(k => this.add.image(x - 21 + k * 21, y + 78, "icons", 20).setScale(1.5));
-      seats.push({ x, y, frame: tile, face, angleDeg: -90 + i * 72 });
+      seats.push({ x, y, frame: tile, face, thick: tk, angleDeg: -90 + i * 72 });
     }
 
     // ---- center: the CYLINDER as the turn dial (the archived dial+dot, made diegetic) ----
@@ -80,7 +80,7 @@ class DiningCar extends Phaser.Scene {
       const s = seats[turn];
       this.tweens.add({ targets: cyl, angle: s.angleDeg + 90, duration: 420, ease: "Back.easeOut" }); // click-step
       seats.forEach((q, k) => {
-        q.frame.setStrokeStyle(k === turn ? 4 : 2, WHITE, k === turn ? 1 : 0.6);
+        q.frame.setStrokeStyle(q.thick, WHITE, k === turn ? 1 : 0.55);   // team weight kept; turn = brightness
         this.tweens.add({ targets: q.face, scale: k === turn ? 2.3 : 2, duration: 260 });
       });
       turn = (turn + 1) % 5;
