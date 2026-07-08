@@ -30,17 +30,12 @@
       const BARX = 18, BARW = W - 36, BARY = 34, BARH = 40;
       this._bar = { x: BARX, y: BARY, w: BARW };
       this.barFill = this.add.rectangle(BARX, BARY, BARW, BARH, WHITE).setOrigin(0, 0.5).setDepth(5).setVisible(false);
-      this.barFrame = this.add.rectangle(W / 2, BARY, BARW, BARH).setStrokeStyle(2, WHITE, 0.4).setDepth(6);
+      this.barFrame = this.add.rectangle(W / 2, BARY, BARW, BARH).setStrokeStyle(2, WHITE, 0.4).setDepth(6).setVisible(false);
       this.barSecs = this.add.text(W / 2, BARY, "", style(20, "#000000")).setOrigin(0.5).setResolution(2).setDepth(7).setLetterSpacing(1).setVisible(false);
       this.bandLine2 = this.add.text(W / 2, BARY + 34, "", style(13, "#aaaaaa")).setOrigin(0.5).setResolution(2).setDepth(6).setLetterSpacing(2);
       this.bandCode = this.add.text(W - 6, 2, "", style(11, "#777777")).setOrigin(1, 0).setResolution(2).setDepth(7);
-      this.bandNote = this.add.text(W / 2, BARY + 54, "", style(12, "#cccccc")).setOrigin(0.5).setResolution(2).setDepth(6).setLetterSpacing(1);
-
-      // ---- LEDGER icon (small, by the band — below the note line so M27b never overlaps) ----
-      const lb = this.add.container(30, 128).setDepth(6);
-      lb.add(this.add.rectangle(0, 0, 54, 30).setStrokeStyle(1, WHITE, 0.7).setInteractive()
-        .on("pointerdown", () => this.onLedger && this.onLedger()));
-      lb.add(this.add.text(0, 0, "LEDG", style(10)).setOrigin(0.5).setResolution(2));
+      this.bandNote = this.add.text(W / 2, BARY + 54, "", style(12, "#cccccc", { align: "center",
+        wordWrap: { width: W - 24 } })).setOrigin(0.5, 0).setResolution(2).setDepth(6).setLetterSpacing(1);
 
       // ---- DOCK ----
       this.add.line(0, 0, 12, 700, W - 12, 700, WHITE, 0.5).setOrigin(0).setDepth(6);
@@ -49,17 +44,19 @@
       this.peekT = this.add.text(0, 0, "", style(13)).setOrigin(0.5).setResolution(2);
       this.peekChip.add([this.peekBg, this.peekT]);
       this.strip = this.add.container(0, 0).setDepth(7);      // ACTION STRIP: filled by setStrip()
-      // KIT icon (briefcase, icon-gated tray — standing principle)
-      const kx = W - 46, ky = 786;
+      // corner menus (icon-gated): LEDGER bottom-left, KIT bottom-right — matched 64px boxes
+      const ky = 786, kx = W - 46, lx = 46;
       this._kitXY = { x: kx, y: ky };
-      this.add.rectangle(kx, ky + 6, 64, 64).setStrokeStyle(2, WHITE, 0.9).setDepth(6).setInteractive()
+      this.add.rectangle(lx, ky, 64, 64).setStrokeStyle(2, WHITE, 0.9).setDepth(6).setInteractive()
+        .on("pointerdown", () => this.onLedger && this.onLedger());
+      this.add.text(lx, ky, "LEDGER", style(11)).setOrigin(0.5).setResolution(2).setDepth(6);
+      this.add.rectangle(kx, ky, 64, 64).setStrokeStyle(2, WHITE, 0.9).setDepth(6).setInteractive()
         .on("pointerdown", () => this.onKit && this.onKit());
       this.add.image(kx, ky, "icons", THEME.ICON.briefcase).setScale(2.6).setDepth(6);
-      this.kitBadge = this.add.text(kx, ky + 22, "KIT", style(13)).setOrigin(0.5).setResolution(2).setDepth(6);
-      // chat ticker + phone icon
-      this.ticker = this.add.text(10, 833, "", style(13, "#bbbbbb")).setOrigin(0, 0.5).setResolution(2).setDepth(6);
-      this.add.image(W - 20, 833, "icons", THEME.ICON.phone).setScale(1.8).setDepth(6)
+      // chat: phone icon + last-line ticker, one bottom row
+      this.add.image(16, 831, "icons", THEME.ICON.phone).setScale(1.5).setDepth(6)
         .setInteractive().on("pointerdown", () => this.onPhone && this.onPhone());
+      this.ticker = this.add.text(34, 831, "", style(12, "#bbbbbb")).setOrigin(0, 0.5).setResolution(2).setDepth(6);
 
       this.center = null;                                     // dial container, built with the seats
       SCENE.instance = this;                                  // live-scene handle (debug/testing)
@@ -89,11 +86,11 @@
         const strike = this.add.line(0, 0, x - 26, y + 53, x + 26, y + 53, WHITE, 0.9).setOrigin(0).setVisible(false);
         const pips = [];
         for (let k = 0; k < THEME.MAX_LIVES; k++)
-          pips.push(this.add.image(x - 32 + k * 16, y + 74, "icons", THEME.ICON.heart).setScale(1.2).setVisible(false));
-        const chipT = this.add.text(x, y - 44, "", style(13, "#ffffff", { align: "center" }))
-          .setOrigin(0.5, 1).setResolution(2).setBackgroundColor("#000000");   // grows upward, stays on tile
+          pips.push(this.add.image(x - 32 + k * 16, y + 78, "icons", THEME.ICON.heart).setVisible(false));
+        const chipT = this.add.text(x, y + 88, "", style(13, "#ffffff", { align: "center" }))
+          .setOrigin(0.5, 0).setResolution(2).setBackgroundColor("#000000");   // grows DOWN, under the pips
         const stamp = this.add.text(x, y, "", style(16, "#ffffff")).setOrigin(0.5).setResolution(2)
-          .setAngle(-12).setDepth(8).setVisible(false).setBackgroundColor("#000000");
+          .setAngle(-12).setDepth(8).setVisible(false).setBackgroundColor("#000000").setName("stamp");
         this.seats.set(id, { id, x, y, i, tile, broken, face, plate, nameT, strike, pips, chipT, stamp, tk: 2 });
       });
       this.buildDial(n);
@@ -107,8 +104,8 @@
         .setResolution(2).setDepth(8).setBackgroundColor("#000000").setVisible(false);
     }
 
-    dim(on) {                                                 // near-solid overlay: hide the board, play the event on top
-      if (!this._dim) this._dim = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.96).setVisible(false);
+    dim(on) {                                                 // OPAQUE overlay: board fully hidden, event owns the stage
+      if (!this._dim) this._dim = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1).setVisible(false);
       this._dim.setDepth(16).setVisible(!!on);
       if (on) this.children.bringToTop(this._dim);
     }
@@ -126,9 +123,12 @@
         s.nameT.setText(THEME.seatName(p.id, roster)).setColor(p.alive ? txt : "#666666");
         s.plate.setFillStyle(p.alive ? plate : 0x000000);
         s.plate.setStrokeStyle(tk, WHITE, 0.95);
-        s.pips.forEach((pp, k) => pp.setVisible(p.alive && k < p.lives));
+        s.pips.forEach((pp, k) => {                           // row centered on the seat, 16px pitch
+          pp.setVisible(p.alive && k < p.lives);
+          pp.x = s.x + (k - (p.lives - 1) / 2) * 16;
+        });
         const chips = [];                                     // short, stacked — never wider than the tile
-        (p.immune_from || []).forEach((c) => chips.push("BM·" + THEME.seatName(c, roster).slice(0, 6)));
+        (p.immune_from || []).forEach((c) => chips.push("DIRT·" + THEME.seatName(c, roster).slice(0, 6)));
         if (p.handcuffed) chips.push("SEDATED");
         s.chipT.setText(chips.join("\n"));
         const active = p.alive && p.id === view.current && view.winner == null;
@@ -160,6 +160,7 @@
       else if (o.phase === "decision" && o.secs != null) left = Math.min(o.secs, DEC);
       if (left != null) {
         const red = left <= DEC, col = red ? RED : WHITE;     // last 30s = red
+        this.barFrame.setVisible(true);
         this.barFill.setVisible(true);
         this.barFill.width = this._bar.w * (left / TOTAL);
         this.barFill.setFillStyle(col);
@@ -168,13 +169,13 @@
       } else {
         this.barFill.setVisible(false);
         this.barSecs.setVisible(false);
-        this.barFrame.setStrokeStyle(2, WHITE, 0.4);
+        this.barFrame.setVisible(false);
       }
       this.bandLine2.setText(o.name || "");
       this.bandNote.setText(o.note || "");
     }
     setCode(code) { this._code = code; this.bandCode.setText(code || ""); }
-    setTicker(s) { this.ticker.setText(s.length > 44 ? s.slice(0, 43) + "…" : s); }
+    setTicker(s) { this.ticker.setText(s.length > 38 ? s.slice(0, 37) + "…" : s); }
 
     /* ================= primitives (all waits via this.w — skippable) ================= */
     decode(txtObj, str, dur) {                                // v1 terminal decoder, ported
@@ -195,9 +196,9 @@
       });
     }
     async toast(str, hold) {
-      if (!this._toast) this._toast = this.add.text(W / 2, 116, "", style(17, "#ffffff",
+      if (!this._toast) this._toast = this.add.text(W / 2, 150, "", style(17, "#ffffff",
         { align: "center", wordWrap: { width: W - 40 } })).setOrigin(0.5)
-        .setResolution(2).setDepth(9).setBackgroundColor("#000000").setLetterSpacing(2);
+        .setResolution(2).setDepth(18).setBackgroundColor("#000000").setLetterSpacing(2);
       this._toast.setAlpha(1);
       await this.decode(this._toast, str, 440);
       await this.w(hold || 1400);
@@ -228,22 +229,30 @@
     }
     floatAt(pt, str, red) {
       const t = this.add.text(pt.x, pt.y, str, style(20, red ? "#c8102e" : "#ffffff")).setOrigin(0.5)
-        .setResolution(2).setDepth(15);
+        .setResolution(2).setDepth(15).setName("fx");
       this.tweens.add({ targets: t, y: pt.y - 50, alpha: 0, duration: 950, onComplete: () => t.destroy() });
     }
     async stampSeat(id, str, red) {
       const s = this.seats.get(id); if (!s) return;
       s.stamp.setText(str).setColor(red ? "#c8102e" : "#ffffff").setVisible(true).setScale(1.6).setAlpha(0);
+      const hw = s.stamp.width * 0.9 + 6;                     // clamp at peak entrance scale (1.6 + overshoot)
+      s.stamp.x = Math.min(Math.max(s.x, hw), W - hw);
       this.tweens.add({ targets: s.stamp, scale: 1, alpha: 1, duration: 190, ease: "Back.easeOut" });
       await this.w(900);
       if (str !== "BURNED") { this.tweens.add({ targets: s.stamp, alpha: 0, duration: 400 }); await this.w(400);
         s.stamp.setVisible(false).setAlpha(1); }
     }
     _pt(p) { return typeof p === "object" ? p : this.seatXY(p); }
+    _short(a, b0) {                                           // stop 70px before the seat — clear of the tile
+      const len = Math.hypot(b0.x - a.x, b0.y - a.y) || 1;
+      const t = Math.max(0.3, 1 - 70 / len);
+      return { x: a.x + (b0.x - a.x) * t, y: a.y + (b0.y - a.y) * t };
+    }
     async cardBack(from, to) {                                // ONE generic card-back (D16/M9/M26)
-      const a = this._pt(from), b = this._pt(to);
+      const a = this._pt(from), b0 = this._pt(to);
+      const b = this._short(a, b0);                           // stop SHORT of the
       const c = this.add.rectangle(a.x, a.y, 22, 30, 0x000000).setStrokeStyle(2, WHITE, 0.95).setDepth(15);
-      const dot = this.add.rectangle(a.x, a.y, 6, 6, 0xffffff).setDepth(16);
+      const dot = this.add.rectangle(a.x, a.y, 6, 6, 0xffffff).setDepth(16);     // seat — never covers a face
       await new Promise((r) => this.tweens.add({ targets: [c, dot], x: b.x, y: b.y, duration: 550,
         ease: "Quad.easeInOut", onComplete: r }));
       this.tweens.add({ targets: [c, dot], alpha: 0, scale: 0.4, duration: 250,
@@ -262,11 +271,28 @@
       c.destroy();
     }
     async iconFly(idx, from, to, label) {
-      const a = this._pt(from), b = this._pt(to);
-      const ic = this.add.image(a.x, a.y, "icons", idx).setScale(2.4).setDepth(15);
-      const t = label ? this.add.text(a.x, a.y + 20, label, style(13)).setOrigin(0.5).setResolution(2).setDepth(15) : null;
-      await new Promise((r) => this.tweens.add({ targets: t ? [ic, t] : ic, x: b.x, y: b.y, duration: 550,
-        ease: "Quad.easeInOut", onComplete: r }));
+      const a = this._pt(from); let b = this._pt(to);
+      if (typeof to === "number") b = this._short(a, b);      // seat target: stop SHORT — never cover a face
+      // route: kit legs go down the CENTER AISLE (x=CX), never across a seat cluster
+      const AISLE = { x: CX, y: 716 }, near = (p, q) => Math.abs(p.x - q.x) + Math.abs(p.y - q.y) < 130;
+      const kit = this._kitXY;
+      let path = [b];
+      if (near(b, kit)) path = (near(a, { x: CX, y: CY }) ? [AISLE, b] : [{ x: CX, y: CY }, AISLE, b]);
+      else if (near(a, kit)) path = (near(b, { x: CX, y: CY }) ? [AISLE, b] : [AISLE, { x: CX, y: CY }, b]);
+      const ic = this.add.image(a.x, a.y, "icons", idx).setScale(2.4).setDepth(15).setName("fx");
+      const t = label ? this.add.text(a.x, a.y + 28, label, style(13)).setOrigin(0.5).setResolution(2)
+        .setDepth(15).setName("fx") : null;
+      if (t) this.tweens.add({ targets: t, alpha: 0, delay: 320, duration: 200 });  // gone before landing
+      let px = a.x, py = a.y;
+      const total = path.reduce((s, p) => { const d = Math.hypot(p.x - px, p.y - py); px = p.x; py = p.y; return s + d; }, 0);
+      px = a.x; py = a.y;
+      for (const p of path) {
+        const dur = Math.max(120, 550 * Math.hypot(p.x - px, p.y - py) / (total || 1));
+        const seg = [this.tweens.add({ targets: ic, x: p.x, y: p.y, duration: dur, ease: "Linear" })];
+        if (t) this.tweens.add({ targets: t, x: p.x, y: p.y + 28, duration: dur, ease: "Linear" });
+        await new Promise((r) => seg[0].once("complete", r));
+        px = p.x; py = p.y;
+      }
       this.tweens.add({ targets: t ? [ic, t] : ic, alpha: 0, duration: 260,
         onComplete: () => { ic.destroy(); if (t) t.destroy(); } });
     }
@@ -315,7 +341,7 @@
       opts = opts || {};
       const sp = opts.fast ? 0.5 : 1;
       this.dim(true);                                          // dark overlay — animation plays over the board
-      if (opts.honor) await this.toast("IN THEIR HONOR", 900 * sp);
+      if (opts.honor) { await this.toast("IN THEIR HONOR", 900 * sp); await this.w(520); }  // let it fade fully
       const rolls = DICE.synthDice(total, live);
       const layer = this.add.container(0, 0).setDepth(18);
       const cnt = { t: 0, l: 0 };
@@ -341,8 +367,8 @@
         d1.v = h; d2.v = l; drawDie(d1); drawDie(d2);
         await this.w(200 * sp);
         cnt.t += h; cnt.l += l;                                // hi flies to TOTAL, lo to LIVE
-        const fh = this.add.text(d1.x, d1.y, String(h), style(18)).setOrigin(0.5).setResolution(2); layer.add(fh);
-        const fl = this.add.text(d2.x, d2.y, String(l), style(18)).setOrigin(0.5).setResolution(2); layer.add(fl);
+        const fh = this.add.text(d1.x, d1.y, String(h), style(18)).setOrigin(0.5).setResolution(2).setName("fx"); layer.add(fh);
+        const fl = this.add.text(d2.x, d2.y, String(l), style(18)).setOrigin(0.5).setResolution(2).setName("fx"); layer.add(fl);
         this.tweens.add({ targets: fh, x: 100, y: 150, alpha: 0, duration: 380 * sp,
           onComplete: () => { fh.destroy(); tT.setText("TOTAL " + cnt.t); } });
         this.tweens.add({ targets: fl, x: 290, y: 150, alpha: 0, duration: 380 * sp,
@@ -350,9 +376,9 @@
         await this.w(300 * sp);
       }
       tT.setText("TOTAL " + total); lT.setText("LIVE " + live);
-      const seal = this.add.text(W / 2, 218, "30–70% · SEALED", style(15)).setOrigin(0.5)
-        .setResolution(2).setBackgroundColor("#000000"); layer.add(seal);
       await this.w(450 * sp);
+      // dice exit before the cylinder enters — one actor on stage at a time
+      await new Promise((r) => this.tweens.add({ targets: [d1.g, d2.g], alpha: 0, duration: 220 * sp, onComplete: r }));
       // transient loading-cylinder: bores fill one-by-one, spin-shuffle decelerates, fade (a11-safe)
       const lc = this.add.container(CX, CY - 60).setDepth(18); layer.add(lc);   // center-stage, big
       const lg = this.add.graphics(); lc.add(lg);
@@ -376,9 +402,11 @@
         .setResolution(2).setDepth(19).setLetterSpacing(3).setBackgroundColor("#000000");
       await this.decode(t, msg, 700);
       await this.w(900);
-      this.dim(false);                                         // board returns; the line lingers over it
+      this.dim(false);                                         // board returns; the line moves to the band
+      t.destroy();
+      this.bandNote.setText(msg);
       await this.w(3400);
-      this.tweens.add({ targets: t, alpha: 0, duration: 400, onComplete: () => t.destroy() });
+      if (this.bandNote.text === msg) this.bandNote.setText("");
     }
 
     /* ---- targeting + glow ---- */
@@ -421,7 +449,7 @@
         s.chipT.setText(s.chipT.text.replace("SEDATED", "").trim());
     }
     async winnerScene(id, roster) {                            // M28
-      this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.82).setDepth(24);
+      this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1).setDepth(24);
       this.add.image(W / 2, 330, "faces", id % 12).setScale(6).setDepth(25);
       this.add.text(W / 2, 470, "LAST AGENT STANDING", style(18)).setOrigin(0.5).setResolution(2)
         .setDepth(25).setLetterSpacing(4);

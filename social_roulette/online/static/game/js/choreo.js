@@ -109,7 +109,7 @@
           scene.floatText(e.actor, "CLICK", false);
           await scene.w(800);
           if (e.actor === e.target && view.bonus && view.current === e.actor && view.winner == null)
-            await scene.stampSeat(e.actor, "BONUS TURN · SILENT", false);        // M13
+            await scene.stampSeat(e.actor, "BONUS TURN", false);                 // M13
         }
         scene.setSawChip(false); lastBeer = null;
       } else if (e.type === "elimination") {
@@ -159,7 +159,7 @@
     s.pips.forEach((p) => p.setVisible(false));
     s.plate.setFillStyle(0x000000); s.nameT.setColor("#666666"); s.strike.setVisible(true);
     await scene.stampSeat(id, "BURNED", true);                                   // red — danger list
-    const dead = "BM·" + nm(id, roster).slice(0, 6);                             // a12: only THEIR placed
+    const dead = "DIRT·" + nm(id, roster).slice(0, 6);                           // a12: only THEIR placed
     scene.seats.forEach((t) => {                                                 // BLACKMAIL dissolves;
       t.chipT.setText(t.chipT.text.split("\n").filter((c) => c !== dead).join("\n"));
     });                                                                          // SEDATED chips stay
@@ -170,11 +170,9 @@
     const who = nm(e.actor, roster), it = e.item;
     const icon = THEME.ITEMS[it] ? THEME.ITEMS[it].icon : 0;
     if (it === "CIGARETTES") {                                                   // M18 PASSPORT
-      const p = scene.seatXY(e.actor);                                           // yours: KIT→pips; others: seat→pips
-      const src = e.actor === view.you ? scene.kitXY() : { x: p.x, y: p.y };
-      await scene.iconFly(icon, src, { x: p.x, y: p.y + 74 });
+      if (e.actor === view.you) await scene.iconFly(icon, scene.kitXY(), e.actor);  // spend from YOUR kit
       scene.floatText(e.actor, "+1 COVER", false);
-      await scene.w(500);
+      await scene.w(700);
     } else if (it === "MAGNIFIER") {                                             // M19 SPYCAM
       await scene.iconFly(icon, e.actor, { x: SCENE.CX, y: SCENE.CY - 90 });
       scene.flashWhite();                                                        // shutter blink
@@ -184,13 +182,13 @@
       await scene.toast(who + " · ×2 ARMED", 1500);
     } else if (it === "BEER") {                                                  // M22 MAGNET
       await scene.shellEject();
-      await scene.toast("SHELL OUT", 1100);
+      await scene.toast("SHELL EJECTED", 1100);
     } else if (it === "HANDCUFFS") {                                             // M23 place
       await scene.iconFly(icon, e.actor, e.target);
       await scene.toast(nm(e.target, roster) + " SEDATED", 1300);
     } else if (it === "IMMUNITY") {                                             // M21 BLACKMAIL
       await scene.iconFly(THEME.ICON.envelope, e.actor, e.target);
-      await scene.toast(who + " HAS DIRT ON " + nm(e.target, roster), 1500);
+      await scene.toast(who + (who === "YOU" ? " HAVE" : " HAS") + " DIRT ON " + nm(e.target, roster), 1500);
     }
   }
 

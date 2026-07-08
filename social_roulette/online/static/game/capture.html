@@ -126,31 +126,95 @@
     glow:     async (s) => { s.render(BASE(), ROSTER); s.seatGlow([2, 4], true); await s.w(1500); },
   };
 
-  const sheet = document.createElement("canvas");
-  const TW = 195, TH = 422, COLS = 4;
-  let thumbs = 0, sctx = null, t0 = null, fullSent = FULL_AT == null;
+  /* FULL-RES filmstrip: native 390x844 thumbs, 3x2 grid = 1170x1688 sheet (max useful
+     vision res), pages POSTed as <run>_s1.jpg, _s2.jpg ... as they fill. */
+  const TW = 390, TH = 844, COLS = 3, ROWS = 2, PER = COLS * ROWS;
+  let thumbs = 0, page = 0, sheet = null, sctx = null, t0 = null, fullSent = FULL_AT == null;
+  const posts = [];
 
-  function ensureSheet(rows) {
-    if (sctx) return;
-    sheet.width = TW * COLS;
-    sheet.height = TH * rows;
-    sctx = sheet.getContext("2d");
-    sctx.fillStyle = "#222"; sctx.fillRect(0, 0, sheet.width, sheet.height);
+  function flushSheet(rowsUsed) {
+    if (!sctx) return;
+    const out = document.createElement("canvas");
+    out.width = TW * COLS; out.height = TH * rowsUsed;
+    out.getContext("2d").drawImage(sheet, 0, 0);
+    page++;
+    posts.push(post(RUN + "_s" + page, out.toDataURL("image/jpeg", 0.85)));
+    sheet = null; sctx = null;
   }
   function thumb(gameCanvas, label) {
     if (thumbs >= MAX_THUMBS) return;
-    ensureSheet(Math.ceil(MAX_THUMBS / COLS));
-    const x = (thumbs % COLS) * TW, y = Math.floor(thumbs / COLS) * TH;
+    if (!sctx) {
+      sheet = document.createElement("canvas");
+      sheet.width = TW * COLS; sheet.height = TH * ROWS;
+      sctx = sheet.getContext("2d");
+      sctx.fillStyle = "#222"; sctx.fillRect(0, 0, sheet.width, sheet.height);
+    }
+    const k = thumbs % PER, x = (k % COLS) * TW, y = Math.floor(k / COLS) * TH;
     sctx.drawImage(gameCanvas, x, y, TW, TH);
-    sctx.fillStyle = "#00ff00"; sctx.font = "bold 14px monospace";
-    sctx.fillText(label, x + 4, y + 16);
+    sctx.fillStyle = "#00ff00"; sctx.font = "bold 22px monospace";
+    sctx.fillText(label, x + 6, y + 24);
     sctx.strokeStyle = "#444"; sctx.strokeRect(x, y, TW, TH);
     thumbs++;
+    if (thumbs % PER === 0) flushSheet(ROWS);
   }
   async function post(name, dataUrl) {
     await fetch("http://localhost:8017/cap", { method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name, img: dataUrl }) });
+  }
+
+  /* ---- DEFECT DETECTOR: geometry audit (Text/Image overlap + offscreen) + copy inventory.
+     Shapes (Graphics/Rect) are design chrome — excluded on purpose; film review covers them. */
+  const AGG = new Map(), COPY = new Set();
+  function screenCut(s) {                    // full-screen opaque rect (dim / winner / flash) hides all below
+    let cut = -Infinity;
+    for (const o of s.children.list)
+      if (o.type === "Rectangle" && o.visible && o.width >= 380 && o.height >= 820
+          && (o.fillAlpha == null ? 1 : o.fillAlpha) * o.alpha >= 0.8 && o.depth > cut) cut = o.depth;
+    return cut;
+  }
+  function tagOf(o) {
+    return o.type === "Text" ? 'T"' + o.text.replace(/\n/g, "|").slice(0, 20) + '"'
+      : "I[" + (o.texture ? o.texture.key : "?") + ":" + (o.frame ? o.frame.name : "") + "]";
+  }
+  function audit(s, el) {
+    const cut = screenCut(s), out = [];
+    const push = (o, d, pa) => {
+      const a = o.alpha * pa;
+      if (!o.visible || a < 0.05) return;
+      if (o.list) { o.list.forEach((c) => push(c, d, a)); return; }
+      if (o.type !== "Text" && o.type !== "Image") return;
+      if (o.type === "Text" && !o.text.trim()) return;
+      if (d < cut) return;
+      if (o.type === "Text") COPY.add(o.text.replace(/\n/g, " | "));
+      if (o.name === "fx") return;
+      const b = o.getBounds();
+      if (b.width > 0) out.push({ o, b });
+    };
+    s.children.list.forEach((o) => push(o, o.depth, 1));
+    const add = (k) => { const v = AGG.get(k) || { first: el, n: 0 }; v.n++; v.last = el; AGG.set(k, v); };
+    for (const A of out)
+      if (A.b.left < -2 || A.b.top < -2 || A.b.right > SCENE.W + 2 || A.b.bottom > SCENE.H + 2)
+        add("OFFSCREEN " + tagOf(A.o));
+    for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) {
+      const A = out[i], B = out[j];
+      if (A.o.name === "stamp" || B.o.name === "stamp") {      // rubber-stamp over seat imagery: by design
+        if (A.o.type === "Image" || B.o.type === "Image") continue;
+      }
+      const ix = Math.min(A.b.right, B.b.right) - Math.max(A.b.left, B.b.left);
+      const iy = Math.min(A.b.bottom, B.b.bottom) - Math.max(A.b.top, B.b.top);
+      if (ix <= 2 || iy <= 2) continue;
+      if (ix * iy < 0.12 * Math.min(A.b.width * A.b.height, B.b.width * B.b.height)) continue;
+      add("OVERLAP " + tagOf(A.o) + " × " + tagOf(B.o));
+    }
+  }
+  function auditReport() {
+    const lines = [];
+    [...AGG.entries()].sort().forEach(([k, v]) =>
+      lines.push(k + "   [" + (v.first / 1000).toFixed(1) + "s→" + (v.last / 1000).toFixed(1) + "s ×" + v.n + "]"));
+    lines.push("", "COPY INVENTORY (" + COPY.size + "):");
+    [...COPY].sort().forEach((t) => lines.push("  " + t));
+    return "VIOLATIONS: " + AGG.size + "\n" + lines.join("\n");
   }
 
   let scene = null, finished = false;
@@ -166,19 +230,19 @@
     await frames(3);                         // the scenario's final render() needs a drawn frame
     window.__pump.tick = null;
     if (scene) thumb(scene.sys.game.canvas, "END");
-    const rows = Math.max(1, Math.ceil(thumbs / COLS));
-    const out = document.createElement("canvas");
-    out.width = sheet.width; out.height = TH * rows;
-    out.getContext("2d").drawImage(sheet, 0, 0);
-    try { await post(RUN, out.toDataURL("image/jpeg", 0.8)); } catch (e) { status = "POSTFAIL"; }
+    if (thumbs % PER !== 0) flushSheet(Math.min(ROWS, Math.ceil((thumbs % PER) / COLS)));
+    posts.push(fetch("http://localhost:8017/cap", { method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: RUN + "_audit", txt: auditReport() }) }));
+    try { await Promise.all(posts); } catch (e) { status = "POSTFAIL"; }
     window.__pump.stop();
-    document.title = status + " " + RUN + " " + thumbs;
+    document.title = status + " " + RUN + " " + thumbs + " P" + page + " V" + AGG.size;
   }
 
   SCENE.ready = async (s) => {
     scene = s;
     t0 = s.time.now;                          // GAME clock — labels reflect what a real 60fps player sees
-    let nextGrab = 0;
+    let nextGrab = 0, nextAudit = 0;
     const g = s.sys.game;
     const DS = window.__deltaStats = { n: 0, sum: 0, min: 1e9, max: 0, raw: [] };
     window.__pump.tick = () => {
@@ -186,6 +250,7 @@
       DS.min = Math.min(DS.min, g.loop.delta); DS.max = Math.max(DS.max, g.loop.delta);
       if (DS.raw.length < 2000 && DS.n % 10 === 0) DS.raw.push(+g.loop.delta.toFixed(2));
       const el = s.time.now - t0;
+      if (el >= nextAudit && !finished) { audit(s, el); nextAudit += 100; }   // dense: catches transients
       if (el >= nextGrab && !finished) { thumb(s.sys.game.canvas, (el / 1000).toFixed(1) + "s"); nextGrab += INTERVAL; }
       if (FULL_AT != null && !fullSent && el >= FULL_AT) {
         fullSent = true;
