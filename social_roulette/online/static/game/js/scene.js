@@ -34,8 +34,16 @@
       this._bar = { x: BARX, y: BARY, w: BARW };
       this.barFill = this.add.rectangle(BARX, BARY, BARW, BARH, WHITE).setOrigin(0, 0.5).setDepth(5).setVisible(false);
       this.barFrame = this.add.rectangle(W / 2, BARY, BARW, BARH).setStrokeStyle(2, WHITE, 0.4).setDepth(6).setVisible(false);
-      this.barSecs = this.add.text(W / 2, BARY, "", style(20, "#ffffff")).setOrigin(0.5).setResolution(2).setDepth(7)
-        .setLetterSpacing(1).setBackgroundColor("#000000").setPadding(6, 2, 6, 2).setVisible(false);  // own chip — readable over fill AND void
+      // burn-through digits: two layers masked at the fill edge — the burn INVERTS them pixel by pixel
+      const secStyle = (col) => style(20, col, { strokeThickness: 0 });
+      this.barSecs = this.add.text(W / 2, BARY, "", secStyle("#ffffff")).setOrigin(0.5)
+        .setResolution(2).setDepth(7).setLetterSpacing(1).setVisible(false);      // over the VOID
+      this.barSecsD = this.add.text(W / 2, BARY, "", secStyle("#000000")).setOrigin(0.5)
+        .setResolution(2).setDepth(7).setLetterSpacing(1).setVisible(false);      // over the FILL
+      this._mFillG = this.make.graphics({ add: false });
+      this._mEmptyG = this.make.graphics({ add: false });
+      this.barSecsD.setMask(this._mFillG.createGeometryMask());
+      this.barSecs.setMask(this._mEmptyG.createGeometryMask());
       this.bandLine2 = this.add.text(W / 2, BARY + 34, "", style(13, "#aaaaaa")).setOrigin(0.5).setResolution(2).setDepth(6).setLetterSpacing(2);
       this.bandCode = this.add.text(W - 6, 2, "", style(11, "#777777")).setOrigin(1, 0).setResolution(2).setDepth(7);
       this.bandNote = this.add.text(W / 2, BARY + 54, "", style(12, "#cccccc", { align: "center",
@@ -174,14 +182,19 @@
         const red = left <= DEC, col = red ? RED : WHITE;     // last 30s = red
         this.barFrame.setVisible(true);
         this.barFill.setVisible(true);
-        this.barFill.width = this._bar.w * (left / TOTAL);
+        const fw = this._bar.w * (left / TOTAL);
+        this.barFill.width = fw;
         this.barFill.setFillStyle(col);
         this.barFrame.setStrokeStyle(2, col, 0.95);
+        this._mFillG.clear().fillStyle(0xffffff).fillRect(this._bar.x, this._bar.y - 20, fw, 40);
+        this._mEmptyG.clear().fillStyle(0xffffff).fillRect(this._bar.x + fw, this._bar.y - 20, this._bar.w - fw, 40);
         this.barSecs.setVisible(true).setText(fmt(left));
+        this.barSecsD.setVisible(true).setText(fmt(left)).setColor(red ? "#ffffff" : "#000000");
         this.bandCode.setVisible(false);                      // code only rides an idle band
       } else {
         this.barFill.setVisible(false);
         this.barSecs.setVisible(false);
+        this.barSecsD.setVisible(false);
         this.barFrame.setVisible(false);
         this.bandCode.setVisible(true);
       }

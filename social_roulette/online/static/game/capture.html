@@ -231,6 +231,10 @@
       ], { title: "SEND OFFER →", sub: "WANT: 1 SEDATIVE · 2 PASSPORT", hubBright: true });
       await s.w(1500);
     },
+    seam: async (s) => {                                      // burn edge crossing the digits
+      s.render(BASE(), ROSTER);
+      for (let t = 18; t >= 11; t--) { s.setBand({ phase: "talk", secs: t, name: "C.W." }); await s.w(240); }
+    },
     ants: async (s) => {                                      // marching-ants trade highlight
       s.render(BASE(), ROSTER); s.seatGlow([2, 4], true);
       await s.w(1600);
@@ -314,6 +318,8 @@
       if (A.o.name === "stamp" || B.o.name === "stamp") {      // rubber-stamp over seat imagery: by design
         if (A.o.type === "Image" || B.o.type === "Image") continue;
       }
+      if (A.o.type === "Text" && B.o.type === "Text" && A.o.text === B.o.text
+          && Math.abs(A.b.left - B.b.left) < 2 && Math.abs(A.b.top - B.b.top) < 2) continue;  // masked twin layers
       const ix = Math.min(A.b.right, B.b.right) - Math.max(A.b.left, B.b.left);
       const iy = Math.min(A.b.bottom, B.b.bottom) - Math.max(A.b.top, B.b.top);
       if (ix <= 2 || iy <= 2) continue;
