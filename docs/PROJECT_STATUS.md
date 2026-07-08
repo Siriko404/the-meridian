@@ -111,37 +111,40 @@ are RATIFIED by the user — do not re-litigate:
   (join `code`, trade `give/want` lists) can still kill a socket · offer-lifecycle broadcasts leak
   traffic-level "something private happened" · `trade_offer` accepts bot targets (withdraw
   recovers) · post-winner chat muted (undecided) · `last_skipped` drain-contract comment.
-- **PLAN B IN FLIGHT — branch `uiv2-client` @ `107ff1c` (+1 review.html fix), INLINE execution**
-  (user 2026-07-09: "no delegation"; then "remove me from the loop, YOU handle 100%" of visual
-  verification). Plan doc `docs/superpowers/plans/2026-07-09-uiv2-client.md` — Tasks 1-5 done but
-  EXECUTION DIVERGED from plan on visuals (user redesigns, below). Tasks left: aesthetics round 2
-  → Task 6 live wiring (main.js has only drain v0) → T7 trays+interaction → T8 routes/v1 → T9 verify.
+- **PLAN B NEAR-DONE — branch `uiv2-client` @ `1f37495`, INLINE execution** (user: "no delegation";
+  "remove me from the loop, YOU handle 100%"). Plan doc `docs/superpowers/plans/2026-07-09-uiv2-client.md`
+  — **Tasks 1-8 DONE** (T6 live wiring, T7 trays+interaction grammar, T8 `/`=v2 `/v1`=old + 2 route
+  tests; 238 pytest + 8 node green). Aesthetics round 2 DONE (detector-verified). LIVE-PLAY VERIFIED:
+  in-page random autopilot played 2 FULL games to the winner (+1 partial), 0 JS errors; 9 UX bugs
+  found+fixed (empty verb strip busy-flag, strip overflow x2, uncloseable trays, unreadable bar
+  seconds, stale band during beats, dead-seat chips, kit-landing pileup, tray label overflow).
+  REMAINS: **Task 9 = USER GATE** (user plays on his phone/browser, then merge --no-ff to master)
+  · icon picks (SPYCAM 8/MAGNET 5/SEDATIVE 2 drafts; LEDGER icon 37 dup of PASSPORT — LEDGER box
+  uses text) · winner-face spritesheet edge-bleed at scale 6 (asset-level nit).
 - **REVIEW PROTOCOL (user-mandated, hard):** user must SEE everything — present in-engine pages,
   never prose; **3 items per batch** with "what you're expected to see"; VERY CONCISE messages;
-  full phone screen NEVER blocked by dev chrome (side panel only). Review page:
-  `/static/game/review.html` (3 buttons; JS binds `#panel`). User's standing verdict to work on:
-  **"still a ton of overshadowing, not professional visual aesthetics"** — round 2 = kill remaining
-  overlaps (toast-over-LEDG, announce-over-seats, winner-over-chips…) + professional polish pass.
-- **DESIGN DECISIONS RATIFIED 2026-07-09 (supersede spec §6/§7 details):** Times-New-Roman-style
-  serif (1-bit-crisp, setResolution 2) + FS=1.4 size bump · dark overlay `scene.dim(0.96)` for ALL
-  global events (coin/dice/announce) · **cylinder dial REMOVED → turn = white bobbing ARROW** over
-  current seat · **timer = burning BAR** (one 1:30 burn: white 60s talk → red 30s decision, m:ss
-  centered, hidden when no phase) · chips stacked short ("BM·NAME"/"SEDATED") above tile ·
-  toasts word-wrap ≤350px.
-- **CAPTURE RIG (Claude's eyes — the session's key invention):** `/static/game/capture.html?run=<scenario>[&ms=500]`
-  — page virtualizes rAF + performance.now + **Date.now** (Phaser tweens track wall clock; measured)
-  via MessageChannel pump (unthrottled), runs ONE choreo scenario at ~25x real speed, thumbnails the
-  canvas every `ms` of GAME time onto ONE contact sheet, POSTs to `_devcap.py` sink (port 8017,
-  gitignored) → Read `%TEMP%/sr_devcap/<run>.jpg` = "watching" the animation. Poll `document.title`
-  ("DONE <run> <n>"). ~28 scenarios in SCENARIOS table. Automated-tab facts (measured): rAF fires 0x,
-  setTimeout throttled ~1/s, CDP screenshots STALE vs canvas — `canvas.toDataURL` reads true pixels;
-  JS yields must be microtasks; ALWAYS cache-bust game js (document.write ?cb=Date.now() pattern).
-  Sweep round 1 done: all scenarios run clean; fixed chips spill, toast overflow, FULL-at-KIT,
-  announce dead-air, deal 9.4->5.2s, setup 28->17.4s, pre-game full bar.
+  full phone screen NEVER blocked (side panel only). Review page `/static/game/review.html`.
+- **DESIGN DECISIONS RATIFIED (supersede spec §6/§7 details):** Times-serif (setResolution 2,
+  FS=1.4) · **OPAQUE black overlay** for ALL global events (coin/dice/announce/winner own the
+  stage) · turn = white bobbing ARROW · **burning BAR timer** (1:30: white 60s talk → red 30s
+  decision, m:ss on its own black chip, hidden when no phase or while beats play; room code shows
+  only on idle band) · chips ("DIRT·NAME"/"SEDATED") stacked BELOW seat, alive seats only · pips
+  centered per lives · corner menus: LEDGER box bottom-left + KIT briefcase bottom-right (64px,
+  icon-gated, sheet-tap dismisses) · item flights ride the CENTER AISLE and stop short of seats
+  (nothing ever covers a face; kit-bound drop-point above the case) · verb strip auto-fits the
+  [80,310] dock zone, confirm = [ACTION][✕] · copy: SHELL EJECTED / BONUS TURN / HAVE-HAS grammar.
+- **CAPTURE RIG v2 (Claude's eyes):** `capture.html?run=<scenario>` — virtual clock (rAF+
+  performance.now+Date.now via MessageChannel pump), FULL-RES 390x844 thumbs 3x2/sheet multi-page,
+  **geometry DEFECT DETECTOR** (Text/Image overlap + offscreen + copy inventory every 100ms game
+  time, dim-aware, fx/stamp exempt) → `<run>_audit.txt`. `runner.html` sweeps all 29 scenarios
+  sequentially (title `ALLDONE runs=N bad=N viol=N`); latest sweep V0 clean. **LIVE-PLAY rig:**
+  inject pump (steps `game.loop.step()` when rAF dead) + 3fps recorder (`live*_sNN.jpg`) + random
+  monkey bot tapping at the Phaser layer (hit-test emit; automated window is 0x0 — real clicks
+  impossible, synthetic DOM events don't reach Phaser). Automated-tab facts (measured): rAF 0x,
+  setTimeout ~1/s, CDP screenshots STALE — `canvas.toDataURL` is truth; cache-bust game js always.
   Servers: game `./.venv/Scripts/python -m uvicorn social_roulette.online.server:app --port 8016`
-  (bg) · sink `./.venv/Scripts/python _devcap.py` (bg). v2 client page: `/static/game/index.html`
-  (join→lobby→board live; verbs/trays NOT wired yet). Node tests:
-  `node --test social_roulette/online/static/game/test/*.test.mjs` (8 green).
+  (bg) · sink `./.venv/Scripts/python _devcap.py` (bg, threaded; beware SO_REUSEADDR double-bind).
+  Node tests: `node --test social_roulette/online/static/game/test/*.test.mjs`.
 
 ---
 
