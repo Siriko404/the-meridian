@@ -5,11 +5,12 @@
 (function (global) {
   "use strict";
   const W = 390, H = 844, RED = 0xc8102e, WHITE = 0xffffff;
-  const MONO = "Consolas,monospace";
+  const SERIF = "'Times New Roman','Times',Georgia,serif";   // 1-bit-crisp serif (setResolution 2)
   const CX = 195, CY = 430, RX = 142, RY = 150;      // arc (spike-proven); drop CY if KIT collides
   const SCENE = { ready: null };
+  const FS = 1.4;                                     // global size bump — mobile readability
   const style = (size, color, extra) => Object.assign(
-    { fontFamily: MONO, fontSize: size + "px", color: color || "#ffffff", fontStyle: "bold" }, extra || {});
+    { fontFamily: SERIF, fontSize: Math.round(size * FS) + "px", color: color || "#ffffff", fontStyle: "bold" }, extra || {});
 
   class TableScene extends Phaser.Scene {
     preload() {
@@ -25,19 +26,21 @@
       this._brackets = []; this._glows = [];
       this.onKit = null; this.onLedger = null; this.onPhone = null;
 
-      // ---- STATUS BAND (destination-board) ----
-      this.bandBg = this.add.rectangle(W / 2, 35, W, 70, 0x000000).setDepth(5);
-      this.bandLine1 = this.add.text(W / 2, 22, "", style(22)).setOrigin(0.5).setResolution(2).setDepth(6).setLetterSpacing(3);
-      this.bandLine2 = this.add.text(W / 2, 50, "", style(14, "#aaaaaa")).setOrigin(0.5).setResolution(2).setDepth(6).setLetterSpacing(2);
-      this.bandCode = this.add.text(W - 6, 4, "", style(13, "#777777")).setOrigin(1, 0).setResolution(2).setDepth(6);
-      this.add.line(0, 0, 12, 70, W - 12, 70, WHITE, 0.5).setOrigin(0).setDepth(6);
-      this.bandNote = this.add.text(W / 2, 84, "", style(13, "#cccccc")).setOrigin(0.5).setResolution(2).setDepth(6).setLetterSpacing(1);
+      // ---- BURNING TIMER BAR (white = talk 60s, red = decision 30s; seconds centered) ----
+      const BARX = 18, BARW = W - 36, BARY = 34, BARH = 40;
+      this._bar = { x: BARX, y: BARY, w: BARW };
+      this.barFill = this.add.rectangle(BARX, BARY, BARW, BARH, WHITE).setOrigin(0, 0.5).setDepth(5).setVisible(false);
+      this.barFrame = this.add.rectangle(W / 2, BARY, BARW, BARH).setStrokeStyle(2, WHITE, 0.4).setDepth(6);
+      this.barSecs = this.add.text(W / 2, BARY, "", style(20, "#000000")).setOrigin(0.5).setResolution(2).setDepth(7).setLetterSpacing(1).setVisible(false);
+      this.bandLine2 = this.add.text(W / 2, BARY + 34, "", style(13, "#aaaaaa")).setOrigin(0.5).setResolution(2).setDepth(6).setLetterSpacing(2);
+      this.bandCode = this.add.text(W - 6, 2, "", style(11, "#777777")).setOrigin(1, 0).setResolution(2).setDepth(7);
+      this.bandNote = this.add.text(W / 2, BARY + 54, "", style(12, "#cccccc")).setOrigin(0.5).setResolution(2).setDepth(6).setLetterSpacing(1);
 
       // ---- LEDGER icon (small, by the band — below the note line so M27b never overlaps) ----
-      const lb = this.add.container(24, 128).setDepth(6);
-      lb.add(this.add.rectangle(0, 0, 36, 30).setStrokeStyle(1, WHITE, 0.7).setInteractive()
+      const lb = this.add.container(30, 128).setDepth(6);
+      lb.add(this.add.rectangle(0, 0, 54, 30).setStrokeStyle(1, WHITE, 0.7).setInteractive()
         .on("pointerdown", () => this.onLedger && this.onLedger()));
-      lb.add(this.add.text(0, 0, "LEDG", style(13)).setOrigin(0.5).setResolution(2));
+      lb.add(this.add.text(0, 0, "LEDG", style(10)).setOrigin(0.5).setResolution(2));
 
       // ---- DOCK ----
       this.add.line(0, 0, 12, 700, W - 12, 700, WHITE, 0.5).setOrigin(0).setDepth(6);
@@ -59,6 +62,7 @@
         .setInteractive().on("pointerdown", () => this.onPhone && this.onPhone());
 
       this.center = null;                                     // dial container, built with the seats
+      SCENE.instance = this;                                  // live-scene handle (debug/testing)
       if (SCENE.ready) SCENE.ready(this);
     }
 
@@ -80,8 +84,8 @@
           broken.lineBetween(x + dx + sx * 4, y + dy + sy * 4, x + dx + sx * 4, y + dy + sy * 16);
         });
         const face = this.add.image(x, y, "faces", id % 12).setScale(2); // faces SACRED — no tint ever
-        const plate = this.add.rectangle(x, y + 53, 62, 22, 0xffffff).setStrokeStyle(2, WHITE, 0.95);
-        const nameT = this.add.text(x, y + 53, "", style(14, "#000000")).setOrigin(0.5).setResolution(2);
+        const plate = this.add.rectangle(x, y + 54, 82, 24, 0xffffff).setStrokeStyle(2, WHITE, 0.95);
+        const nameT = this.add.text(x, y + 54, "", style(11, "#000000")).setOrigin(0.5).setResolution(2);
         const strike = this.add.line(0, 0, x - 26, y + 53, x + 26, y + 53, WHITE, 0.9).setOrigin(0).setVisible(false);
         const pips = [];
         for (let k = 0; k < THEME.MAX_LIVES; k++)
@@ -96,41 +100,23 @@
       this.built = true;
     }
 
-    buildDial(n) {                                            // spike's fluted cylinder, parametric bores
-      this.center = this.add.container(CX, CY).setDepth(4);
-      const cg = this.add.graphics();
-      const BORE_D = 30, BORE_R = 10, BULGE_R = 17, FLUTE_R = 5, FLUTE_D = 44;
-      const pts = [];
-      const P = (r, cxx, cyy, a) => pts.push({ x: cxx + r * Math.cos(a), y: cyy + r * Math.sin(a) });
-      const stepDeg = 360 / n;
-      for (let i = 0; i < n; i++) {
-        const a0 = (-90 + i * stepDeg) * Math.PI / 180;
-        const bx = BORE_D * Math.cos(a0), by = BORE_D * Math.sin(a0);
-        for (let k = -6; k <= 6; k++) P(BULGE_R, bx, by, a0 + k * 0.16);
-        const am = a0 + (stepDeg / 2) * Math.PI / 180;
-        const fx = FLUTE_D * Math.cos(am), fy = FLUTE_D * Math.sin(am);
-        for (let k = 5; k >= -5; k--) P(FLUTE_R, fx, fy, am + k * 0.14 + Math.PI);
-      }
-      cg.fillStyle(0x000000, 1).lineStyle(3, WHITE, 0.95);
-      cg.beginPath(); cg.moveTo(pts[0].x, pts[0].y);
-      pts.forEach((p) => cg.lineTo(p.x, p.y));
-      cg.closePath(); cg.fillPath(); cg.strokePath();
-      for (let i = 0; i < n; i++) {
-        const a = (-90 + i * stepDeg) * Math.PI / 180;
-        cg.lineStyle(2, WHITE, 0.9).strokeCircle(BORE_D * Math.cos(a), BORE_D * Math.sin(a), BORE_R);
-      }
-      cg.fillStyle(0xffffff, 0.25).fillCircle(0, 0, 7);
-      cg.lineStyle(2, WHITE, 0.7).strokeCircle(0, 0, 7);
-      const chambered = this.add.circle(0, -BORE_D, BORE_R - 3, WHITE);
-      this.center.add([cg, chambered]);
-      // ×2 ARMED chip, pinned at the dial while POISON is live (M20 — red: danger)
-      this.sawChip = this.add.text(CX, CY + 64, "×2 ARMED", style(13, "#c8102e")).setOrigin(0.5)
+    buildDial() {                                             // cylinder dial REMOVED (review); turn = active-seat frame.
+      this.center = this.add.container(CX, CY).setDepth(4);   // empty anchor kept for POISON/MAGNET effects
+      // ×2 ARMED chip, shown at table center while POISON is live (M20 — red: danger)
+      this.sawChip = this.add.text(CX, CY, "×2 ARMED", style(13, "#c8102e")).setOrigin(0.5)
         .setResolution(2).setDepth(8).setBackgroundColor("#000000").setVisible(false);
+    }
+
+    dim(on) {                                                 // near-solid overlay: hide the board, play the event on top
+      if (!this._dim) this._dim = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.96).setVisible(false);
+      this._dim.setDepth(16).setVisible(!!on);
+      if (on) this.children.bringToTop(this._dim);
     }
 
     /* ================= settle render ================= */
     render(view, roster) {
       if (!this.built) this.layout(view.order);
+      if (this._arrow) this._arrow.setVisible(false);         // re-shown by _arrowTo for the active seat
       const eq = !view.teams_active;                          // M27: agencies dissolved — equalize
       view.players.forEach((p) => {
         const s = this.seats.get(p.id); if (!s) return;
@@ -147,7 +133,8 @@
         s.chipT.setText(chips.join("  "));
         const active = p.alive && p.id === view.current && view.winner == null;
         s.tile.setStrokeStyle(tk, WHITE, active ? 1 : 0.55);
-        s.face.setScale(active ? 2.3 : 2);
+        s.face.setScale(2);                                   // uniform — turn is shown by the ARROW only
+        if (active) this._arrowTo(p.id);
         if (!p.alive) {                                       // M14 end-state (the beat itself is choreo)
           s.tile.setVisible(false); s.broken.setVisible(true);
           s.face.setAlpha(0.35);                              // whole-object fade — pixels untouched
@@ -166,21 +153,24 @@
     }
 
     /* ================= band ================= */
-    setBand(o) {                                              // o = {phase,secs,name,bonus,note,invert}
-      const inv = !!o.invert;                                 // M8: DECISION inverts the band (pressure)
-      this.bandBg.setFillStyle(inv ? 0xffffff : 0x000000);
-      const fg = inv ? "#000000" : "#ffffff";
-      let l1 = "";
-      if (o.phase === "talk") l1 = "TALK · " + fmt(o.secs);
-      else if (o.phase === "decision") l1 = (o.bonus ? "BONUS · " : "DECISION · ") + fmt(o.secs);
-      else if (o.phase != null) l1 = String(o.phase);
-      const red = o.phase === "decision" && o.secs != null && o.secs <= 5;   // M8: final 5s digits red
-      this.bandLine1.setText(l1).setColor(red ? "#c8102e" : fg);
-      if (o.phase === "decision" && o.secs != null && o.secs <= 10 && this._lastTick !== (o.secs | 0)) {
-        this._lastTick = o.secs | 0;                          // M8: final-10s tick pulse
-        this.tweens.add({ targets: this.bandLine1, scale: { from: 1.12, to: 1 }, duration: 180 });
+    setBand(o) {                                              // burning bar: one 90s burn, white 60s -> red 30s
+      const TALK = 60, DEC = 30, TOTAL = TALK + DEC;
+      let left = null;
+      if (o.phase === "talk" && o.secs != null) left = DEC + Math.min(o.secs, TALK);
+      else if (o.phase === "decision" && o.secs != null) left = Math.min(o.secs, DEC);
+      if (left != null) {
+        const red = left <= DEC, col = red ? RED : WHITE;     // last 30s = red
+        this.barFill.setVisible(true);
+        this.barFill.width = this._bar.w * (left / TOTAL);
+        this.barFill.setFillStyle(col);
+        this.barFrame.setStrokeStyle(2, col, 0.95);
+        this.barSecs.setVisible(true).setText(fmt(left)).setColor(red ? "#ffffff" : "#000000");
+      } else {
+        this.barFill.setVisible(false);
+        this.barSecs.setVisible(false);
+        this.barFrame.setStrokeStyle(2, WHITE, 0.4);
       }
-      this.bandLine2.setText(o.name || "").setColor(inv ? "#333333" : "#aaaaaa");
+      this.bandLine2.setText(o.name || "");
       this.bandNote.setText(o.note || "");
     }
     setCode(code) { this._code = code; this.bandCode.setText(code || ""); }
@@ -276,14 +266,24 @@
       this.tweens.add({ targets: t ? [ic, t] : ic, alpha: 0, duration: 260,
         onComplete: () => { ic.destroy(); if (t) t.destroy(); } });
     }
-    dialTo(id, overwind) {
-      const s = this.seats.get(id); if (!s || !this.center) return Promise.resolve();
-      const n = this.seats.size, deg = s.i * (360 / n);
-      if (!overwind) { this.tweens.add({ targets: this.center, angle: deg, duration: 420, ease: "Back.easeOut" });
-        return this.w(430); }
-      return new Promise((r) => this.tweens.add({ targets: this.center, angle: deg + 8, duration: 300,
-        ease: "Quad.easeIn", onComplete: () => this.tweens.add({ targets: this.center, angle: deg,
-          duration: 120, onComplete: r }) }));
+    _arrowTo(id) {                                            // simple arrow above the current seat
+      const s = this.seats.get(id); if (!s) return;
+      if (!this._arrow) {
+        this._arrow = this.add.triangle(0, 0, 0, 0, 18, 0, 9, 14, WHITE).setDepth(9);
+        this._arrowTween = this.tweens.add({ targets: this._arrow, y: "+=6", yoyo: true,
+          repeat: -1, duration: 420, ease: "Sine.easeInOut" });
+      }
+      this._arrow.setVisible(true);
+      this._arrowTween.stop();
+      this._arrow.setPosition(s.x, s.y - 60);
+      this._arrowTween = this.tweens.add({ targets: this._arrow, y: "+=6", yoyo: true,
+        repeat: -1, duration: 420, ease: "Sine.easeInOut" });
+    }
+    dialTo(id) {                                              // turn indicator = the arrow moves
+      const s = this.seats.get(id); if (!s) return Promise.resolve();
+      this.seats.forEach((q) => q.tile.setStrokeStyle(q.tk, WHITE, q.id === id ? 1 : 0.55));
+      this._arrowTo(id);
+      return this.w(280);
     }
     async shellEject() {                                      // M22: from the dial's CENTER AXIS (a11)
       const sh = this.add.rectangle(CX, CY, 8, 18, 0xffffff).setDepth(15);
@@ -310,6 +310,7 @@
     async diceCeremony(total, live, opts) {
       opts = opts || {};
       const sp = opts.fast ? 0.5 : 1;
+      this.dim(true);                                          // dark overlay — animation plays over the board
       if (opts.honor) await this.toast("IN THEIR HONOR", 900 * sp);
       const rolls = DICE.synthDice(total, live);
       const layer = this.add.container(0, 0).setDepth(18);
@@ -334,7 +335,7 @@
           drawDie(d1); drawDie(d2); await this.w(70 * sp);
         }
         d1.v = h; d2.v = l; drawDie(d1); drawDie(d2);
-        await this.w(260 * sp);
+        await this.w(200 * sp);
         cnt.t += h; cnt.l += l;                                // hi flies to TOTAL, lo to LIVE
         const fh = this.add.text(d1.x, d1.y, String(h), style(18)).setOrigin(0.5).setResolution(2); layer.add(fh);
         const fl = this.add.text(d2.x, d2.y, String(l), style(18)).setOrigin(0.5).setResolution(2); layer.add(fl);
@@ -342,32 +343,37 @@
           onComplete: () => { fh.destroy(); tT.setText("TOTAL " + cnt.t); } });
         this.tweens.add({ targets: fl, x: 290, y: 150, alpha: 0, duration: 380 * sp,
           onComplete: () => { fl.destroy(); lT.setText("LIVE " + cnt.l); } });
-        await this.w(420 * sp);
+        await this.w(300 * sp);
       }
       tT.setText("TOTAL " + total); lT.setText("LIVE " + live);
       const seal = this.add.text(W / 2, 218, "30–70% · SEALED", style(15)).setOrigin(0.5)
         .setResolution(2).setBackgroundColor("#000000"); layer.add(seal);
-      await this.w(650 * sp);
+      await this.w(450 * sp);
       // transient loading-cylinder: bores fill one-by-one, spin-shuffle decelerates, fade (a11-safe)
-      const lc = this.add.container(CX, CY - 140).setDepth(18); layer.add(lc);
+      const lc = this.add.container(CX, CY - 60).setDepth(18); layer.add(lc);   // center-stage, big
       const lg = this.add.graphics(); lc.add(lg);
-      lg.lineStyle(2, WHITE, 0.9).strokeCircle(0, 0, 46);
-      const bores = Math.min(total, 16), per = Math.max(30, 900 / bores) * sp;
+      lg.lineStyle(3, WHITE, 0.95).strokeCircle(0, 0, 72);
+      const bores = Math.min(total, 16), per = Math.max(25, 700 / bores) * sp;
       for (let i = 0; i < bores; i++) {
         const a = -Math.PI / 2 + i * (Math.PI * 2 / bores);
-        lg.fillStyle(0xffffff, 0.9).fillCircle(34 * Math.cos(a), 34 * Math.sin(a), 4);
+        lg.fillStyle(0xffffff, 0.9).fillCircle(54 * Math.cos(a), 54 * Math.sin(a), 6);
         await this.w(per);
       }
-      await new Promise((r) => this.tweens.add({ targets: lc, angle: 900, duration: 1100 * sp,
+      await new Promise((r) => this.tweens.add({ targets: lc, angle: 900, duration: 900 * sp,
         ease: "Cubic.easeOut", onComplete: r }));
       await new Promise((r) => this.tweens.add({ targets: layer, alpha: 0, duration: 350,
         onComplete: () => { layer.destroy(); r(); } }));
+      if (!opts.keepDim) this.dim(false);
     }
-    async announceHold(total, live) {                          // M3 — once, 5s, then never again (#3b=A)
-      const t = this.add.text(W / 2, 200, total + " SHELLS · " + live + " LIVE", style(24)).setOrigin(0.5)
-        .setResolution(2).setDepth(19).setBackgroundColor("#000000").setLetterSpacing(3);
-      await this.decode(t, total + " SHELLS · " + live + " LIVE", 600);
-      await this.w(5000);
+    async announceHold(total, live) {                          // M3 — once, ~5s total, then never again (#3b=A)
+      this.dim(true);
+      const msg = total + " SHELLS · " + live + " LIVE";
+      const t = this.add.text(W / 2, 200, msg, style(24)).setOrigin(0.5)
+        .setResolution(2).setDepth(19).setLetterSpacing(3).setBackgroundColor("#000000");
+      await this.decode(t, msg, 700);
+      await this.w(900);
+      this.dim(false);                                         // board returns; the line lingers over it
+      await this.w(3400);
       this.tweens.add({ targets: t, alpha: 0, duration: 400, onComplete: () => t.destroy() });
     }
 
@@ -439,8 +445,8 @@
 
   function fmt(secs) {
     if (secs == null) return "";
-    const s = Math.ceil(secs);
-    return "0:" + String(Math.max(0, s)).padStart(2, "0");
+    const s = Math.max(0, Math.ceil(secs));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
   }
 
   SCENE.TableScene = TableScene; SCENE.W = W; SCENE.H = H; SCENE.RED = RED; SCENE.WHITE = WHITE;

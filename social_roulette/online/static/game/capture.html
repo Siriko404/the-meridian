@@ -1,0 +1,203 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<title>capture rig</title>
+<!-- DEV-ONLY self-review rig (Claude's eyes). Not linked from the game.
+     Runs ONE moment per page load on an unthrottled virtual clock (MessageChannel
+     pump — RAF and setTimeout are dead in automated tabs), thumbnails the canvas
+     every INTERVAL ms of game time, composes ONE contact sheet, POSTs it to the
+     local _devcap.py sink (:8017). Usage: capture.html?run=setup[&ms=500][&full=3200] -->
+<style>html,body{margin:0;background:#000}#stage{width:390px;height:844px}</style>
+<script>
+  /* unthrottled virtual clock — MUST load before phaser.
+   * Virtualizes BOTH rAF and performance.now (like sinon/Playwright fake timers):
+   * Phaser's TimeStep/tweens read performance.now internally — without this,
+   * tweens advance by REAL delta (~0.2ms/frame) while Clock waits use the rAF
+   * timestamp, and the two clocks diverge 4-6x. */
+  (function () {
+    let vt = performance.now();
+    const q = [];
+    window.__vt = () => vt;
+    const realNow = performance.now.bind(performance);
+    window.__realNow = realNow;
+    performance.now = () => vt;
+    const dateBase = Date.now();                 // Phaser's tween clock reads Date.now (measured:
+    const vt0 = vt;                              // tween speed tracked REAL ms/frame, not loop delta)
+    Date.now = () => Math.round(dateBase + (vt - vt0));
+    window.requestAnimationFrame = (cb) => { q.push(cb); return q.length; };
+    window.cancelAnimationFrame = () => {};
+    const mc = new MessageChannel();
+    const pump = { on: false, tick: null };
+    mc.port1.onmessage = () => {
+      if (!pump.on) return;
+      vt += 16.67;
+      const cbs = q.splice(0);
+      for (const cb of cbs) { try { cb(vt); } catch (e) { console.error(e); } }
+      if (pump.tick) { try { pump.tick(vt); } catch (e) { console.error(e); } }
+      mc.port2.postMessage(0);
+    };
+    pump.start = () => { if (!pump.on) { pump.on = true; mc.port2.postMessage(0); } };
+    pump.stop = () => { pump.on = false; };
+    window.__pump = pump;
+  })();
+</script>
+</head><body>
+<div id="stage"></div>
+<script src="/static/vendor/phaser.min.js"></script>
+<script>
+  // cache-busted game scripts (stale JS burned a review round once)
+  for (const f of ["theme", "dice", "net", "scene", "choreo"])
+    document.write('<script src="/static/game/js/' + f + '.js?cb=' + Date.now() + '"><\/script>');
+</script>
+<script>
+(function () {
+  "use strict";
+  const P = new URLSearchParams(location.search);
+  const RUN = P.get("run") || "board";
+  const INTERVAL = +(P.get("ms") || 500);
+  const FULL_AT = P.get("full") != null ? +P.get("full") : null;
+  const MAX_THUMBS = 40, TIMEOUT_MS = 120000;
+
+  const BASE = () => ({
+    you: 0, order: [0, 1, 2, 3, 4], current: 0, winner: null, gen: 1,
+    phase: "talk", phase_ends_at: null, server_now: 0, bonus: false, extra_turn: false,
+    saw_active: false, teams_active: true, flipback_discount: false,
+    use_counts: {}, use_limit: 6, feed: [],
+    players: [
+      { id: 0, team: "RED",  lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 1, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 2, team: "RED",  lives: 2, alive: true, handcuffed: true,  immune_from: [3] },
+      { id: 3, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 4, team: "RED",  lives: 1, alive: true, handcuffed: false, immune_from: [] },
+    ],
+    your_hand: { BEER: 1, MAGNIFIER: 1, CIGARETTES: 1 },
+    item_counts: { BEER: 3, HANDCUFFS: 2, MAGNIFIER: 2, SAW: 1, CIGARETTES: 3, IMMUNITY: 2 },
+    peek: "unknown",
+  });
+  const ROSTER = { "0": "YOU" };
+  const dead4 = () => { const v = BASE(); v.players[4].alive = false; v.players[4].lives = 0; return v; };
+
+  const SCENARIOS = {
+    board:      (s) => { s.render(BASE(), ROSTER); return s.w(1200); },
+    setup:      (s) => CHOREO.setup(s, BASE(), ROSTER, { total: 8, live: 4 }),
+    bands: async (s) => {
+      s.render(BASE(), ROSTER);
+      for (let t = 60; t >= 56; t--) { s.setBand({ phase: "talk", secs: t, name: "CROW" }); await s.w(160); }
+      for (let t = 30; t >= 0; t -= 3) { s.setBand({ phase: "decision", secs: t, name: "CROW" }); await s.w(160); }
+    },
+    fine:       (s) => CHOREO.play(s, [{ type: "fine", actor: 3 }], BASE(), BASE(), ROSTER),
+    shot_live:  (s) => CHOREO.play(s, [{ type: "shot", actor: 3, target: 4, shell: "LIVE", damage: 1, killed: false }], BASE(), BASE(), ROSTER),
+    shot_blank: (s) => CHOREO.play(s, [{ type: "shot", actor: 2, target: 0, shell: "BLANK", damage: 0, killed: false }], BASE(), BASE(), ROSTER),
+    bonus:      (s) => { const v = BASE(); v.bonus = true; v.current = 1;
+                  return CHOREO.play(s, [{ type: "shot", actor: 1, target: 1, shell: "BLANK", damage: 0, killed: false }], BASE(), v, ROSTER); },
+    death:      (s) => CHOREO.play(s, [{ type: "shot", actor: 0, target: 4, shell: "LIVE", damage: 1, killed: true },
+                  { type: "elimination", actor: 0, target: 4 }], BASE(), dead4(), ROSTER),
+    extra:      (s) => { const v = dead4(); v.extra_turn = true; return CHOREO.play(s, [], BASE(), v, ROSTER); },
+    reload:     (s) => CHOREO.play(s, [{ type: "elimination", actor: 0, target: 4 }, { type: "reload", total: 6, live: 3 }], BASE(), dead4(), ROSTER),
+    draw_you:   (s) => CHOREO.play(s, [{ type: "draw", you: { attempted: ["SAW", "BEER"], received: ["SAW"] } }], BASE(), BASE(), ROSTER),
+    draw_pub:   (s) => CHOREO.play(s, [{ type: "draw" }], BASE(), BASE(), ROSTER),
+    passport:   (s) => CHOREO.play(s, [{ type: "item", actor: 2, item: "CIGARETTES", target: 2 }], BASE(), BASE(), ROSTER),
+    spycam: async (s) => {
+      await CHOREO.play(s, [{ type: "item", actor: 0, item: "MAGNIFIER", target: null }], BASE(), BASE(), ROSTER);
+      s.setPeek("LIVE"); await s.w(1200); s.setPeek("BLANK"); await s.w(900);
+    },
+    poison:     (s) => { const v = BASE(); v.saw_active = true;
+                  return CHOREO.play(s, [{ type: "item", actor: 3, item: "SAW", target: null }], BASE(), v, ROSTER); },
+    magnet:     (s) => CHOREO.play(s, [{ type: "item", actor: 1, item: "BEER", target: null }], BASE(), BASE(), ROSTER),
+    sedative:   (s) => CHOREO.play(s, [{ type: "item", actor: 3, item: "HANDCUFFS", target: 2 }, { type: "skip", target: 2 }], BASE(), BASE(), ROSTER),
+    blackmail:  (s) => { const v = BASE(); v.players[1].immune_from = [0];
+                  return CHOREO.play(s, [{ type: "item", actor: 0, item: "IMMUNITY", target: 1 }], BASE(), v, ROSTER); },
+    caphit:     (s) => { const p = BASE(); p.use_counts = { BEER: 5 }; const v = BASE(); v.use_counts = { BEER: 6 };
+                  return CHOREO.play(s, [], p, v, ROSTER); },
+    flip:       (s) => { const v = BASE(); v.players[1].team = "RED";
+                  return CHOREO.play(s, [{ type: "flip", actor: 0, target: 1 }], BASE(), v, ROSTER); },
+    trade_pub:  (s) => CHOREO.play(s, [{ type: "trade", actor: 2, target: 4 }], BASE(), BASE(), ROSTER),
+    trade_party:(s) => CHOREO.play(s, [{ type: "trade", actor: 0, target: 2, items: { give: ["BEER"], want: ["CIGARETTES"] } }], BASE(), BASE(), ROSTER),
+    trade_cxl:  (s) => CHOREO.play(s, [{ type: "trade_private", kind: "cancelled" }], BASE(), BASE(), ROSTER),
+    gift:       (s) => CHOREO.play(s, [{ type: "gift", actor: 1, target: 3 }], BASE(), BASE(), ROSTER),
+    dissolve:   (s) => { const v = BASE(); v.teams_active = false; return CHOREO.play(s, [], BASE(), v, ROSTER); },
+    pressure: async (s) => {
+      s.render(BASE(), ROSTER);
+      s.setBand({ phase: "talk", secs: 44, name: "VESPER",
+        note: "ONE AGENCY HOLDS THE TRAIN — TURN SOMEONE, OR FACE THE GUN" });
+      await s.w(1500);
+    },
+    winner:     (s) => { const v = dead4(); v.winner = 0; return CHOREO.play(s, [], BASE(), v, ROSTER); },
+    brackets: async (s) => { s.render(BASE(), ROSTER); s.setTargets([1, 3], null); await s.w(1500); },
+    glow:     async (s) => { s.render(BASE(), ROSTER); s.seatGlow([2, 4], true); await s.w(1500); },
+  };
+
+  const sheet = document.createElement("canvas");
+  const TW = 195, TH = 422, COLS = 4;
+  let thumbs = 0, sctx = null, t0 = null, fullSent = FULL_AT == null;
+
+  function ensureSheet(rows) {
+    if (sctx) return;
+    sheet.width = TW * COLS;
+    sheet.height = TH * rows;
+    sctx = sheet.getContext("2d");
+    sctx.fillStyle = "#222"; sctx.fillRect(0, 0, sheet.width, sheet.height);
+  }
+  function thumb(gameCanvas, label) {
+    if (thumbs >= MAX_THUMBS) return;
+    ensureSheet(Math.ceil(MAX_THUMBS / COLS));
+    const x = (thumbs % COLS) * TW, y = Math.floor(thumbs / COLS) * TH;
+    sctx.drawImage(gameCanvas, x, y, TW, TH);
+    sctx.fillStyle = "#00ff00"; sctx.font = "bold 14px monospace";
+    sctx.fillText(label, x + 4, y + 16);
+    sctx.strokeStyle = "#444"; sctx.strokeRect(x, y, TW, TH);
+    thumbs++;
+  }
+  async function post(name, dataUrl) {
+    await fetch("http://localhost:8017/cap", { method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name, img: dataUrl }) });
+  }
+
+  let scene = null, finished = false;
+  async function finish(status) {
+    if (finished) return; finished = true;
+    window.__pump.tick = null;
+    if (scene) thumb(scene.sys.game.canvas, "END");
+    const rows = Math.max(1, Math.ceil(thumbs / COLS));
+    const out = document.createElement("canvas");
+    out.width = sheet.width; out.height = TH * rows;
+    out.getContext("2d").drawImage(sheet, 0, 0);
+    try { await post(RUN, out.toDataURL("image/jpeg", 0.8)); } catch (e) { status = "POSTFAIL"; }
+    window.__pump.stop();
+    document.title = status + " " + RUN + " " + thumbs;
+  }
+
+  SCENE.ready = async (s) => {
+    scene = s;
+    t0 = s.time.now;                          // GAME clock — labels reflect what a real 60fps player sees
+    let nextGrab = 0;
+    const g = s.sys.game;
+    const DS = window.__deltaStats = { n: 0, sum: 0, min: 1e9, max: 0, raw: [] };
+    window.__pump.tick = () => {
+      DS.n++; DS.sum += g.loop.delta;
+      DS.min = Math.min(DS.min, g.loop.delta); DS.max = Math.max(DS.max, g.loop.delta);
+      if (DS.raw.length < 2000 && DS.n % 10 === 0) DS.raw.push(+g.loop.delta.toFixed(2));
+      const el = s.time.now - t0;
+      if (el >= nextGrab && !finished) { thumb(s.sys.game.canvas, (el / 1000).toFixed(1) + "s"); nextGrab += INTERVAL; }
+      if (FULL_AT != null && !fullSent && el >= FULL_AT) {
+        fullSent = true;
+        post(RUN + "_full_" + FULL_AT, s.sys.game.canvas.toDataURL("image/jpeg", 0.9));
+      }
+      if (el > TIMEOUT_MS) finish("TIMEOUT");
+    };
+    try {
+      await (SCENARIOS[RUN] || SCENARIOS.board)(s);
+      await finish("DONE");
+    } catch (e) {
+      console.error(e);
+      document.title = "ERR " + RUN + " " + e.message;
+      await finish("ERR");
+    }
+  };
+
+  new Phaser.Game({ type: Phaser.AUTO, parent: "stage", width: SCENE.W, height: SCENE.H,
+    backgroundColor: "#000000", pixelArt: true,
+    scale: { mode: Phaser.Scale.NONE }, scene: SCENE.TableScene });
+  window.__pump.start();
+})();
+</script></body></html>

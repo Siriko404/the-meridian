@@ -1,0 +1,86 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>REVIEW — batch 1</title>
+<style>
+  html,body{margin:0;padding:0;background:#000;height:100svh;overflow:hidden;position:fixed;inset:0;width:100%;
+    font-family:Consolas,monospace;color:#fff}
+  #wrap{display:flex;height:100svh;justify-content:center;gap:10px}
+  #stage{width:min(calc(100svh*390/844),390px);height:100svh;flex:none}   /* the ENTIRE phone screen, unblocked */
+  canvas{image-rendering:pixelated}
+  #panel{width:180px;flex:none;display:flex;flex-direction:column;gap:8px;padding-top:14px}
+  #panel button{background:#111;color:#0f0;border:1px solid #0f0;padding:10px 6px;font:bold 12px Consolas,monospace;
+    letter-spacing:1px;cursor:pointer}
+  #panel button:active{background:#0f0;color:#000}
+  #note{color:#9f9;font-size:12px;line-height:1.5}
+</style></head><body>
+<div id="wrap">
+  <div id="stage"></div>
+  <div id="panel">
+    <button data-m="0">1 · BOARD</button>
+    <button data-m="1">2 · SETUP</button>
+    <button data-m="2">3 · BANDS</button>
+    <div id="note">Buttons play a moment. Tap the phone screen mid-animation to fast-skip. Nothing ever covers the screen.</div>
+  </div>
+</div>
+<script src="/static/vendor/phaser.min.js"></script>
+<script src="/static/game/js/theme.js"></script>
+<script src="/static/game/js/dice.js"></script>
+<script src="/static/game/js/net.js"></script>
+<script src="/static/game/js/scene.js"></script>
+<script src="/static/game/js/choreo.js"></script>
+<script>
+(function () {
+  "use strict";
+  const note = document.getElementById("note");
+  const BASE = () => ({
+    you:0, order:[0,1,2,3,4], current:0, winner:null, gen:1, phase:"talk", phase_ends_at:null,
+    server_now:0, bonus:false, extra_turn:false, saw_active:false, teams_active:true,
+    flipback_discount:false, use_counts:{}, use_limit:6, feed:[],
+    players:[
+      {id:0,team:"RED",lives:3,alive:true,handcuffed:false,immune_from:[]},
+      {id:1,team:"BLUE",lives:3,alive:true,handcuffed:false,immune_from:[]},
+      {id:2,team:"RED",lives:2,alive:true,handcuffed:false,immune_from:[]},
+      {id:3,team:"BLUE",lives:3,alive:true,handcuffed:false,immune_from:[]},
+      {id:4,team:"RED",lives:1,alive:true,handcuffed:false,immune_from:[]},
+    ],
+    your_hand:{BEER:1,MAGNIFIER:1,CIGARETTES:1},
+    item_counts:{BEER:3,HANDCUFFS:2,MAGNIFIER:2,SAW:1,CIGARETTES:3,IMMUNITY:2}, peek:"unknown",
+  });
+  const ROSTER = { "0": "YOU" };
+
+  const NOTES = [
+    "BOARD (static): 5 agents in a ring, YOU at top. 3 WHITE plates = your agency, 2 BLACK plates/white text = the rival. Bright frame = whose turn. Center = the revolver cylinder (turn dial). Hearts = lives. Top-left = LEDGER, bottom-right = KIT (briefcase).",
+    "SETUP: coin flips → picks which agency got the odd 5th seat → plates stamp in one by one → two dice tumble to LOAD the chamber (higher die → TOTAL shells, lower → LIVE) → '8 SHELLS · 4 LIVE' holds 5s → items dealt → dial clicks to the first player.",
+    "BANDS: watch the top status band. TALK = 60s countdown. Then it flips to DECISION — band inverts to WHITE (pressure), counts 30s, and the final 5 seconds turn RED.",
+  ];
+
+  let scene = null, running = false;
+  const MOMENTS = [
+    (s) => { s.render(BASE(), ROSTER); },
+    (s) => CHOREO.setup(s, BASE(), ROSTER, { total: 8, live: 4 }),
+    async (s) => {
+      s.render(BASE(), ROSTER);
+      await s.dialTo(1, false);                       // M6 turn advance
+      for (let t = 60; t >= 57; t--) { s.setBand({ phase:"talk", secs:t, name:"CROW" }); await s.w(250); }
+      for (let t = 30; t >= 0; t--) { s.setBand({ phase:"decision", secs:t, name:"CROW", invert:true }); await s.w(220); }
+      s.setBand({ phase:"talk", secs:60, name:"CROW" });
+    },
+  ];
+
+  SCENE.ready = (s) => { scene = s; s.render(BASE(), ROSTER); s.setBand({ phase:"talk", secs:60, name:"REVIEW" }); };
+  new Phaser.Game({ type: Phaser.AUTO, parent:"stage", width:SCENE.W, height:SCENE.H,
+    backgroundColor:"#000000", pixelArt:true,
+    scale:{ mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH }, scene:SCENE.TableScene });
+
+  document.getElementById("bar").addEventListener("click", async (e) => {
+    const b = e.target.closest("button"); if (!b || !scene || running) return;
+    const m = +b.dataset.m;
+    note.textContent = NOTES[m];
+    running = true;
+    try { await MOMENTS[m](scene); } catch (err) { note.textContent = "ERROR: " + err.message; console.error(err); }
+    running = false;
+  });
+  document.querySelector("#stage").addEventListener("pointerdown", () => { if (running) CHOREO.skip(); });
+})();
+</script></body></html>
