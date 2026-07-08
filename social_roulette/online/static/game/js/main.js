@@ -112,17 +112,20 @@
       .map((p) => p.id);
   }
 
+  const ORDER = ["BEER", "HANDCUFFS", "MAGNIFIER", "SAW", "CIGARETTES", "IMMUNITY"];
+
   function afterSettle() {
     noteOverride = null;
-    scene.clearTargets(); scene.seatGlow([], false); TRAYS.close();
+    scene.clearTargets(); scene.seatGlow([], false); TRAYS.close(); scene.closeRadial();
     const over = curView.winner != null;
-    scene.onKit = over ? null : () => TRAYS.kit(scene, curView, usableOpts());   // info mode off-turn
-    scene.onLedger = over ? null : () => TRAYS.ledger(scene, curView);
+    scene.onKit = over ? null : () => kitRadial(null);               // info off-turn, armed on-turn
+    scene.onLedger = over ? null : () => ledgerRadial();
+    scene.onAction = over ? null : () => actionRadial();
     scene.onPhone = () => $("chatsheet").classList.toggle("on");
     const chatOk = curView.phase === "talk" && meAlive() && curView.winner == null;
     $("chatin").disabled = !chatOk;
     $("chatin").placeholder = chatOk ? "say something…" : "SILENCE.";
-    buildStrip();
+    buildFace();
     const po = curView.pending_offer;                                // incoming offer → tray now
     if (po && po.to === curView.you) {                               // (rides the view: reconnect-safe)
       TRAYS.respond(scene, curView, roster,
@@ -131,41 +134,131 @@
     }
   }
 
-  function usableOpts() {
-    if (!myTurn()) return {};
-    const usable = new Set((curView.legal || []).filter((a) => a.kind === "item").map((a) => a.item));
-    return { usable, onPick: pickItemTargets };
+  function buildFace() {                                             // the center hub's face
+    if (curView.winner != null) { scene.setAction("", false); return; }
+    scene.setAction(myTurn() ? "YOUR\nMOVE" : "· · ·", myTurn());
   }
 
-  function buildStrip() {
-    if (!myTurn()) { scene.setStrip([]); return; }
+  /* ---- the dial menus ---- */
+  function actionRadial() {
+    if (!myTurn()) return;
     const kinds = new Set((curView.legal || []).map((a) => a.kind));
     const po = curView.pending_offer;
-    const defs = [];
+    const items = [];
     if (curView.phase === "talk") {
-      if (kinds.has("item")) defs.push({ label: "ITEM", onTap: () => TRAYS.kit(scene, curView, usableOpts()) });
+      if (kinds.has("item")) items.push({ label: "ITEM", onPick: () => { scene.closeRadial(); kitRadial(null); } });
       if (po && po.from === curView.you)
-        defs.push({ label: "WITHDRAW", onTap: () => net.send({ type: "trade_withdraw" }), wide: true });
-      else if (teammates().length) defs.push({ label: "TRADE", onTap: pickTrade });
-      defs.push({ label: "PROCEED", onTap: () => { wait(); net.send({ type: "proceed" }); }, wide: true });
+        items.push({ label: "RECALL", onPick: () => { scene.closeRadial(); net.send({ type: "trade_withdraw" }); } });
+      else if (teammates().length)
+        items.push({ label: "TRADE", onPick: () => { scene.closeRadial(); pickTrade(); } });
+      items.push({ label: "PROCEED", bright: true, onPick: () => { scene.closeRadial(); wait(); net.send({ type: "proceed" }); } });
     } else if (curView.phase === "decision") {
-      if (kinds.has("shoot")) defs.push({ label: "SHOOT", onTap: () => pickTarget("shoot") });
-      if (kinds.has("flip")) defs.push({ label: "FLIP", onTap: () => pickTarget("flip") });
-      if (kinds.has("item")) defs.push({ label: "ITEM", onTap: () => TRAYS.kit(scene, curView, usableOpts()) });
+      if (kinds.has("shoot")) items.push({ label: "SHOOT", bright: true, onPick: () => { scene.closeRadial(); pickTarget("shoot"); } });
+      if (kinds.has("flip")) items.push({ label: "FLIP", onPick: () => { scene.closeRadial(); pickTarget("flip"); } });
+      if (kinds.has("item")) items.push({ label: "ITEM", onPick: () => { scene.closeRadial(); kitRadial(null); } });
     }
-    scene.setStrip(defs);
+    if (items.length) scene.openRadial(195, 776, items,
+      { title: curView.phase === "talk" ? "TALK" : "DECIDE", onClose: () => {} });
+  }
+
+  function kitRadial(sel) {                                          // caps ALWAYS visible (numbers)
+    const v = curView, me = v.players.find((p) => p.id === v.you) || {};
+    const usable = myTurn() ? new Set((v.legal || []).filter((a) => a.kind === "item").map((a) => a.item)) : new Set();
+    const items = ORDER.map((en) => {
+      const n = (v.your_hand || {})[en] || 0;
+      const left = Math.max(0, (v.use_limit || 0) - ((v.use_counts || {})[en] || 0));
+      const ok = usable.has(en) && n > 0 && left > 0 &&
+        !(en === "CIGARETTES" && (me.lives || 0) >= THEME.MAX_LIVES);
+      return { icon: THEME.ITEMS[en].icon, label: THEME.ITEMS[en].name, badge: "×" + n,
+        bright: en === sel, dim: n === 0, en, ok, left,
+        onPick: () => kitRadial(en) };
+    });
+    const total = Object.values(v.your_hand || {}).reduce((a, b) => a + b, 0);
+    let title = "KIT " + total + "/" + THEME.MAX_TOTAL, sub = "", onHub = null, hubBright = false;
+    if (sel) {
+      const it = items.find((i) => i.en === sel);
+      const n = (v.your_hand || {})[sel] || 0;
+      sub = n + "/" + THEME.MAX_PER_TYPE + " · " + (it.left > 0 ? it.left + " USES LEFT" : "SEALED");
+      if (it.ok) { title = "USE " + THEME.ITEMS[sel].name; hubBright = true;
+        onHub = () => { scene.closeRadial(); pickItemTargets(sel); }; }
+      else title = THEME.ITEMS[sel].name;
+    }
+    scene.openRadial(195, 430, items, { title, sub, onHub, hubBright, onClose: () => {} });
+  }
+
+  function ledgerRadial(sel) {                                       // public table counts
+    const v = curView;
+    const items = ORDER.map((en) => {
+      const inPlay = (v.item_counts || {})[en] || 0;
+      return { icon: THEME.ITEMS[en].icon, label: THEME.ITEMS[en].name, badge: "×" + inPlay,
+        bright: en === sel, dim: inPlay === 0, en,
+        onPick: () => ledgerRadial(en) };
+    });
+    let sub = "IN PLAY · TAP TO INSPECT";
+    if (sel) {
+      const left = Math.max(0, (v.use_limit || 0) - ((v.use_counts || {})[sel] || 0));
+      sub = THEME.ITEMS[sel].name + " · " + (left > 0 ? left + " USES LEFT" : "SEALED");
+    }
+    scene.openRadial(195, 430, items, { title: "LEDGER", sub, onClose: () => {} });
+  }
+
+  /* ---- the OFFER dial: everything offerable; your holdings highlighted; bluff freely ---- */
+  function offerRadial(to, bag, phase) {
+    bag = bag || { give: {}, want: {} };
+    const cur = phase === "GIVE" ? bag.give : bag.want;
+    const items = ORDER.map((en) => {
+      const own = (curView.your_hand || {})[en] || 0;
+      const k = cur[en] || 0;
+      return { icon: THEME.ITEMS[en].icon, label: THEME.ITEMS[en].name,
+        badge: k ? "×" + k : "", bright: phase === "GIVE" && own > 0, en,
+        onPick: () => countRadial(to, bag, phase, en) };
+    });
+    const picked = Object.entries(cur).filter(([, c]) => c > 0)
+      .map(([en, c]) => c + " " + THEME.ITEMS[en].name).join(" · ") || "NOTHING";
+    const last = phase === "WANT";
+    scene.openRadial(195, 430, items, {
+      title: (last ? "SEND OFFER →" : phase + " →"),
+      sub: phase + ": " + picked.slice(0, 34),
+      hubBright: true,
+      onHub: () => {
+        if (!last) { offerRadial(to, bag, "WANT"); return; }
+        const expand = (b) => Object.entries(b).flatMap(([en, c]) => Array(c).fill(en));
+        scene.closeRadial();
+        net.send({ type: "trade_offer", to, give: expand(bag.give), want: expand(bag.want) });
+        buildFace();
+      },
+      onClose: cancelSel,
+    });
+  }
+  function countRadial(to, bag, phase, en) {
+    const own = (curView.your_hand || {})[en] || 0;
+    const cur = phase === "GIVE" ? bag.give : bag.want;
+    const items = [0, 1, 2, 3].map((k) => ({
+      label: String(k), bright: k === own && phase === "GIVE",    // YOUR real count glows
+      onPick: () => { cur[en] = k; offerRadial(to, bag, phase); },
+    }));
+    scene.openRadial(195, 430, items, {
+      title: THEME.ITEMS[en].name,
+      sub: phase === "GIVE" ? "YOU HOLD ×" + own : "HOW MANY?",
+      onHub: () => offerRadial(to, bag, phase),
+      onClose: cancelSel,
+    });
   }
 
   function cancelSel() {
     noteOverride = null;
-    scene.clearTargets(); scene.seatGlow([], false); TRAYS.close();
-    buildStrip(); tick();
+    scene.clearTargets(); scene.seatGlow([], false); TRAYS.close(); scene.closeRadial();
+    buildFace(); tick();
   }
-  function confirmAct(label, go) {
-    scene.setStrip([{ label: label, onTap: go, wide: true },   // the labeled verb IS the confirm
-                    { label: "✕", onTap: cancelSel }]);
+  function confirmAct(label, go) {                                   // hub = the trigger; ✕ = stand down
+    scene.setAction(label, true);
+    scene.openRadial(195, 776, [{ label: "✕", onPick: cancelSel }],
+      { title: label, hubBright: true, onHub: go, onClose: cancelSel });
   }
-  function wait() { scene.clearTargets(); scene.seatGlow([], false); scene.setStrip([]); }
+  function wait() {
+    scene.clearTargets(); scene.seatGlow([], false); scene.closeRadial();
+    scene.setAction("· · ·", false);
+  }
   function sendAction(i) { wait(); TRAYS.close(); net.send({ type: "action", i }); }
 
   function pickItemTargets(en) {
@@ -203,9 +296,7 @@
   function pickTrade() {                                          // M26 — glow, NOT red brackets
     scene.seatGlow(teammates(), true, (id) => {
       scene.seatGlow([], false);
-      TRAYS.offer(scene, curView, id, roster,
-        (give, want) => { TRAYS.close(); net.send({ type: "trade_offer", to: id, give, want }); buildStrip(); },
-        cancelSel);
+      offerRadial(id, null, "GIVE");
     });
   }
 
@@ -237,6 +328,7 @@
 
   /* ---- wiring ---- */
   $("enterbtn").addEventListener("click", connect);
+  $("name").addEventListener("input", () => { if ($("name").value.length) $("lastinit").focus(); });
   $("name").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
   $("lastinit").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
   $("code").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });

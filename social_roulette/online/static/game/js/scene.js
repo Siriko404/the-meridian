@@ -24,7 +24,7 @@
       this.seats = new Map();
       this.built = false;
       this._brackets = []; this._glows = [];
-      this.onKit = null; this.onLedger = null; this.onPhone = null;
+      this.onKit = null; this.onLedger = null; this.onPhone = null; this.onAction = null;
 
       // ---- BURNING TIMER BAR (white = talk 60s, red = decision 30s; seconds centered) ----
       const BARX = 18, BARW = W - 36, BARY = 34, BARH = 40;
@@ -38,26 +38,28 @@
       this.bandNote = this.add.text(W / 2, BARY + 54, "", style(12, "#cccccc", { align: "center",
         wordWrap: { width: W - 24 } })).setOrigin(0.5, 0).setResolution(2).setDepth(6).setLetterSpacing(1);
 
-      // ---- DOCK ----
+      // ---- DOCK: three circular hubs (the dial idiom) + a chat ticker row ----
       this.add.line(0, 0, 12, 700, W - 12, 700, WHITE, 0.5).setOrigin(0).setDepth(6);
-      this.peekChip = this.add.container(62, 726).setDepth(6).setVisible(false);
-      this.peekBg = this.add.rectangle(0, 0, 108, 26, 0x000000).setStrokeStyle(2, WHITE, 0.9);
-      this.peekT = this.add.text(0, 0, "", style(13)).setOrigin(0.5).setResolution(2);
+      this.peekChip = this.add.container(W / 2, 716).setDepth(6).setVisible(false);
+      this.peekBg = this.add.rectangle(0, 0, 108, 24, 0x000000).setStrokeStyle(2, WHITE, 0.9);
+      this.peekT = this.add.text(0, 0, "", style(12)).setOrigin(0.5).setResolution(2);
       this.peekChip.add([this.peekBg, this.peekT]);
-      this.strip = this.add.container(0, 0).setDepth(7);      // ACTION STRIP: filled by setStrip()
-      // corner menus (icon-gated): LEDGER bottom-left, KIT bottom-right — matched 64px boxes
-      const ky = 786, kx = W - 46, lx = 46;
-      this._kitXY = { x: kx, y: ky };
-      this.add.rectangle(lx, ky, 64, 64).setStrokeStyle(2, WHITE, 0.9).setDepth(6).setInteractive()
-        .on("pointerdown", () => this.onLedger && this.onLedger());
-      this.add.text(lx, ky, "LEDGER", style(9)).setOrigin(0.5).setResolution(2).setDepth(6);
-      this.add.rectangle(kx, ky, 64, 64).setStrokeStyle(2, WHITE, 0.9).setDepth(6).setInteractive()
-        .on("pointerdown", () => this.onKit && this.onKit());
-      this.add.image(kx, ky, "icons", THEME.ICON.briefcase).setScale(2.6).setDepth(6);
-      // chat: phone icon + last-line ticker, one bottom row
-      this.add.image(16, 831, "icons", THEME.ICON.phone).setScale(1.5).setDepth(6)
+      this.strip = this.add.container(0, 0).setDepth(7);      // legacy anchor (unused by the dial UI)
+      const hy = 776, kx = W - 52, lx = 52;
+      this._kitXY = { x: kx, y: hy };
+      const hub = (x, r, cb) => this.add.circle(x, hy, r, 0x000000).setStrokeStyle(2, WHITE, 0.9)
+        .setDepth(6).setInteractive().on("pointerdown", cb);
+      hub(lx, 30, () => this.onLedger && this.onLedger());
+      this.add.text(lx, hy, "≣", style(20)).setOrigin(0.5).setResolution(2).setDepth(6);   // the ledger glyph
+      this.actionHub = hub(W / 2, 38, () => this.onAction && this.onAction());
+      this.actionT = this.add.text(W / 2, hy, "· · ·", style(12, "#888888", { align: "center" }))
+        .setOrigin(0.5).setResolution(2).setDepth(7);
+      hub(kx, 30, () => this.onKit && this.onKit());
+      this.add.image(kx, hy, "icons", THEME.ICON.briefcase).setScale(2).setDepth(6);
+      // chat = the ticker row itself (tap to open the sheet)
+      this.ticker = this.add.text(W / 2, 831, "· · ·", style(12, "#888888")).setOrigin(0.5).setResolution(2).setDepth(6);
+      this.add.rectangle(W / 2, 831, W - 8, 22, 0xffffff, 0.001).setDepth(6)
         .setInteractive().on("pointerdown", () => this.onPhone && this.onPhone());
-      this.ticker = this.add.text(34, 831, "", style(12, "#bbbbbb")).setOrigin(0, 0.5).setResolution(2).setDepth(6);
 
       this.center = null;                                     // dial container, built with the seats
       SCENE.instance = this;                                  // live-scene handle (debug/testing)
@@ -489,6 +491,74 @@
       if (this.bandNote.text === msg) this.bandNote.setText("");
     }
 
+    /* ---- RADIAL (the dial): GTA-style ring menu; auto half/quarter arc near edges.
+       items = [{icon, label, badge, bright, dim, onPick}] — icon = frame idx or null (label-only slot).
+       opts = {title, sub, hubBright, onHub, onClose, sticky} — hub tap fires onHub. ---- */
+    openRadial(cx, cy, items, opts) {
+      this.closeRadial();
+      opts = opts || {};
+      const scrim = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1).setDepth(21)
+        .setInteractive().on("pointerdown", () => {
+          if (!opts.sticky) { this.closeRadial(); if (opts.onClose) opts.onClose(); }
+        });
+      const cont = this.add.container(0, 0).setDepth(22);
+      const dx = cx < 150 ? 1 : (cx > W - 150 ? -1 : 0);      // arc opens INTO the screen
+      const dy = cy < 190 ? 1 : (cy > H - 190 ? -1 : 0);
+      const N = items.length;
+      let R, angles = [];
+      if (!dx && !dy) {                                       // full circle, first slot at 12 o'clock
+        R = Math.max(96, N * 62 / (Math.PI * 2));
+        for (let i = 0; i < N; i++) angles.push(-Math.PI / 2 + i * Math.PI * 2 / N);
+      } else {
+        const c = Math.atan2(dy, dx);
+        const span = (dx && dy) ? 1.85 : 3.3;                 // quarter-ish / half-ish
+        R = Math.max(100, N * 66 / span);
+        for (let i = 0; i < N; i++) angles.push(c - span / 2 + span * (i + 0.5) / N);
+      }
+      items.forEach((it, i) => {
+        const x = cx + R * Math.cos(angles[i]), y = cy + R * Math.sin(angles[i]);
+        const g = this.add.container(x, y);
+        const c = this.add.circle(0, 0, 26, 0x000000)
+          .setStrokeStyle(it.bright ? 3 : 2, WHITE, it.dim ? 0.3 : (it.bright ? 1 : 0.8))
+          .setName("rslot");
+        if (it.onPick && !it.dim) c.setInteractive().on("pointerdown", () => it.onPick(it, i));
+        g.add(c);
+        if (it.icon != null) {
+          g.add(this.add.image(0, 0, "icons", it.icon).setScale(1.8).setAlpha(it.dim ? 0.35 : 1));
+          if (it.label) g.add(this.add.text(0, 38, it.label, style(9, it.dim ? "#666666" : "#cccccc"))
+            .setOrigin(0.5).setResolution(2));
+        } else if (it.label) {
+          g.add(this.add.text(0, 0, it.label, style(11, it.dim ? "#666666" : "#ffffff"))
+            .setOrigin(0.5).setResolution(2));
+        }
+        if (it.badge) g.add(this.add.text(23, 21, it.badge, style(10)).setOrigin(0.5)
+          .setResolution(2).setBackgroundColor("#000000"));
+        g.setScale(0);
+        this.tweens.add({ targets: g, scale: 1, duration: 150, delay: i * 28, ease: "Back.easeOut" });
+        cont.add(g);
+      });
+      const hubC = this.add.circle(cx, cy, 36, 0x000000)
+        .setStrokeStyle(2, WHITE, opts.hubBright ? 1 : 0.85).setName("rhub");
+      if (opts.onHub) hubC.setInteractive().on("pointerdown", () => opts.onHub());
+      cont.add(hubC);
+      if (opts.title) cont.add(this.add.text(cx, cy, opts.title,                 // wraps INSIDE the hub
+        style(10, "#ffffff", { align: "center", wordWrap: { width: 60 } }))
+        .setOrigin(0.5).setResolution(2));
+      if (opts.sub) cont.add(this.add.text(cx, Math.min(cy + R + 58, H - 26), opts.sub,
+        style(10, "#aaaaaa", { align: "center" })).setOrigin(0.5).setResolution(2)); // caption BELOW the ring
+      this._radial = { scrim, cont };
+      return this._radial;
+    }
+    closeRadial() {
+      if (!this._radial) return;
+      this._radial.scrim.destroy(); this._radial.cont.destroy();
+      this._radial = null;
+    }
+    setAction(label, on) {                                    // the center hub's face
+      this.actionT.setText(label || "· · ·").setColor(on ? "#ffffff" : "#888888");
+      this.actionHub.setStrokeStyle(on ? 3 : 2, WHITE, on ? 1 : 0.9);
+    }
+
     /* ---- targeting + glow ---- */
     setTargets(ids, onTap) {                                   // M11 — RED corner brackets (danger)
       this.clearTargets();
@@ -506,19 +576,38 @@
       });
     }
     clearTargets() { this._brackets.forEach((o) => o.destroy()); this._brackets = []; }
-    seatGlow(ids, on, onTap) {                                 // M26 — tradable teammates glow.
-      this._glows.forEach((o) => { o.tween.stop(); o.g.destroy(); if (o.hit) o.hit.destroy(); });
-      this._glows = [];                                        // WHITE glow + tap — never red (trade ≠ danger)
+    seatGlow(ids, on, onTap) {                                 // M26 — MARCHING ANTS dotted frame.
+      this._glows.forEach((o) => { o.ev.remove(); o.g.destroy(); if (o.hit) o.hit.destroy(); });
+      this._glows = [];                                        // WHITE + tap — never red (trade ≠ danger)
       if (!on) return;
       ids.forEach((id) => {
         const s = this.seats.get(id); if (!s) return;
-        const g = this.add.rectangle(s.x, s.y, 90, 90).setStrokeStyle(3, WHITE, 0.9).setDepth(11);
-        const tween = this.tweens.add({ targets: g, alpha: { from: 0.9, to: 0.25 }, yoyo: true,
-          repeat: -1, duration: 520 });
+        const g = this.add.graphics().setDepth(11);
+        const HALF = 47, DASH = 9, GAP = 7, PERIM = 8 * HALF;
+        let phase = 0;
+        const pt = (d) => {                                    // walk the square perimeter
+          d = ((d % PERIM) + PERIM) % PERIM;
+          if (d < 2 * HALF) return [s.x - HALF + d, s.y - HALF];
+          if (d < 4 * HALF) return [s.x + HALF, s.y - HALF + (d - 2 * HALF)];
+          if (d < 6 * HALF) return [s.x + HALF - (d - 4 * HALF), s.y + HALF];
+          return [s.x - HALF, s.y + HALF - (d - 6 * HALF)];
+        };
+        const draw = () => {
+          g.clear().lineStyle(3, WHITE, 0.95);
+          for (let d = phase; d < phase + PERIM; d += DASH + GAP) {
+            g.beginPath();
+            const [x0, y0] = pt(d); g.moveTo(x0, y0);
+            for (let k = 2; k <= DASH; k += 2) { const [x, y] = pt(d + k); g.lineTo(x, y); }
+            g.strokePath();
+          }
+          phase = (phase + 2) % (DASH + GAP);
+        };
+        draw();
+        const ev = this.time.addEvent({ delay: 70, loop: true, callback: draw });
         let hit = null;
-        if (onTap) hit = this.add.rectangle(s.x, s.y, 90, 90, 0xffffff, 0.001).setDepth(11)
+        if (onTap) hit = this.add.rectangle(s.x, s.y, 94, 94, 0xffffff, 0.001).setDepth(11)
           .setInteractive().on("pointerdown", () => onTap(id));
-        this._glows.push({ g, tween, hit });
+        this._glows.push({ g, ev, hit });
       });
     }
     async skipBeat(id, roster) {                               // M23 — the invisible skip becomes a beat

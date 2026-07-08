@@ -17,7 +17,7 @@
     RED:  { name: "AGENCY NORTH", plate: 0xffffff, text: "#000000", tk: 4 },
     BLUE: { name: "AGENCY SOUTH", plate: 0x000000, text: "#ffffff", tk: 2 },
   };
-  const CODENAMES = ["VESPER", "CROW", "JACKAL", "NOMAD", "WREN", "HALCYON", "MOTH", "PIKE"];
+  const CODENAMES = ["V.K.", "C.W.", "J.L.", "N.D.", "W.N.", "H.Y.", "M.T.", "P.K."];  // bots wear monograms too
   const ICON = { revolver: 0, heart: 20, ledger: 37, briefcase: 40, envelope: 14,
                  poison: 11, phone: 38 };
   const MAX_LIVES = 5, MAX_PER_TYPE = 3, MAX_TOTAL = 8;

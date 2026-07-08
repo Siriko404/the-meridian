@@ -9,7 +9,8 @@
   const ALL = ["board","setup","bands","fine","shot_live","shot_blank","bonus","death","extra",
     "reload","draw_you","draw_pub","passport","spycam","poison","magnet","sedative","blackmail",
     "caphit","flip","trade_pub","trade_party","trade_cxl","gift","dissolve","pressure","winner",
-    "brackets","glow"];
+    "brackets","glow","offer_in","dial_action","dial_talk","dial_confirm","dial_kit","dial_kit_sel",
+    "dial_kit_sealed","dial_ledger","dial_offer","dial_offer_count","dial_offer_send","ants"];
   const P = new URLSearchParams(location.search);
   const list = P.get("list") ? P.get("list").split(",") : ALL;
   const fr = document.getElementById("fr"), log = document.getElementById("log");
