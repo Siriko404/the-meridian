@@ -24,11 +24,10 @@
   </div>
 </div>
 <script src="/static/vendor/phaser.min.js"></script>
-<script src="/static/game/js/theme.js"></script>
-<script src="/static/game/js/dice.js"></script>
-<script src="/static/game/js/net.js"></script>
-<script src="/static/game/js/scene.js"></script>
-<script src="/static/game/js/choreo.js"></script>
+<script>
+  for (const f of ["theme", "dice", "net", "scene", "choreo"])
+    document.write('<script src="/static/game/js/' + f + '.js?cb=' + Date.now() + '"><\/script>');
+</script>
 <script>
 (function () {
   "use strict";
@@ -73,7 +72,7 @@
     backgroundColor:"#000000", pixelArt:true,
     scale:{ mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH }, scene:SCENE.TableScene });
 
-  document.getElementById("bar").addEventListener("click", async (e) => {
+  document.getElementById("panel").addEventListener("click", async (e) => {
     const b = e.target.closest("button"); if (!b || !scene || running) return;
     const m = +b.dataset.m;
     note.textContent = NOTES[m];

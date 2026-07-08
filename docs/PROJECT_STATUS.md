@@ -111,11 +111,37 @@ are RATIFIED by the user — do not re-litigate:
   (join `code`, trade `give/want` lists) can still kill a socket · offer-lifecycle broadcasts leak
   traffic-level "something private happened" · `trade_offer` accepts bot targets (withdraw
   recovers) · post-winner chat muted (undecided) · `last_skipped` drain-contract comment.
-- **NEXT: Plan B (Phaser client) via writing-plans** against the landed protocol: TableScene,
-  choreographer + `moments.html` gallery (user ratifies every animation), trays, v1 retirement
-  (spec §6-§8, §11 steps 4-9). Run server: `./.venv/Scripts/python -m uvicorn
-  social_roulette.online.server:app --port 8016`.
-  Unverified: cylinder feel over a full game · KIT tray overlaps bottom seats when open.
+- **PLAN B IN FLIGHT — branch `uiv2-client` @ `107ff1c` (+1 review.html fix), INLINE execution**
+  (user 2026-07-09: "no delegation"; then "remove me from the loop, YOU handle 100%" of visual
+  verification). Plan doc `docs/superpowers/plans/2026-07-09-uiv2-client.md` — Tasks 1-5 done but
+  EXECUTION DIVERGED from plan on visuals (user redesigns, below). Tasks left: aesthetics round 2
+  → Task 6 live wiring (main.js has only drain v0) → T7 trays+interaction → T8 routes/v1 → T9 verify.
+- **REVIEW PROTOCOL (user-mandated, hard):** user must SEE everything — present in-engine pages,
+  never prose; **3 items per batch** with "what you're expected to see"; VERY CONCISE messages;
+  full phone screen NEVER blocked by dev chrome (side panel only). Review page:
+  `/static/game/review.html` (3 buttons; JS binds `#panel`). User's standing verdict to work on:
+  **"still a ton of overshadowing, not professional visual aesthetics"** — round 2 = kill remaining
+  overlaps (toast-over-LEDG, announce-over-seats, winner-over-chips…) + professional polish pass.
+- **DESIGN DECISIONS RATIFIED 2026-07-09 (supersede spec §6/§7 details):** Times-New-Roman-style
+  serif (1-bit-crisp, setResolution 2) + FS=1.4 size bump · dark overlay `scene.dim(0.96)` for ALL
+  global events (coin/dice/announce) · **cylinder dial REMOVED → turn = white bobbing ARROW** over
+  current seat · **timer = burning BAR** (one 1:30 burn: white 60s talk → red 30s decision, m:ss
+  centered, hidden when no phase) · chips stacked short ("BM·NAME"/"SEDATED") above tile ·
+  toasts word-wrap ≤350px.
+- **CAPTURE RIG (Claude's eyes — the session's key invention):** `/static/game/capture.html?run=<scenario>[&ms=500]`
+  — page virtualizes rAF + performance.now + **Date.now** (Phaser tweens track wall clock; measured)
+  via MessageChannel pump (unthrottled), runs ONE choreo scenario at ~25x real speed, thumbnails the
+  canvas every `ms` of GAME time onto ONE contact sheet, POSTs to `_devcap.py` sink (port 8017,
+  gitignored) → Read `%TEMP%/sr_devcap/<run>.jpg` = "watching" the animation. Poll `document.title`
+  ("DONE <run> <n>"). ~28 scenarios in SCENARIOS table. Automated-tab facts (measured): rAF fires 0x,
+  setTimeout throttled ~1/s, CDP screenshots STALE vs canvas — `canvas.toDataURL` reads true pixels;
+  JS yields must be microtasks; ALWAYS cache-bust game js (document.write ?cb=Date.now() pattern).
+  Sweep round 1 done: all scenarios run clean; fixed chips spill, toast overflow, FULL-at-KIT,
+  announce dead-air, deal 9.4->5.2s, setup 28->17.4s, pre-game full bar.
+  Servers: game `./.venv/Scripts/python -m uvicorn social_roulette.online.server:app --port 8016`
+  (bg) · sink `./.venv/Scripts/python _devcap.py` (bg). v2 client page: `/static/game/index.html`
+  (join→lobby→board live; verbs/trays NOT wired yet). Node tests:
+  `node --test social_roulette/online/static/game/test/*.test.mjs` (8 green).
 
 ---
 
