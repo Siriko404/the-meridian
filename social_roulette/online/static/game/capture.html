@@ -391,7 +391,7 @@
     }
   };
 
-  new Phaser.Game({ type: Phaser.AUTO, parent: "stage", width: SCENE.W, height: SCENE.H,
+  new Phaser.Game({ type: P.get("canvas") ? Phaser.CANVAS : Phaser.AUTO, parent: "stage", width: SCENE.W, height: SCENE.H,
     backgroundColor: "#000000", pixelArt: true,
     scale: { mode: Phaser.Scale.NONE }, scene: SCENE.TableScene });
   window.__pump.start();
