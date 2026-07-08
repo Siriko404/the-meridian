@@ -42,7 +42,8 @@
     scene.dim(true);                                          // dark overlay for the coin (review)
     const tm = THEME.TEAMS[oddTeam] || THEME.TEAMS.RED;
     const cap = scene.add.text(SCENE.W / 2, 160, "", { fontFamily: "'Times New Roman','Times',Georgia,serif",
-      fontSize: "22px", color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5).setResolution(2).setDepth(18);
+      fontSize: "24px", color: "#ffffff", fontStyle: "bold", stroke: "#000000", strokeThickness: 6 })
+      .setOrigin(0.5).setResolution(2).setDepth(18);
     const capIn = scene.decode(cap, "THE ODD SEAT…", 420);    // decode-in while the coin spins
     const c = scene.add.circle(SCENE.W / 2, 210, 24, 0xffffff).setStrokeStyle(3, 0xffffff, 1).setDepth(18);
     for (let k = 0; k < 6; k++) {
@@ -52,7 +53,8 @@
     await capIn;
     c.setFillStyle(tm.plate);
     const t = scene.add.text(SCENE.W / 2, 258, "", { fontFamily: "'Times New Roman','Times',Georgia,serif",
-      fontSize: "24px", color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5).setResolution(2).setDepth(18);
+      fontSize: "26px", color: "#ffffff", fontStyle: "bold", stroke: "#000000", strokeThickness: 6 })
+      .setOrigin(0.5).setResolution(2).setDepth(18);
     await scene.decode(t, tm.name + " +1 SEAT", 460);
     await scene.w(1100);
     await Promise.all([scene.decodeOut(cap, 420), scene.decodeOut(t, 420),
@@ -165,7 +167,8 @@
     s.tile.setVisible(false); s.broken.setVisible(true);                         // frame breaks apart
     scene.tweens.add({ targets: s.face, alpha: 0.35, duration: 650 });           // faces SACRED: alpha only
     s.pips.forEach((p) => p.setVisible(false));
-    s.plate.setFillStyle(0x000000); s.nameT.setColor("#666666"); s.strike.setVisible(true);
+    s.plate.setFillStyle(0x000000);
+    s.nameT.setColor("#666666").setStroke("#000000", 6); s.strike.setVisible(true);
     await scene.stampSeat(id, "BURNED", true);                                   // red — danger list
     const dead = "DIRT·" + nm(id, roster).slice(0, 6);                           // a12: only THEIR placed
     scene.seats.forEach((t) => {                                                 // BLACKMAIL dissolves;
@@ -205,7 +208,8 @@
     const p = view.players.find((q) => q.id === e.target);
     if (s && p && view.teams_active) {
       const tm = THEME.TEAMS[p.team] || THEME.TEAMS.RED;                         // endView team
-      s.plate.setFillStyle(tm.plate); s.nameT.setColor(tm.text);
+      s.plate.setFillStyle(tm.plate);
+      s.nameT.setColor(tm.text).setStroke(tm.text === "#000000" ? "#ffffff" : "#000000", 6);
       s.plate.setStrokeStyle(tm.tk, 0xffffff, 0.95); s.tile.setStrokeStyle(tm.tk, 0xffffff, 1);
       scene.tweens.add({ targets: [s.plate, s.nameT], scaleX: { from: 0, to: 1 }, duration: 220 });
     }

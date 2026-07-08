@@ -8,9 +8,12 @@
   const SERIF = "'Times New Roman','Times',Georgia,serif";   // 1-bit-crisp serif (setResolution 2)
   const CX = 195, CY = 430, RX = 142, RY = 150;      // arc (spike-proven); drop CY if KIT collides
   const SCENE = { ready: null };
-  const FS = 1.4;                                     // global size bump — mobile readability
-  const style = (size, color, extra) => Object.assign(
-    { fontFamily: SERIF, fontSize: Math.round(size * FS) + "px", color: color || "#ffffff", fontStyle: "bold" }, extra || {});
+  const FS = 1.5;                                     // global size bump — mobile readability
+  const style = (size, color, extra) => {             // INVERSE outline: white text/black rim, black text/white rim
+    const c = color || "#ffffff";
+    return Object.assign({ fontFamily: SERIF, fontSize: Math.round(size * FS) + "px", color: c,
+      fontStyle: "bold", stroke: c === "#000000" ? "#ffffff" : "#000000", strokeThickness: 6 }, extra || {});
+  };
 
   class TableScene extends Phaser.Scene {
     preload() {
@@ -124,7 +127,9 @@
         const tk = eq ? 3 : tm.tk, plate = eq ? 0x000000 : tm.plate, txt = eq ? "#ffffff" : tm.text;
         s.tk = tk;
         const nm = THEME.seatName(p.id, roster);
-        s.nameT.setText(nm).setColor(p.alive ? txt : "#666666")
+        const nc = p.alive ? txt : "#666666";
+        s.nameT.setText(nm).setColor(nc)
+          .setStroke(nc === "#000000" ? "#ffffff" : "#000000", 6)   // stroke must FLIP with the color
           .setFontSize(nm.length <= 4 ? 18 : 15);             // monogram initials read BIG (spy plate)
         s.plate.setFillStyle(p.alive ? plate : 0x000000);
         s.plate.setStrokeStyle(tk, WHITE, 0.95);
@@ -218,8 +223,8 @@
           prev = scratch.width;
           if (ln[i] === " ") continue;
           const t = this.add.text(cx, y, "", { fontFamily: st.fontFamily, fontSize: st.fontSize,
-            fontStyle: st.fontStyle, color: "#ffffff" }).setOrigin(0.5).setResolution(2)
-            .setDepth(txtObj.depth).setName("fx");
+            fontStyle: st.fontStyle, color: "#ffffff", stroke: "#000000", strokeThickness: 6 })
+            .setOrigin(0.5).setResolution(2).setDepth(txtObj.depth).setName("fx");
           slots.push({ t, ch: ln[i] });
         }
       });
@@ -413,7 +418,8 @@
     }
     setSawChip(on) { if (this.sawChip) this.sawChip.setVisible(!!on); }
     equalizePlates() {                                        // M27 — team semantics visibly end
-      this.seats.forEach((s) => { s.plate.setFillStyle(0x000000); s.nameT.setColor("#ffffff");
+      this.seats.forEach((s) => { s.plate.setFillStyle(0x000000);
+        s.nameT.setColor("#ffffff").setStroke("#000000", 6);
         s.plate.setStrokeStyle(3, WHITE, 0.95); s.tile.setStrokeStyle(3, WHITE, 0.55); s.tk = 3; });
     }
 
@@ -528,10 +534,10 @@
           if (it.label) g.add(this.add.text(0, 38, it.label, style(9, it.dim ? "#666666" : "#cccccc"))
             .setOrigin(0.5).setResolution(2));
         } else if (it.label) {
-          g.add(this.add.text(0, 0, it.label, style(11, it.dim ? "#666666" : "#ffffff"))
-            .setOrigin(0.5).setResolution(2));
+          g.add(this.add.text(0, 0, it.label, style(it.label.length > 5 ? 8 : 11,
+            it.dim ? "#666666" : "#ffffff")).setOrigin(0.5).setResolution(2));
         }
-        if (it.badge) g.add(this.add.text(23, 21, it.badge, style(10)).setOrigin(0.5)
+        if (it.badge) g.add(this.add.text(24, -20, it.badge, style(10)).setOrigin(0.5)
           .setResolution(2).setBackgroundColor("#000000"));
         g.setScale(0);
         this.tweens.add({ targets: g, scale: 1, duration: 150, delay: i * 28, ease: "Back.easeOut" });
@@ -620,8 +626,8 @@
     async winnerScene(id, roster) {                            // M28
       this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1).setDepth(24);
       this.add.image(W / 2, 330, "faces", id % 12).setScale(6).setDepth(25);
-      this.add.text(W / 2, 470, "LAST AGENT STANDING", style(18)).setOrigin(0.5).setResolution(2)
-        .setDepth(25).setLetterSpacing(4);
+      this.add.text(W / 2, 470, "LAST AGENT STANDING", style(16)).setOrigin(0.5).setResolution(2)
+        .setDepth(25).setLetterSpacing(2);
       const t2 = this.add.text(W / 2, 505, "", style(26)).setOrigin(0.5)
         .setResolution(2).setDepth(25);
       this.add.text(W / 2, 810, THEME.CREDITS, style(13, "#888888")).setOrigin(0.5).setResolution(2).setDepth(25);

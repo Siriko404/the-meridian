@@ -3,8 +3,9 @@
 (function (global) {
   "use strict";
   const MONO = "Consolas,monospace";
-  const st = (size, color) => ({ fontFamily: MONO, fontSize: size + "px",
-    color: color || "#ffffff", fontStyle: "bold", align: "center" });
+  const st = (size, color) => ({ fontFamily: MONO, fontSize: (size + 1) + "px",
+    color: color || "#ffffff", fontStyle: "bold", align: "center",
+    stroke: "#000000", strokeThickness: 4 });
   const ORDER = ["BEER", "HANDCUFFS", "MAGNIFIER", "SAW", "CIGARETTES", "IMMUNITY"];
   let open = null;
 
