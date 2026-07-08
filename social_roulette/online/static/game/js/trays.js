@@ -14,7 +14,8 @@
     const y = 844 - h / 2 - 4;
     const cont = scene.add.container(0, 0).setDepth(22);
     cont.add(scene.add.rectangle(SCENE.W / 2, y, SCENE.W - 8, h, 0x000000, 0.97)
-      .setStrokeStyle(2, 0xffffff, 0.95).setInteractive());     // swallows taps under the sheet
+      .setStrokeStyle(2, 0xffffff, 0.95).setInteractive()
+      .on("pointerdown", close));                               // sheet tap = dismiss (child buttons run first)
     cont.y = h; scene.tweens.add({ targets: cont, y: 0, duration: 180, ease: "Quad.easeOut" });
     open = { cont, name };
     return { cont, top: y - h / 2 };
@@ -48,7 +49,7 @@
       cont.add(card);
       cont.add(scene.add.image(x, y - 44, "icons", THEME.ITEMS[en].icon).setScale(2.2)
         .setAlpha(n > 0 && !sealed && !fullCover ? 1 : 0.35));
-      txt(scene, cont, x, y - 18, THEME.ITEMS[en].name, 13, n > 0 ? "#ffffff" : "#666666");
+      txt(scene, cont, x, y - 18, THEME.ITEMS[en].name, 11, n > 0 ? "#ffffff" : "#666666");
       txt(scene, cont, x, y + 2, n + "/" + THEME.MAX_PER_TYPE, 13, n > 0 ? "#ffffff" : "#666666");
       txt(scene, cont, x, y + 22, left + " LEFT", 13, sealed ? "#666666" : "#aaaaaa");
       if (sealed) txt(scene, cont, x, y + 46, "SEALED\nTIL DEATH", 13, "#666666");
@@ -69,7 +70,7 @@
       cont.add(scene.add.rectangle(x, y, 58, 110, 0x000000).setStrokeStyle(1, 0xffffff, 0.5));
       cont.add(scene.add.image(x, y - 32, "icons", THEME.ITEMS[en].icon).setScale(2.2)
         .setAlpha(inPlay > 0 ? 1 : 0.35));
-      txt(scene, cont, x, y - 6, THEME.ITEMS[en].name, 13);
+      txt(scene, cont, x, y - 6, THEME.ITEMS[en].name, 11);
       txt(scene, cont, x, y + 16, "×" + inPlay, 14, inPlay > 0 ? "#ffffff" : "#666666");
       txt(scene, cont, x, y + 38, left + " LEFT", 13, left > 0 ? "#aaaaaa" : "#666666");
     });
@@ -92,7 +93,7 @@
         const card = scene.add.rectangle(x, y, 58, 86, 0x000000).setStrokeStyle(1, 0xffffff, can ? 0.95 : 0.35);
         cont.add(card);
         cont.add(scene.add.image(x, y - 22, "icons", THEME.ITEMS[en].icon).setScale(2).setAlpha(can ? 1 : 0.35));
-        txt(scene, cont, x, y + 4, THEME.ITEMS[en].name, 13, can ? "#ffffff" : "#666666");
+        txt(scene, cont, x, y + 4, THEME.ITEMS[en].name, 11, can ? "#ffffff" : "#666666");
         txt(scene, cont, x, y + 26, THEME.ITEMS[en].pts + " PTS", 13, can ? "#aaaaaa" : "#666666");
         if (can) card.setInteractive().on("pointerdown", () => { chosen.push(en); build(); });
       });

@@ -31,7 +31,8 @@
       this._bar = { x: BARX, y: BARY, w: BARW };
       this.barFill = this.add.rectangle(BARX, BARY, BARW, BARH, WHITE).setOrigin(0, 0.5).setDepth(5).setVisible(false);
       this.barFrame = this.add.rectangle(W / 2, BARY, BARW, BARH).setStrokeStyle(2, WHITE, 0.4).setDepth(6).setVisible(false);
-      this.barSecs = this.add.text(W / 2, BARY, "", style(20, "#000000")).setOrigin(0.5).setResolution(2).setDepth(7).setLetterSpacing(1).setVisible(false);
+      this.barSecs = this.add.text(W / 2, BARY, "", style(20, "#ffffff")).setOrigin(0.5).setResolution(2).setDepth(7)
+        .setLetterSpacing(1).setBackgroundColor("#000000").setPadding(6, 2, 6, 2).setVisible(false);  // own chip — readable over fill AND void
       this.bandLine2 = this.add.text(W / 2, BARY + 34, "", style(13, "#aaaaaa")).setOrigin(0.5).setResolution(2).setDepth(6).setLetterSpacing(2);
       this.bandCode = this.add.text(W - 6, 2, "", style(11, "#777777")).setOrigin(1, 0).setResolution(2).setDepth(7);
       this.bandNote = this.add.text(W / 2, BARY + 54, "", style(12, "#cccccc", { align: "center",
@@ -128,8 +129,10 @@
           pp.x = s.x + (k - (p.lives - 1) / 2) * 16;
         });
         const chips = [];                                     // short, stacked — never wider than the tile
-        (p.immune_from || []).forEach((c) => chips.push("DIRT·" + THEME.seatName(c, roster).slice(0, 6)));
-        if (p.handcuffed) chips.push("SEDATED");
+        if (p.alive) {                                        // a dead agent's chips are noise
+          (p.immune_from || []).forEach((c) => chips.push("DIRT·" + THEME.seatName(c, roster).slice(0, 6)));
+          if (p.handcuffed) chips.push("SEDATED");
+        }
         s.chipT.setText(chips.join("\n"));
         const active = p.alive && p.id === view.current && view.winner == null;
         s.tile.setStrokeStyle(tk, WHITE, active ? 1 : 0.55);
@@ -165,11 +168,13 @@
         this.barFill.width = this._bar.w * (left / TOTAL);
         this.barFill.setFillStyle(col);
         this.barFrame.setStrokeStyle(2, col, 0.95);
-        this.barSecs.setVisible(true).setText(fmt(left)).setColor(red ? "#ffffff" : "#000000");
+        this.barSecs.setVisible(true).setText(fmt(left));
+        this.bandCode.setVisible(false);                      // code only rides an idle band
       } else {
         this.barFill.setVisible(false);
         this.barSecs.setVisible(false);
         this.barFrame.setVisible(false);
+        this.bandCode.setVisible(true);
       }
       this.bandLine2.setText(o.name || "");
       this.bandNote.setText(o.note || "");
@@ -277,7 +282,10 @@
       const AISLE = { x: CX, y: 716 }, near = (p, q) => Math.abs(p.x - q.x) + Math.abs(p.y - q.y) < 130;
       const kit = this._kitXY;
       let path = [b];
-      if (near(b, kit)) path = (near(a, { x: CX, y: CY }) ? [AISLE, b] : [{ x: CX, y: CY }, AISLE, b]);
+      if (near(b, kit)) {
+        b = { x: kit.x, y: kit.y - 52 };                      // drop-point ABOVE the case, not on it
+        path = (near(a, { x: CX, y: CY }) ? [AISLE, b] : [{ x: CX, y: CY }, AISLE, b]);
+      }
       else if (near(a, kit)) path = (near(b, { x: CX, y: CY }) ? [AISLE, b] : [AISLE, { x: CX, y: CY }, b]);
       const ic = this.add.image(a.x, a.y, "icons", idx).setScale(2.4).setDepth(15).setName("fx");
       const t = label ? this.add.text(a.x, a.y + 28, label, style(13)).setOrigin(0.5).setResolution(2)
@@ -463,13 +471,22 @@
     setStrip(defs) {                                           // defs = [{label, onTap, wide}]
       this.strip.removeAll(true);
       if (!defs || !defs.length) return;
-      let x = 130;
-      defs.forEach((d) => {
-        const w = d.wide ? 116 : 82;
+      const L = 80, R = 310;                                   // free zone between LEDGER and KIT boxes
+      let size = 13, texts, ws, total;
+      do {                                                     // measure real glyphs; shrink till the row fits
+        if (texts) texts.forEach((t) => t.destroy());
+        texts = defs.map((d) => this.add.text(0, 760, d.label, style(size)).setOrigin(0.5).setResolution(2));
+        ws = texts.map((t) => Math.max(36, Math.ceil(t.width) + 16));
+        total = ws.reduce((a, b) => a + b, 0) + 8 * (defs.length - 1);
+        size--;
+      } while (total > R - L && size >= 10);
+      let x = L + Math.max(0, (R - L - total) / 2);            // centered in the zone, never over a box
+      defs.forEach((d, i) => {
+        const w = ws[i];
         const r = this.add.rectangle(x + w / 2, 760, w, 44, 0x000000).setStrokeStyle(2, WHITE, 0.95)
           .setInteractive().on("pointerdown", () => d.onTap && d.onTap());
-        const t = this.add.text(x + w / 2, 760, d.label, style(14)).setOrigin(0.5).setResolution(2);
-        this.strip.add([r, t]);
+        texts[i].setPosition(x + w / 2, 760);
+        this.strip.add([r, texts[i]]);
         x += w + 8;
       });
     }

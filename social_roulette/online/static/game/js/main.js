@@ -72,6 +72,7 @@
   async function drain() {
     if (busy || !scene) return;
     busy = true;
+    scene.setBand({ phase: null });                            // timers stand down while beats play
     while (queue.length) {
       const it = queue.shift();
       const prev = curView;
@@ -86,11 +87,11 @@
       } else {
         scene.render(curView, roster);                         // stale/rebroadcast: settle only
       }
-      noteOverride = null;
-      afterSettle();                                           // Task 7: rebuild verbs/trays
-      tick();
     }
-    busy = false;
+    busy = false;                                              // BEFORE afterSettle — myTurn() checks it
+    noteOverride = null;
+    afterSettle();                                             // Task 7: rebuild verbs/trays
+    tick();
   }
   /* ---- [ACT] interaction grammar (§6.3): verb → picker → red brackets → confirm ---- */
   function myTurn() {
@@ -110,8 +111,9 @@
   function afterSettle() {
     noteOverride = null;
     scene.clearTargets(); scene.seatGlow([], false); TRAYS.close();
-    scene.onKit = () => TRAYS.kit(scene, curView, usableOpts());     // info mode off-turn
-    scene.onLedger = () => TRAYS.ledger(scene, curView);
+    const over = curView.winner != null;
+    scene.onKit = over ? null : () => TRAYS.kit(scene, curView, usableOpts());   // info mode off-turn
+    scene.onLedger = over ? null : () => TRAYS.ledger(scene, curView);
     scene.onPhone = () => $("chatsheet").classList.toggle("on");
     const chatOk = curView.phase === "talk" && meAlive() && curView.winner == null;
     $("chatin").disabled = !chatOk;
@@ -156,8 +158,8 @@
     buildStrip(); tick();
   }
   function confirmAct(label, go) {
-    scene.setStrip([{ label: label + " — CONFIRM", onTap: go, wide: true },
-                    { label: "CANCEL", onTap: cancelSel }]);
+    scene.setStrip([{ label: label, onTap: go, wide: true },   // the labeled verb IS the confirm
+                    { label: "✕", onTap: cancelSel }]);
   }
   function wait() { scene.clearTargets(); scene.seatGlow([], false); scene.setStrip([]); }
   function sendAction(i) { wait(); TRAYS.close(); net.send({ type: "action", i }); }
@@ -213,7 +215,7 @@
     return "";
   }
   function tick() {
-    if (!curView || !scene || !scene.built) return;
+    if (!curView || !scene || !scene.built || busy) return;    // never overwrite a playing beat
     const secs = leftFn ? leftFn() : null;
     const mine = curView.current === curView.you;
     scene.setBand({
