@@ -108,6 +108,11 @@ async def _lobby_state(lb):
 
 @app.get("/")
 async def index():
+    return FileResponse(os.path.join(STATIC, "game", "index.html"))
+
+
+@app.get("/v1")
+async def index_v1():
     return FileResponse(os.path.join(STATIC, "index.html"))
 
 

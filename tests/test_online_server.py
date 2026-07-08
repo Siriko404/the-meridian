@@ -123,3 +123,17 @@ def test_trade_offer_rejected_outside_talk_over_ws():
                 got_error = True                     # decision phase / bot teammate — rejected
                 break
         assert got_error
+
+
+def test_root_serves_v2_client():
+    client = TestClient(app)
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "MERIDIAN" in r.text            # v2 page brand
+
+
+def test_v1_client_still_reachable():
+    client = TestClient(app)
+    r = client.get("/v1")
+    assert r.status_code == 200
+    assert "sr_ui" in r.text               # old page keeps its stylesheet
