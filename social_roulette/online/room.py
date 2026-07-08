@@ -58,7 +58,8 @@ class Room:
         self.human = set(human_seats)
         self.state = new_game(num_players, seed)
         self.state.comms_enabled = False
-        self.state.social_enabled = True     # bots may gift/trade during their cascade
+        self.state.social_enabled = False    # RULE: every transfer is offer->accept, turn-holder only.
+        # Engine-level Trade would let bots hand items UNILATERALLY (no consent) — forbidden in play.
         self.pending_offer = None
         self._trade_result = None
         self._last_trade_items = None
