@@ -159,9 +159,9 @@
     s.pips.forEach((p) => p.setVisible(false));
     s.plate.setFillStyle(0x000000); s.nameT.setColor("#666666"); s.strike.setVisible(true);
     await scene.stampSeat(id, "BURNED", true);                                   // red — danger list
-    const dead = nm(id, roster);                                                 // a12: only THEIR placed
+    const dead = "BM·" + nm(id, roster).slice(0, 6);                             // a12: only THEIR placed
     scene.seats.forEach((t) => {                                                 // BLACKMAIL dissolves;
-      t.chipT.setText(t.chipT.text.split("  ").filter((c) => c !== "BLACKMAIL·" + dead).join("  "));
+      t.chipT.setText(t.chipT.text.split("\n").filter((c) => c !== dead).join("\n"));
     });                                                                          // SEDATED chips stay
     await scene.w(400);
   }
@@ -181,7 +181,7 @@
       await scene.toast(who + " USED A SPYCAM", 1400);
     } else if (it === "SAW") {                                                   // M20 POISON
       scene.setSawChip(true);
-      await scene.toast(who + " TIPPED THE ROUND · ×2 ARMED", 1500);
+      await scene.toast(who + " · ×2 ARMED", 1500);
     } else if (it === "BEER") {                                                  // M22 MAGNET
       await scene.shellEject();
       await scene.toast("SHELL OUT", 1100);
@@ -218,7 +218,7 @@
         } else {                                                                 // over-cap bounce: "FULL"
           const k = scene.kitXY();
           await scene.iconFly(icon, { x: SCENE.CX, y: SCENE.CY }, { x: k.x - 40, y: k.y - 40 });
-          scene.floatText(view.you, "FULL", false);
+          scene.floatAt({ x: k.x - 40, y: k.y - 50 }, "FULL", false);            // at the KIT, not the seat
           await scene.w(350);
         }
       }

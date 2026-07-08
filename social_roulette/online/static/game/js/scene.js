@@ -90,8 +90,8 @@
         const pips = [];
         for (let k = 0; k < THEME.MAX_LIVES; k++)
           pips.push(this.add.image(x - 32 + k * 16, y + 74, "icons", THEME.ICON.heart).setScale(1.2).setVisible(false));
-        const chipT = this.add.text(x, y - 52, "", style(13)).setOrigin(0.5).setResolution(2)
-          .setBackgroundColor("#000000");
+        const chipT = this.add.text(x, y - 44, "", style(13, "#ffffff", { align: "center" }))
+          .setOrigin(0.5, 1).setResolution(2).setBackgroundColor("#000000");   // grows upward, stays on tile
         const stamp = this.add.text(x, y, "", style(16, "#ffffff")).setOrigin(0.5).setResolution(2)
           .setAngle(-12).setDepth(8).setVisible(false).setBackgroundColor("#000000");
         this.seats.set(id, { id, x, y, i, tile, broken, face, plate, nameT, strike, pips, chipT, stamp, tk: 2 });
@@ -127,10 +127,10 @@
         s.plate.setFillStyle(p.alive ? plate : 0x000000);
         s.plate.setStrokeStyle(tk, WHITE, 0.95);
         s.pips.forEach((pp, k) => pp.setVisible(p.alive && k < p.lives));
-        const chips = [];
-        (p.immune_from || []).forEach((c) => chips.push("BLACKMAIL·" + THEME.seatName(c, roster)));
+        const chips = [];                                     // short, stacked — never wider than the tile
+        (p.immune_from || []).forEach((c) => chips.push("BM·" + THEME.seatName(c, roster).slice(0, 6)));
         if (p.handcuffed) chips.push("SEDATED");
-        s.chipT.setText(chips.join("  "));
+        s.chipT.setText(chips.join("\n"));
         const active = p.alive && p.id === view.current && view.winner == null;
         s.tile.setStrokeStyle(tk, WHITE, active ? 1 : 0.55);
         s.face.setScale(2);                                   // uniform — turn is shown by the ARROW only
@@ -195,7 +195,8 @@
       });
     }
     async toast(str, hold) {
-      if (!this._toast) this._toast = this.add.text(W / 2, 116, "", style(17)).setOrigin(0.5)
+      if (!this._toast) this._toast = this.add.text(W / 2, 116, "", style(17, "#ffffff",
+        { align: "center", wordWrap: { width: W - 40 } })).setOrigin(0.5)
         .setResolution(2).setDepth(9).setBackgroundColor("#000000").setLetterSpacing(2);
       this._toast.setAlpha(1);
       await this.decode(this._toast, str, 440);
@@ -223,9 +224,12 @@
     }
     floatText(id, str, red) {
       const s = this.seats.get(id); if (!s) return;
-      const t = this.add.text(s.x, s.y - 30, str, style(20, red ? "#c8102e" : "#ffffff")).setOrigin(0.5)
+      this.floatAt({ x: s.x, y: s.y - 30 }, str, red);
+    }
+    floatAt(pt, str, red) {
+      const t = this.add.text(pt.x, pt.y, str, style(20, red ? "#c8102e" : "#ffffff")).setOrigin(0.5)
         .setResolution(2).setDepth(15);
-      this.tweens.add({ targets: t, y: s.y - 80, alpha: 0, duration: 950, onComplete: () => t.destroy() });
+      this.tweens.add({ targets: t, y: pt.y - 50, alpha: 0, duration: 950, onComplete: () => t.destroy() });
     }
     async stampSeat(id, str, red) {
       const s = this.seats.get(id); if (!s) return;
@@ -275,7 +279,7 @@
       }
       this._arrow.setVisible(true);
       this._arrowTween.stop();
-      this._arrow.setPosition(s.x, s.y - 60);
+      this._arrow.setPosition(s.x, s.y - 86);                 // above the chip stack, never on it
       this._arrowTween = this.tweens.add({ targets: this._arrow, y: "+=6", yoyo: true,
         repeat: -1, duration: 420, ease: "Sine.easeInOut" });
     }

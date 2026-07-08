@@ -154,8 +154,16 @@
   }
 
   let scene = null, finished = false;
+  function frames(n) {                       // wait n PUMP frames so pending mutations get DRAWN
+    return new Promise((r) => {
+      const old = window.__pump.tick;
+      let k = 0;
+      window.__pump.tick = (vt) => { if (old) old(vt); if (++k >= n) { window.__pump.tick = old; r(); } };
+    });
+  }
   async function finish(status) {
     if (finished) return; finished = true;
+    await frames(3);                         // the scenario's final render() needs a drawn frame
     window.__pump.tick = null;
     if (scene) thumb(scene.sys.game.canvas, "END");
     const rows = Math.max(1, Math.ceil(thumbs / COLS));
@@ -186,6 +194,10 @@
       if (el > TIMEOUT_MS) finish("TIMEOUT");
     };
     try {
+      if (RUN !== "setup") {                 // live client always has a rendered board before events
+        s.render(BASE(), ROSTER);
+        await frames(3);
+      }
       await (SCENARIOS[RUN] || SCENARIOS.board)(s);
       await finish("DONE");
     } catch (e) {
