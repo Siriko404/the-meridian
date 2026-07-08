@@ -1,0 +1,28 @@
+/* v2 overlay chrome — 1-bit noir. RED IS FORBIDDEN here (red = danger only, in-game). */
+html,body{margin:0;padding:0;background:#000;height:100svh;overflow:hidden;position:fixed;inset:0;width:100%;
+  font-family:Consolas,Menlo,monospace;color:#fff}
+#stage{width:min(100vw,440px);height:100svh;margin:0 auto}
+canvas{image-rendering:pixelated}
+.overlay{position:fixed;inset:0;background:#000;display:none;flex-direction:column;align-items:center;
+  justify-content:center;gap:14px;z-index:10;text-align:center;padding:24px}
+.overlay.on{display:flex}
+.brand{font-size:30px;font-weight:bold;letter-spacing:8px}
+.sub{font-size:13px;color:#aaa;letter-spacing:4px}
+.code{font-size:26px;font-weight:bold;letter-spacing:6px;border:2px solid #fff;padding:6px 18px}
+input{background:#000;color:#fff;border:2px solid #fff;padding:10px 12px;font:inherit;font-size:16px;
+  width:min(300px,80vw);text-transform:uppercase;letter-spacing:2px}
+input::placeholder{color:#666;text-transform:none;letter-spacing:1px}
+button{background:#fff;color:#000;border:0;padding:12px 26px;font:inherit;font-weight:bold;font-size:15px;
+  letter-spacing:3px;cursor:pointer}
+.hint{font-size:12px;color:#888;max-width:300px;line-height:1.5}
+.member{font-size:15px;font-weight:bold;letter-spacing:2px;padding:4px 0}
+#banner{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:30;font-size:13px;font-weight:bold;
+  color:#000;background:#fff;padding:4px 12px;letter-spacing:1px;display:none;max-width:90vw}
+#chatsheet{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(100vw,440px);z-index:20;
+  background:#000;border-top:2px solid #fff;display:none;flex-direction:column;max-height:45svh}
+#chatsheet.on{display:flex}
+#chatlog{overflow-y:auto;padding:8px 10px;font-size:14px;line-height:1.6;flex:1}
+#chatlog b{letter-spacing:1px}
+#chatsheet .row{display:flex;gap:6px;padding:8px}
+#chatsheet input{flex:1;width:auto;font-size:16px}
+#chatsheet input:disabled{border-color:#555;color:#555}
