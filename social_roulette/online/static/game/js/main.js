@@ -26,6 +26,7 @@
     const fi = $("name").value.trim().toUpperCase(), li = $("lastinit").value.trim().toUpperCase();
     if (!/^[A-Z]$/.test(fi) || !/^[A-Z]$/.test(li)) { banner("ENTER YOUR INITIALS — TWO LETTERS"); return; }
     const agent = fi + "." + li + ".";                      // agents go by monogram (spy plates)
+    token = localStorage.meridian_token || null;            // read at CONNECT — a cleared token acts now
     const proto = location.protocol === "https:" ? "wss" : "ws";
     net = NET.connect(() => new WebSocket(proto + "://" + location.host + "/ws"), handle);
     net.ws.onopen = () => net.send({ type: "join", code: $("code").value, name: agent, token });

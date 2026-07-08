@@ -8,16 +8,21 @@
   const ORDER = ["BEER", "HANDCUFFS", "MAGNIFIER", "SAW", "CIGARETTES", "IMMUNITY"];
   let open = null;
 
-  function close() { if (open) { open.cont.destroy(); open = null; } }
+  function close() {
+    if (!open) return;
+    open.scene.seats.forEach((s) => s.chipT.setVisible(true));   // board chips return
+    open.cont.destroy(); open = null;
+  }
   function tray(scene, name, h) {
     close();
+    scene.seats.forEach((s) => s.chipT.setVisible(false));       // modal focus — no half-cut chips
     const y = 844 - h / 2 - 4;
     const cont = scene.add.container(0, 0).setDepth(22);
     cont.add(scene.add.rectangle(SCENE.W / 2, y, SCENE.W - 8, h, 0x000000, 0.97)
       .setStrokeStyle(2, 0xffffff, 0.95).setInteractive()
       .on("pointerdown", close));                               // sheet tap = dismiss (child buttons run first)
     cont.y = h; scene.tweens.add({ targets: cont, y: 0, duration: 180, ease: "Quad.easeOut" });
-    open = { cont, name };
+    open = { cont, name, scene };
     return { cont, top: y - h / 2 };
   }
   const txt = (scene, cont, x, y, s, size, color) => {

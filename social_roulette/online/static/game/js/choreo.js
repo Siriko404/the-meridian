@@ -209,7 +209,9 @@
       s.plate.setStrokeStyle(tm.tk, 0xffffff, 0.95); s.tile.setStrokeStyle(tm.tk, 0xffffff, 1);
       scene.tweens.add({ targets: [s.plate, s.nameT], scaleX: { from: 0, to: 1 }, duration: 220 });
     }
-    await scene.toast(nm(e.actor, roster) + " TURNED " + nm(e.target, roster), 1700);
+    await scene.toast(e.actor === e.target
+      ? nm(e.actor, roster) + " SWITCHED SIDES"                                  // flip-back (self)
+      : nm(e.actor, roster) + " TURNED " + nm(e.target, roster), 1700);
   }
 
   async function drawBeat(scene, e, view, roster) {                              // M17

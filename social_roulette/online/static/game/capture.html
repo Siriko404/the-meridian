@@ -45,7 +45,7 @@
 <script src="/static/vendor/phaser.min.js"></script>
 <script>
   // cache-busted game scripts (stale JS burned a review round once)
-  for (const f of ["theme", "dice", "net", "scene", "choreo"])
+  for (const f of ["theme", "dice", "net", "scene", "choreo", "trays"])
     document.write('<script src="/static/game/js/' + f + '.js?cb=' + Date.now() + '"><\/script>');
 </script>
 <script>
@@ -123,6 +123,12 @@
     },
     winner:     (s) => { const v = dead4(); v.winner = 0; return CHOREO.play(s, [], BASE(), v, ROSTER); },
     brackets: async (s) => { s.render(BASE(), ROSTER); s.setTargets([1, 3], null); await s.w(1500); },
+    offer_in: async (s) => {                                  // the respond tray (receiving side)
+      const v = BASE(); v.pending_offer = { from: 2, to: 0, give: ["BEER", "CIGARETTES"], want: ["SAW"] };
+      s.render(v, ROSTER);
+      TRAYS.respond(s, v, ROSTER, () => {}, () => {});
+      await s.w(1600);
+    },
     glow:     async (s) => { s.render(BASE(), ROSTER); s.seatGlow([2, 4], true); await s.w(1500); },
   };
 
