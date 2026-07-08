@@ -73,7 +73,7 @@
     item_counts: { BEER: 3, HANDCUFFS: 2, MAGNIFIER: 2, SAW: 1, CIGARETTES: 3, IMMUNITY: 2 },
     peek: "unknown",
   });
-  const ROSTER = { "0": "YOU" };
+  const ROSTER = { "0": "S.S." };          // human = monogram initials (spy plates)
   const dead4 = () => { const v = BASE(); v.players[4].alive = false; v.players[4].lives = 0; return v; };
 
   const SCENARIOS = {
@@ -186,8 +186,8 @@
       if (o.type !== "Text" && o.type !== "Image") return;
       if (o.type === "Text" && !o.text.trim()) return;
       if (d < cut) return;
-      if (o.type === "Text") COPY.add(o.text.replace(/\n/g, " | "));
       if (o.name === "fx") return;
+      if (o.type === "Text") COPY.add(o.text.replace(/\n/g, " | "));
       const b = o.getBounds();
       if (b.width > 0) out.push({ o, b });
     };

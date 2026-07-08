@@ -41,19 +41,23 @@
   async function coinFlip(scene, oddTeam) {
     scene.dim(true);                                          // dark overlay for the coin (review)
     const tm = THEME.TEAMS[oddTeam] || THEME.TEAMS.RED;
-    const cap = scene.add.text(SCENE.W / 2, 160, "THE ODD SEAT…", { fontFamily: "'Times New Roman','Times',Georgia,serif",
+    const cap = scene.add.text(SCENE.W / 2, 160, "", { fontFamily: "'Times New Roman','Times',Georgia,serif",
       fontSize: "22px", color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5).setResolution(2).setDepth(18);
+    const capIn = scene.decode(cap, "THE ODD SEAT…", 420);    // decode-in while the coin spins
     const c = scene.add.circle(SCENE.W / 2, 210, 24, 0xffffff).setStrokeStyle(3, 0xffffff, 1).setDepth(18);
     for (let k = 0; k < 6; k++) {
       await new Promise((r) => scene.tweens.add({ targets: c, scaleX: 0.06, duration: 90, yoyo: true,
         onYoyo: () => c.setFillStyle(k % 2 ? 0xffffff : 0x000000), onComplete: r }));
     }
+    await capIn;
     c.setFillStyle(tm.plate);
-    const t = scene.add.text(SCENE.W / 2, 258, tm.name + " +1 SEAT", { fontFamily: "'Times New Roman','Times',Georgia,serif",
+    const t = scene.add.text(SCENE.W / 2, 258, "", { fontFamily: "'Times New Roman','Times',Georgia,serif",
       fontSize: "24px", color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5).setResolution(2).setDepth(18);
+    await scene.decode(t, tm.name + " +1 SEAT", 460);
     await scene.w(1100);
-    await new Promise((r) => scene.tweens.add({ targets: [c, t, cap], alpha: 0, duration: 350,
-      onComplete: () => { c.destroy(); t.destroy(); cap.destroy(); r(); } }));   // await cleanup — no leak
+    await Promise.all([scene.decodeOut(cap, 420), scene.decodeOut(t, 420),
+      new Promise((r) => scene.tweens.add({ targets: c, alpha: 0, duration: 350, onComplete: r }))]);
+    c.destroy(); t.destroy(); cap.destroy();                  // await cleanup — no leak
     scene.dim(false);
   }
 
@@ -117,10 +121,13 @@
         await deathBeat(scene, e.target, roster);             // M14
       } else if (e.type === "item") {
         if (e.item === "BEER") lastBeer = e.actor;
+        await scene.dialTo(e.actor);                          // the arrow OWNS every beat's actor
         await itemBeat(scene, e, view, roster);
       } else if (e.type === "flip") {
+        await scene.dialTo(e.actor);
         await flipBeat(scene, e, view, roster);               // M25
       } else if (e.type === "fine") {
+        await scene.dialTo(e.actor);
         await scene.stampSeat(e.actor, "FINED", false);       // M9 — publicly anonymous (D14)
         await scene.crumbleCard(e.actor);
       } else if (e.type === "draw") {
@@ -128,7 +135,8 @@
       } else if (e.type === "skip") {
         await scene.skipBeat(e.target, roster);               // M23 beat
       } else if (e.type === "trade" || e.type === "gift") {
-        await tradeBeat(scene, e, prev, view, roster);        // M26
+        await scene.dialTo(e.actor);                          // trades are legal ONLY on the actor's
+        await tradeBeat(scene, e, prev, view, roster);        // turn (engine) — show it (M26)
       } else if (e.type === "trade_private") {
         await scene.toast(e.kind === "cancelled"
           ? "TRADE CANCELLED — A PARTY LACKED THE GOODS" : "OFFER DECLINED", 1800);

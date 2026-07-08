@@ -50,7 +50,7 @@
       this._kitXY = { x: kx, y: ky };
       this.add.rectangle(lx, ky, 64, 64).setStrokeStyle(2, WHITE, 0.9).setDepth(6).setInteractive()
         .on("pointerdown", () => this.onLedger && this.onLedger());
-      this.add.text(lx, ky, "LEDGER", style(11)).setOrigin(0.5).setResolution(2).setDepth(6);
+      this.add.text(lx, ky, "LEDGER", style(9)).setOrigin(0.5).setResolution(2).setDepth(6);
       this.add.rectangle(kx, ky, 64, 64).setStrokeStyle(2, WHITE, 0.9).setDepth(6).setInteractive()
         .on("pointerdown", () => this.onKit && this.onKit());
       this.add.image(kx, ky, "icons", THEME.ICON.briefcase).setScale(2.6).setDepth(6);
@@ -121,7 +121,9 @@
         const tm = THEME.TEAMS[p.team] || THEME.TEAMS.RED;
         const tk = eq ? 3 : tm.tk, plate = eq ? 0x000000 : tm.plate, txt = eq ? "#ffffff" : tm.text;
         s.tk = tk;
-        s.nameT.setText(THEME.seatName(p.id, roster)).setColor(p.alive ? txt : "#666666");
+        const nm = THEME.seatName(p.id, roster);
+        s.nameT.setText(nm).setColor(p.alive ? txt : "#666666")
+          .setFontSize(nm.length <= 4 ? 18 : 15);             // monogram initials read BIG (spy plate)
         s.plate.setFillStyle(p.alive ? plate : 0x000000);
         s.plate.setStrokeStyle(tk, WHITE, 0.95);
         s.pips.forEach((pp, k) => {                           // row centered on the seat, 16px pitch
@@ -183,31 +185,100 @@
     setTicker(s) { this.ticker.setText(s.length > 38 ? s.slice(0, 37) + "…" : s); }
 
     /* ================= primitives (all waits via this.w — skippable) ================= */
-    decode(txtObj, str, dur) {                                // v1 terminal decoder, ported
+    /* decode engine: GRAY binary noise; characters resolve in RANDOM order (in) and
+       dissolve back to noise, then nothing (out). Per-char slots use the FINAL
+       string's measured advances so the serif stays aligned. */
+    _slots(txtObj, str) {
+      const st = txtObj.style;
+      const scratch = this.add.text(0, -999, "", { fontFamily: st.fontFamily,
+        fontSize: st.fontSize, fontStyle: st.fontStyle }).setResolution(2).setVisible(false);
+      const maxW = st.wordWrapWidth || 0;
+      const lines = [];
+      if (maxW) {                                             // word-wrap exactly like the target
+        let line = "";
+        for (const w of str.split(" ")) {
+          const t = line ? line + " " + w : w;
+          scratch.setText(t);
+          if (scratch.width > maxW && line) { lines.push(line); line = w; } else line = t;
+        }
+        if (line) lines.push(line);
+      } else lines.push(str);
+      const size = parseInt(st.fontSize) || 20, lh = Math.round(size * 1.3);
+      const slots = [];
+      lines.forEach((ln, li) => {
+        scratch.setText(ln);
+        const lw = scratch.width;
+        const y = txtObj.y + (li - (lines.length - 1) / 2) * lh;
+        let prev = 0;
+        for (let i = 0; i < ln.length; i++) {
+          scratch.setText(ln.slice(0, i + 1));
+          const adv = scratch.width - prev, cx = txtObj.x - lw / 2 + prev + adv / 2;
+          prev = scratch.width;
+          if (ln[i] === " ") continue;
+          const t = this.add.text(cx, y, "", { fontFamily: st.fontFamily, fontSize: st.fontSize,
+            fontStyle: st.fontStyle, color: "#ffffff" }).setOrigin(0.5).setResolution(2)
+            .setDepth(txtObj.depth).setName("fx");
+          slots.push({ t, ch: ln[i] });
+        }
+      });
+      scratch.destroy();
+      return slots;
+    }
+    _shuffled(n) {
+      const a = [...Array(n).keys()];
+      for (let i = n - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; }
+      return a;
+    }
+    decode(txtObj, str, dur) {                                // decode-IN
       return new Promise((resolve) => {
-        const n = str.length, t0 = this.time.now, rt = [];
-        const idx = [...Array(n).keys()].filter((i) => str[i] !== " ");
-        idx.forEach((i, k) => (rt[i] = k / idx.length));
+        txtObj.setText("");
+        const slots = this._slots(txtObj, str), n = slots.length || 1, D = dur || 750;
+        this._shuffled(n).forEach((r, i) => { slots[i].at = (r / n) * D; });
+        const t0 = this.time.now;
         const ev = this.time.addEvent({ delay: 33, loop: true, callback: () => {
-          const p = (this.time.now - t0) / (dur || 750);
-          let out = "";
-          for (let i = 0; i < n; i++) {
-            if (str[i] === " ") { out += " "; continue; }
-            out += p >= rt[i] + 0.05 ? str[i] : (Math.random() < 0.5 ? "0" : "1");
+          const el = this.time.now - t0;
+          let done = true;
+          for (const s of slots) {
+            if (el >= s.at) { if (s.t.text !== s.ch) s.t.setText(s.ch).setColor("#ffffff"); }
+            else { done = false; s.t.setText(Math.random() < 0.5 ? "0" : "1").setColor("#8a8a8a"); }
           }
-          txtObj.setText(out);
-          if (p >= 1.15) { txtObj.setText(str); ev.remove(); resolve(); }
+          if (done && el > D) {
+            ev.remove();
+            slots.forEach((s) => s.t.destroy());
+            txtObj.setText(str);                              // steady state: one real Text again
+            resolve();
+          }
+        } });
+      });
+    }
+    decodeOut(txtObj, dur) {                                  // decode-OUT: white → gray noise → gone
+      const str = txtObj.text;
+      if (!str) return Promise.resolve();
+      return new Promise((resolve) => {
+        txtObj.setText("");
+        const slots = this._slots(txtObj, str), n = slots.length || 1, D = dur || 600;
+        this._shuffled(n).forEach((r, i) => { slots[i].at = (r / n) * D * 0.55; });
+        slots.forEach((s) => s.t.setText(s.ch));
+        const t0 = this.time.now;
+        const ev = this.time.addEvent({ delay: 33, loop: true, callback: () => {
+          const el = this.time.now - t0;
+          let live = false;
+          for (const s of slots) {
+            if (el < s.at) live = true;
+            else if (el < s.at + D * 0.4) { live = true; s.t.setText(Math.random() < 0.5 ? "0" : "1").setColor("#8a8a8a"); }
+            else if (s.t.text) s.t.setText("");
+          }
+          if (!live) { ev.remove(); slots.forEach((s) => s.t.destroy()); resolve(); }
         } });
       });
     }
     async toast(str, hold) {
       if (!this._toast) this._toast = this.add.text(W / 2, 150, "", style(17, "#ffffff",
         { align: "center", wordWrap: { width: W - 40 } })).setOrigin(0.5)
-        .setResolution(2).setDepth(18).setBackgroundColor("#000000").setLetterSpacing(2);
-      this._toast.setAlpha(1);
+        .setResolution(2).setDepth(18);
       await this.decode(this._toast, str, 440);
       await this.w(hold || 1400);
-      this.tweens.add({ targets: this._toast, alpha: 0, duration: 500 });
+      await this.decodeOut(this._toast, 480);
     }
     flashWhite() {
       const f = this.add.rectangle(W / 2, H / 2, W, H, 0xffffff).setDepth(20);
@@ -406,10 +477,11 @@
     async announceHold(total, live) {                          // M3 — once, ~5s total, then never again (#3b=A)
       this.dim(true);
       const msg = total + " SHELLS · " + live + " LIVE";
-      const t = this.add.text(W / 2, 200, msg, style(24)).setOrigin(0.5)
-        .setResolution(2).setDepth(19).setLetterSpacing(3).setBackgroundColor("#000000");
+      const t = this.add.text(W / 2, 200, "", style(24)).setOrigin(0.5)
+        .setResolution(2).setDepth(19);
       await this.decode(t, msg, 700);
       await this.w(900);
+      await this.decodeOut(t, 480);
       this.dim(false);                                         // board returns; the line moves to the band
       t.destroy();
       this.bandNote.setText(msg);
@@ -462,7 +534,7 @@
       this.add.text(W / 2, 470, "LAST AGENT STANDING", style(18)).setOrigin(0.5).setResolution(2)
         .setDepth(25).setLetterSpacing(4);
       const t2 = this.add.text(W / 2, 505, "", style(26)).setOrigin(0.5)
-        .setResolution(2).setDepth(25).setLetterSpacing(6);
+        .setResolution(2).setDepth(25);
       this.add.text(W / 2, 810, THEME.CREDITS, style(13, "#888888")).setOrigin(0.5).setResolution(2).setDepth(25);
       await this.decode(t2, THEME.seatName(id, roster), 700);
     }

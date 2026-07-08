@@ -23,9 +23,12 @@
 
   /* ---- [NET-GLUE] ---- */
   function connect() {
+    const fi = $("name").value.trim().toUpperCase(), li = $("lastinit").value.trim().toUpperCase();
+    if (!/^[A-Z]$/.test(fi) || !/^[A-Z]$/.test(li)) { banner("ENTER YOUR INITIALS — TWO LETTERS"); return; }
+    const agent = fi + "." + li + ".";                      // agents go by monogram (spy plates)
     const proto = location.protocol === "https:" ? "wss" : "ws";
     net = NET.connect(() => new WebSocket(proto + "://" + location.host + "/ws"), handle);
-    net.ws.onopen = () => net.send({ type: "join", code: $("code").value, name: $("name").value, token });
+    net.ws.onopen = () => net.send({ type: "join", code: $("code").value, name: agent, token });
     net.ws.onclose = () => banner("DISCONNECTED — RELOAD TO RECONNECT", 60000);
     setInterval(() => net.send({ type: "ping" }), 20000);
   }
@@ -234,6 +237,7 @@
   /* ---- wiring ---- */
   $("enterbtn").addEventListener("click", connect);
   $("name").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
+  $("lastinit").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
   $("code").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
   $("startbtn").addEventListener("click", () => net.send({ type: "start" }));
   const sendChat = () => {
