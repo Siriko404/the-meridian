@@ -188,8 +188,9 @@
         this.barFrame.setStrokeStyle(2, col, 0.95);
         this._mFillG.clear().fillStyle(0xffffff).fillRect(this._bar.x, this._bar.y - 20, fw, 40);
         this._mEmptyG.clear().fillStyle(0xffffff).fillRect(this._bar.x + fw, this._bar.y - 20, this._bar.w - fw, 40);
-        this.barSecs.setVisible(true).setText(fmt(left));
-        this.barSecsD.setVisible(true).setText(fmt(left)).setColor(red ? "#ffffff" : "#000000");
+        this.barSecs.setVisible(true).setText(fmt(left)).setX(W / 2);    // digits FIXED center —
+        this.barSecsD.setVisible(true).setText(fmt(left)).setX(W / 2)    // the burn inverts them in place
+          .setColor(red ? "#ffffff" : "#000000");
         this.bandCode.setVisible(false);                      // code only rides an idle band
       } else {
         this.barFill.setVisible(false);
