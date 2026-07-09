@@ -207,8 +207,17 @@
   }
   const kitInfo = () => infoThread("KIT 3/8", { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1, SAW: 0, CIGARETTES: 0, IMMUNITY: 0 },
     (en) => iname(en) + " · " + OWN[en] + "/3 · " + (SEALED[en] ? "SEALED" : (6 - (en === "BEER" ? 2 : 0)) + " USES LEFT"));
-  const ledger = () => infoThread("LEDGER", { BEER: 3, HANDCUFFS: 2, MAGNIFIER: 2, SAW: 1, CIGARETTES: 3, IMMUNITY: 0 },
-    (en) => iname(en) + " · IN PLAY · " + (SEALED[en] ? "SEALED" : "6 USES LEFT"));
+  function ledger() {                                          // ONE screen, no taps: LIVE · TO USE columns
+    const th = openTh("LEDGER", "✕ CLOSE");
+    const LIVE = { BEER: 3, HANDCUFFS: 2, MAGNIFIER: 2, SAW: 1, CIGARETTES: 3, IMMUNITY: 0 };
+    const USES = { BEER: 4, HANDCUFFS: 6, MAGNIFIER: 0, SAW: 6, CIGARETTES: 2, IMMUNITY: 6 };
+    const rows = [];
+    ORDER.forEach((en) => {
+      rows.push({ label: iname(en), still: true, bright: LIVE[en] > 0, dim: LIVE[en] === 0 });
+      rows.push({ split: [LIVE[en] + " LIVE", USES[en] + " TO USE"], tight: true });
+    });
+    th.show(() => { th.list("i", "", rows); th.onRow = null; });
+  }
 
   /* ---- incoming offer (respond) ---- */
   function offerIn() {

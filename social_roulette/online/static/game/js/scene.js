@@ -623,7 +623,18 @@
         const off = header ? 34 : 14;
         const proms = [];
         items.forEach((it, i) => {
-          const y = hy + off + i * rowH;
+          const y = hy + off + i * rowH - (it.tight ? 8 : 0);
+          if (it.split) {                                      // two stat columns around a center dot
+            const stat = (str, x) => mk(this.add.text(x, y, str, style(fs - 3, "#cccccc"))
+              .setOrigin(0.5).setResolution(2).setDepth(22).setAlpha(0));
+            const l = stat(it.split[0], hx - 85), d = stat("·", hx), rr = stat(it.split[1], hx + 85);
+            proms.push(new Promise((res) => this.tweens.add({ targets: [l, d, rr],
+              alpha: 1, duration: 140, onComplete: res })));
+            const hit0 = mk(this.add.rectangle(hx, y, W - 60, rowH - 4, 0xffffff, 0.001)
+              .setDepth(22).setName("trow"));
+            st.rows.push({ t: l, it, extra: [d, rr] }); st.hits.push(hit0);
+            return;
+          }
           const txt = it.badge ? it.label + "  " + it.badge : it.label;
           const col = it.info ? "#aaaaaa" : (it.dim ? "#ffffff" : (it.bright ? "#ffffff" : "#cccccc"));
           const t = mk(this.add.text(hx, y, "", style(it.info ? fs - 4 : fs, col))
@@ -652,7 +663,7 @@
         return Promise.all(proms).then(() => {                 // rows arm only once fully landed
           if (th.active !== st) return;
           st.rows.forEach((r, i) => {
-            if (r.it.dim || r.it.info || !st.hits[i].scene) return;
+            if (r.it.dim || r.it.info || r.it.split || r.it.still || !st.hits[i].scene) return;
             st.hits[i].setInteractive().on("pointerdown", () => {
               if (th._act || !th.onRow) return;                // double-tap guard: one action in flight
               th._act = true;
@@ -709,26 +720,21 @@
         backB.setAlpha(1);
       };
 
-      th.back = () => {                                        // rewind ONE step; caller re-lists it
-        const kill = (st) => { if (!st) return;
-          st.rows.forEach((r) => r.t && r.t.destroy());
-          st.hits.forEach((h) => h.destroy());
-          if (st.headT) st.headT.destroy();
-          if (st.crumb) st.crumb.destroy();
-        };
-        kill(th.active); th.active = null;
-        const prev = th._sections.pop();
-        if (!prev) return null;
-        kill(prev);
-        th.steps--; th.cursorY = prev.baseY;
-        backB.setAlpha(th.steps ? 1 : 0.3);
-        return prev;
-      };
       th._kill = (st) => { if (!st) return;                    // shared by back/swap
-        st.rows.forEach((r) => r.t && r.t.destroy());
+        st.rows.forEach((r) => { if (r.t) r.t.destroy();
+          if (r.extra) r.extra.forEach((o) => o.destroy()); });
         st.hits.forEach((h) => h.destroy());
         if (st.headT) st.headT.destroy();
         if (st.crumb) st.crumb.destroy();
+      };
+      th.back = () => {                                        // rewind ONE step; caller re-lists it
+        th._kill(th.active); th.active = null;
+        const prev = th._sections.pop();
+        if (!prev) return null;
+        th._kill(prev);
+        th.steps--; th.cursorY = prev.baseY;
+        backB.setAlpha(th.steps ? 1 : 0.3);
+        return prev;
       };
       th.swap = (key, header, items) => {                      // re-list IN PLACE (count/pay loops)
         const had = !!th.active;                               // step entry keeps the decode ceremony;

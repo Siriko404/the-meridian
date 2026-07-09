@@ -356,17 +356,17 @@
       await th.swap("i", "SPYCAM · 1/3 · SEALED", rows(3));
       await s.w(900); s.closeThread(); await s.w(200);
     },
-    thread_ledger2: async (s) => {                            // public ledger info
+    thread_ledger2: async (s) => {                            // ledger: ONE screen, LIVE · TO USE columns
       const th = threadOpen2(s, "LEDGER", "✕ CLOSE");
-      const rows = (sel) => [
-        { label: "MAGNET", badge: "×3", bright: sel === 1 },
-        { label: "SEDATIVE", badge: "×2" }, { label: "SPYCAM", badge: "×2" },
-        { label: "POISON", badge: "×1" }, { label: "PASSPORT", badge: "×3" },
-        { label: "BLACKMAIL", badge: "×0", dim: true }];
-      await th.list("i", "TAP TO INSPECT", rows(0));
-      await s.w(900);
-      await th.swap("i", "MAGNET · IN PLAY · 6 USES LEFT", rows(1));
-      await s.w(1000); s.closeThread(); await s.w(200);
+      const D = [["MAGNET", 3, 4], ["SEDATIVE", 2, 6], ["SPYCAM", 2, 0],
+        ["POISON", 1, 6], ["PASSPORT", 3, 2], ["BLACKMAIL", 0, 6]];
+      const rows = [];
+      D.forEach(([n, live, use]) => {
+        rows.push({ label: n, still: true, bright: live > 0, dim: live === 0 });
+        rows.push({ split: [live + " LIVE", use + " TO USE"], tight: true });
+      });
+      await th.list("i", "", rows);
+      await s.w(1800); s.closeThread(); await s.w(200);
     },
     thread_respond: async (s) => {                            // incoming offer
       const th = threadOpen2(s, "INCOMING OFFER");
