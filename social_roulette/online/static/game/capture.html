@@ -258,6 +258,124 @@
       await th.list("GO", "CONFIRM — TRADE → C.W.", GO_ROWS()); await s.w(700);
       await th.lock(0); await s.w(400); s.closeThread(); await s.w(200);
     },
+    // ---- OVERHAUL samples: every menu, filmed for ratification ----
+    thread_talk: async (s) => {                               // talk root → PROCEED
+      const th = threadOpen(s);
+      await th.list("MOVE", "TALK", [{ label: "ITEM" }, { label: "TRADE" }, { label: "PROCEED", bright: true }]);
+      await s.w(900); await th.lock(2); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    thread_talkr: async (s) => {                              // offer out → RECALL + confirm
+      const th = threadOpen(s);
+      await th.list("MOVE", "TALK", [{ label: "ITEM" }, { label: "RECALL" }, { label: "PROCEED", bright: true }]);
+      await s.w(800); await th.lock(1);
+      await th.list("GO", "CONFIRM — RECALL YOUR OFFER", GO_ROWS());
+      await s.w(800); await th.lock(0); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    thread_decide: async (s) => {                             // decision root
+      const th = threadOpen(s);
+      await th.list("MOVE", "DECIDE", [{ label: "SHOOT", bright: true }, { label: "FLIP" }, { label: "ITEM" }]);
+      await s.w(1200); s.closeThread(); await s.w(200);
+    },
+    thread_flip: async (s) => {                               // flip: red pick → PAY builder
+      const th = threadOpen(s);
+      await th.list("MOVE", "DECIDE", [{ label: "SHOOT", bright: true }, { label: "FLIP" }, { label: "ITEM" }]);
+      await s.w(600);
+      const p = th.pickSeat("flip", [1, 3], "FLIP — TAP A TARGET");
+      await s.w(1200); th._pickDone(1); await p;
+      await th.lock(1);
+      const pays = (a, b, tot, ok) => [
+        { label: "MAGNET · 2 PTS", badge: a ? "PAY ×" + a : "×1" },
+        { label: "SEDATIVE · 3 PTS", badge: b ? "PAY ×" + b : "×1" },
+        { label: "SPYCAM · 2 PTS", badge: "×1" },
+        { label: "POISON · 4 PTS", badge: "×0", dim: true },
+        { label: "PASSPORT · 1 PTS", badge: "×0", dim: true },
+        { label: "BLACKMAIL · 5 PTS", badge: "×0", dim: true },
+        { label: "✓ PAY " + tot + "/5 PTS", bright: ok, dim: !ok }];
+      await th.swap("PAY", "FLIP C.W. — TAP ITEMS TO PAY", pays(0, 0, 0, false));
+      await s.w(900);
+      await th.swap("PAY", "FLIP C.W. — TAP ITEMS TO PAY", pays(1, 0, 2, false));
+      await s.w(700);
+      await th.swap("PAY", "FLIP C.W. — TAP ITEMS TO PAY", pays(1, 1, 5, true));
+      await s.w(900); await th.lock(6); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    thread_item: async (s) => {                               // kit-use: sealed row + no-target item
+      const th = threadOpen(s);
+      await th.list("MOVE", "TALK", [{ label: "ITEM", bright: true }, { label: "TRADE" }, { label: "PROCEED" }]);
+      await s.w(600); await th.lock(0);
+      await th.list("KIT", "YOUR KIT · 3 CARRIED", [
+        { label: "MAGNET", badge: "×1", bright: true },
+        { label: "SEDATIVE", badge: "×1" },
+        { label: "SPYCAM · SEALED", badge: "×1", dim: true },
+        { label: "POISON", badge: "×0", dim: true },
+        { label: "PASSPORT", badge: "×0", dim: true },
+        { label: "BLACKMAIL", badge: "×0", dim: true }]);
+      await s.w(1100); await th.lock(0);
+      await th.list("GO", "CONFIRM — USE MAGNET", GO_ROWS());
+      await s.w(700); await th.lock(0); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    thread_trade: async (s) => {                              // the offer builder, full ride
+      const th = threadOpen(s);
+      await th.list("MOVE", "TALK", [{ label: "ITEM" }, { label: "TRADE", bright: true }, { label: "PROCEED" }]);
+      await s.w(600);
+      const p = th.pickSeat("trade", [2, 4], "TRADE — TAP A TEAMMATE");
+      await s.w(1100); th._pickDone(2); await p;
+      await th.lock(1);
+      const give = (mag) => [
+        { label: "MAGNET", badge: mag ? "×" + mag : "", bright: true },
+        { label: "SEDATIVE", bright: true }, { label: "SPYCAM", bright: true },
+        { label: "POISON" }, { label: "PASSPORT" }, { label: "BLACKMAIL" },
+        { label: "CONTINUE ▸", bright: true }];
+      await th.swap("GIVE", "GIVE → C.W. · NOTHING", give(0));
+      await s.w(900);
+      await th.swap("N", "MAGNET — HOW MANY?", [                 // count sub-list
+        { label: "0" }, { label: "1", bright: true }, { label: "2" }, { label: "3" },
+        { info: true, label: "YOU HOLD ×1" }]);
+      await s.w(1000);
+      await th.swap("GIVE", "GIVE → C.W. · 2 MAGNET", give(2));  // bluffed above holdings — allowed
+      await s.w(900); await th.lock(6);
+      await th.swap("WANT", "WANT ← C.W. · NOTHING", [
+        { label: "MAGNET" }, { label: "SEDATIVE" }, { label: "SPYCAM", badge: "×1" },
+        { label: "POISON" }, { label: "PASSPORT" }, { label: "BLACKMAIL" },
+        { label: "SEND OFFER ▸", bright: true }]);
+      await s.w(1000); await th.lock(6); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    thread_kitinfo: async (s) => {                            // off-turn kit: tap to inspect
+      const th = threadOpen2(s, "KIT 3/8", "✕ CLOSE");
+      const rows = (sel) => [
+        { label: "MAGNET", badge: "×1", bright: sel === 1 },
+        { label: "SEDATIVE", badge: "×1", bright: sel === 2 },
+        { label: "SPYCAM", badge: "×1", bright: sel === 3 },
+        { label: "POISON", badge: "×0", dim: true },
+        { label: "PASSPORT", badge: "×0", dim: true },
+        { label: "BLACKMAIL", badge: "×0", dim: true }];
+      await th.list("i", "TAP TO INSPECT", rows(0));
+      await s.w(900);
+      await th.swap("i", "MAGNET · 1/3 · 4 USES LEFT", rows(1));
+      await s.w(900);
+      await th.swap("i", "SPYCAM · 1/3 · SEALED", rows(3));
+      await s.w(900); s.closeThread(); await s.w(200);
+    },
+    thread_ledger2: async (s) => {                            // public ledger info
+      const th = threadOpen2(s, "LEDGER", "✕ CLOSE");
+      const rows = (sel) => [
+        { label: "MAGNET", badge: "×3", bright: sel === 1 },
+        { label: "SEDATIVE", badge: "×2" }, { label: "SPYCAM", badge: "×2" },
+        { label: "POISON", badge: "×1" }, { label: "PASSPORT", badge: "×3" },
+        { label: "BLACKMAIL", badge: "×0", dim: true }];
+      await th.list("i", "TAP TO INSPECT", rows(0));
+      await s.w(900);
+      await th.swap("i", "MAGNET · IN PLAY · 6 USES LEFT", rows(1));
+      await s.w(1000); s.closeThread(); await s.w(200);
+    },
+    thread_respond: async (s) => {                            // incoming offer
+      const th = threadOpen2(s, "INCOMING OFFER");
+      await th.list("OFFER", "C.W. OFFERS · PRIVATE", [
+        { info: true, label: "THEY GIVE: 2 MAGNET" },
+        { info: true, label: "THEY WANT: 1 SPYCAM" },
+        { info: true, label: "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" },
+        { label: "✓ ACCEPT", bright: true }, { label: "✕ DECLINE" }]);
+      await s.w(1300); await th.lock(3); await s.w(400); s.closeThread(); await s.w(200);
+    },
     thread_back: async (s) => {                               // ◂ BACK rewinds one step, list restored
       const th = threadOpen(s);
       await th.list("MOVE", "CHOOSE", MOVE_ROWS()); await s.w(600);
@@ -324,6 +442,10 @@
   function threadOpen(s) {                                    // the ratified combo
     s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
     return s.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE" });
+  }
+  function threadOpen2(s, title, abortLabel) {                // info/respond threads
+    s.render(BASE(), ROSTER);
+    return s.openThread({ mode: "fade", anim: "decode", title, abortLabel });
   }
   const MOVE_ROWS = () => [{ label: "SHOOT", bright: true }, { label: "ITEM" }, { label: "TRADE" }];
   const GO_ROWS = () => [{ label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN" }];

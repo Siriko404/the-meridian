@@ -590,22 +590,22 @@
         .setOrigin(0.5).setResolution(2).setDepth(22).setLetterSpacing(3));
       this.decode(title, opts.title || "", 340);
       const dockCover = mk(this.add.rectangle(W / 2, (700 + H) / 2, W, H - 700, 0x000000, 1).setDepth(21));
-      const abort = mk(this.add.text(W / 2 + 80, 776, "✕ ABORT", style(12, "#aaaaaa")).setOrigin(0.5)
+      const abort = mk(this.add.text(W / 2 + 80, 776, opts.abortLabel || "✕ ABORT", style(12, "#aaaaaa")).setOrigin(0.5)
         .setResolution(2).setDepth(22).setInteractive()
         .on("pointerdown", () => { this.closeThread(); if (opts.onAbort) opts.onAbort(); }));
       const backB = mk(this.add.text(W / 2 - 80, 776, "◂ BACK", style(12, "#aaaaaa")).setOrigin(0.5)
         .setResolution(2).setDepth(22).setAlpha(0.3).setInteractive()
-        .on("pointerdown", () => { if (th.steps && th.onBack) th.onBack(); }));
+        .on("pointerdown", () => { if (!th._act && th.steps && th.onBack) th.onBack(); }));
       const arrowWas = this._arrow && this._arrow.visible;     // board bleed-through garbles thread copy
       if (arrowWas) this._arrow.setVisible(false);
       const th = { steps: 0, cursorY: 96, active: null, own, scrim, abort, arrowWas, _sections: [] };
       const colX = (k) => 52 + k * 96;
 
-      th.list = (key, header, items) => {                      // render the ACTIVE list
+      th.list = (key, header, items, fast) => {                // render the ACTIVE list
         const st = { key, header, items, rows: [], hits: [], baseY: th.cursorY };
         let hx = W / 2, hy, rowH, fs;
         if (mode === "stack") { hy = 150 + th.steps * 30 + 14; rowH = 48; fs = 15; }
-        else if (mode === "fade") { hy = th.cursorY; rowH = 44; fs = 14; }
+        else if (mode === "fade") { hy = th.cursorY; rowH = items.length >= 6 ? 36 : 44; fs = 14; }
         else { hx = colX(th.steps); hy = 128; rowH = 30; fs = 9; header = key; }
         backB.setAlpha(th.steps ? 1 : 0.3);
         st.headT = mk(this.add.text(hx, hy, header, style(mode === "cols" ? 9 : 10, "#aaaaaa"))
@@ -615,10 +615,15 @@
         items.forEach((it, i) => {
           const y = hy + 34 + i * rowH;
           const txt = it.badge ? it.label + "  " + it.badge : it.label;
-          const col = it.dim ? "#ffffff" : (it.bright ? "#ffffff" : "#cccccc");
-          const t = mk(this.add.text(hx, y, "", style(fs, col)).setOrigin(0.5).setResolution(2).setDepth(22));
+          const col = it.info ? "#aaaaaa" : (it.dim ? "#ffffff" : (it.bright ? "#ffffff" : "#cccccc"));
+          const t = mk(this.add.text(hx, y, "", style(it.info ? fs - 4 : fs, col))
+            .setOrigin(0.5).setResolution(2).setDepth(22));
           if (it.dim) t.setAlpha(0.3);
-          if (anim === "decode" && !it.dim) {
+          if (fast) {                                          // swap loops: instant — no ceremony twice
+            t.setText(txt).setAlpha(0);
+            proms.push(new Promise((r) => this.tweens.add({ targets: t,
+              alpha: it.dim ? 0.3 : 1, duration: 90, onComplete: r })));
+          } else if (anim === "decode" && !it.dim && !it.info) {
             proms.push(new Promise((r) => this.time.delayedCall(i * 60, () =>
               this.decode(t, txt, 260).then(r))));
           } else {
@@ -630,8 +635,12 @@
               duration: 150, delay: i * 25, ease: "Cubic.easeOut", onComplete: r })));
           }
           const hit = mk(this.add.rectangle(hx, y, mode === "cols" ? 92 : W - 60, rowH - 4, 0xffffff, 0.001)
-            .setDepth(22));
-          if (!it.dim) hit.setInteractive().on("pointerdown", () => th.onRow && th.onRow(i));
+            .setDepth(22).setName("trow"));
+          if (!it.dim && !it.info) hit.setInteractive().on("pointerdown", () => {
+            if (th._act || !th.onRow) return;                  // double-tap guard: one action in flight
+            th._act = true;
+            Promise.resolve(th.onRow(i)).catch(() => {}).then(() => { th._act = false; });
+          });
           st.rows.push({ t, it }); st.hits.push(hit);
         });
         th.active = st;
@@ -699,6 +708,17 @@
         backB.setAlpha(th.steps ? 1 : 0.3);
         return prev;
       };
+      th._kill = (st) => { if (!st) return;                    // shared by back/swap
+        st.rows.forEach((r) => r.t && r.t.destroy());
+        st.hits.forEach((h) => h.destroy());
+        if (st.headT) st.headT.destroy();
+        if (st.crumb) st.crumb.destroy();
+      };
+      th.swap = (key, header, items) => {                      // re-list IN PLACE (count/pay loops)
+        const had = !!th.active;                               // step entry keeps the decode ceremony;
+        th._kill(th.active); th.active = null;                 // in-loop swaps are INSTANT
+        return th.list(key, header, items, had);
+      };
 
       th.pickSeat = (kind, ids, note) => new Promise((resolve) => {
         own.forEach((o) => { if (o !== dockCover && o.setVisible) o.setVisible(false); });  // duck — board is the menu
@@ -715,7 +735,7 @@
         };
         th._pickDone = done;                                   // rig hook (films drive picks directly)
         cancel.on("pointerdown", () => done(null));            // back to the menu — NOT a full abort
-        if (kind === "shoot") this.setTargets(ids, done);      // red frame: danger
+        if (kind === "shoot" || kind === "flip") this.setTargets(ids, done);  // red frame: danger
         else if (kind === "trade") this.seatGlow(ids, true, done);   // marching ants
         else this.setItemTargets(ids, done);                   // white pulse: item
       });
