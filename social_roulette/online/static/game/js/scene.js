@@ -212,7 +212,8 @@
     _slots(txtObj, str) {
       const st = txtObj.style;
       const scratch = this.add.text(0, -999, "", { fontFamily: st.fontFamily,
-        fontSize: st.fontSize, fontStyle: st.fontStyle }).setResolution(2).setVisible(false);
+        fontSize: st.fontSize, fontStyle: st.fontStyle }).setResolution(2).setVisible(false)
+        .setLetterSpacing(txtObj.letterSpacing || 0);          // spaced text decodes true-to-width
       const maxW = st.wordWrapWidth || 0;
       const lines = [];
       if (maxW) {                                             // word-wrap exactly like the target
@@ -237,8 +238,9 @@
           prev = scratch.width;
           if (ln[i] === " ") continue;
           const t = this.add.text(cx, y, "", { fontFamily: st.fontFamily, fontSize: st.fontSize,
-            fontStyle: st.fontStyle, color: "#ffffff", stroke: "#000000", strokeThickness: 6 })
-            .setOrigin(0.5).setResolution(2).setDepth(txtObj.depth).setName("fx");
+            fontStyle: st.fontStyle, color: "#ffffff", stroke: st.stroke || "#000000", strokeThickness: 6 })
+            .setOrigin(0.5).setResolution(2).setDepth(txtObj.depth).setName("fx")
+            .setAlpha(txtObj.alpha);                           // dim texts decode dim
           slots.push({ t, ch: ln[i] });
         }
       });
@@ -253,6 +255,7 @@
     decode(txtObj, str, dur) {                                // decode-IN
       return new Promise((resolve) => {
         txtObj.setText("");
+        const C = (txtObj.style && txtObj.style.color) || "#ffffff";   // resolve to the OWN color
         const slots = this._slots(txtObj, str), n = slots.length || 1, D = dur || 750;
         this._shuffled(n).forEach((r, i) => { slots[i].at = (r / n) * D; });
         const t0 = this.time.now;
@@ -263,7 +266,7 @@
           const el = this.time.now - t0;
           let done = true;
           for (const s of slots) {
-            if (el >= s.at) { if (s.t.text !== s.ch) s.t.setText(s.ch).setColor("#ffffff"); }
+            if (el >= s.at) { if (s.t.text !== s.ch) s.t.setText(s.ch).setColor(C); }
             else { done = false; s.t.setText(Math.random() < 0.5 ? "0" : "1").setColor("#8a8a8a"); }
           }
           if (done && el > D) {
@@ -596,12 +599,16 @@
         .setOrigin(0.5).setResolution(2).setDepth(22).setLetterSpacing(3));
       this.decode(title, opts.title || "", 340);
       const dockCover = mk(this.add.rectangle(W / 2, (700 + H) / 2, W, H - 700, 0x000000, 1).setDepth(21));
-      const abort = mk(this.add.text(W / 2 + 80, 776, opts.abortLabel || "✕ ABORT", style(12, "#aaaaaa")).setOrigin(0.5)
-        .setResolution(2).setDepth(22).setInteractive()
-        .on("pointerdown", () => { this.closeThread(); if (opts.onAbort) opts.onAbort(); }));
-      const backB = mk(this.add.text(W / 2 - 80, 776, "◂ BACK", style(12, "#aaaaaa")).setOrigin(0.5)
-        .setResolution(2).setDepth(22).setAlpha(0.3).setInteractive()
-        .on("pointerdown", () => { if (!th._act && th.steps && th.onBack) th.onBack(); }));
+      const abort = mk(this.add.text(W / 2 + 80, 776, "", style(12, "#aaaaaa")).setOrigin(0.5)
+        .setResolution(2).setDepth(22));
+      this.decode(abort, opts.abortLabel || "✕ ABORT", 240).then(() => { if (abort.scene)
+        abort.setInteractive()
+          .on("pointerdown", () => { this.closeThread(); if (opts.onAbort) opts.onAbort(); }); });
+      const backB = mk(this.add.text(W / 2 - 80, 776, "", style(12, "#aaaaaa")).setOrigin(0.5)
+        .setResolution(2).setDepth(22).setAlpha(0.3));
+      this.decode(backB, "◂ BACK", 240).then(() => { if (backB.scene)
+        backB.setInteractive()
+          .on("pointerdown", () => { if (!th._act && th.steps && th.onBack) th.onBack(); }); });
       const arrowWas = this._arrow && this._arrow.visible;     // board bleed-through garbles thread copy
       if (arrowWas) this._arrow.setVisible(false);
       const th = { steps: 0, cursorY: 96, active: null, own, scrim, abort, arrowWas, _sections: [] };
@@ -616,20 +623,21 @@
         backB.setAlpha(th.steps ? 1 : 0.3);
         st.hy = hy;
         if (header) {                                          // roots go headerless — the list IS the move
-          st.headT = mk(this.add.text(hx, hy, header, style(mode === "cols" ? 9 : 10, "#aaaaaa"))
-            .setOrigin(0.5).setResolution(2).setDepth(22).setLetterSpacing(2).setAlpha(0));
-          this.tweens.add({ targets: st.headT, alpha: 1, duration: 140 });
+          st.headT = mk(this.add.text(hx, hy, "", style(mode === "cols" ? 9 : 10, "#aaaaaa"))
+            .setOrigin(0.5).setResolution(2).setDepth(22).setLetterSpacing(2));
+          this.decode(st.headT, header, fast ? 130 : 200);
         }
         const off = header ? 34 : 14;
         const proms = [];
         items.forEach((it, i) => {
           const y = hy + off + i * rowH - (it.tight ? 8 : 0);
           if (it.split) {                                      // two stat columns around a center dot
-            const stat = (str, x) => mk(this.add.text(x, y, str, style(fs - 3, "#cccccc"))
-              .setOrigin(0.5).setResolution(2).setDepth(22).setAlpha(0));
-            const l = stat(it.split[0], hx - 85), d = stat("·", hx), rr = stat(it.split[1], hx + 85);
-            proms.push(new Promise((res) => this.tweens.add({ targets: [l, d, rr],
-              alpha: 1, duration: 140, onComplete: res })));
+            const stat = (x) => mk(this.add.text(x, y, "", style(fs - 3, "#cccccc"))
+              .setOrigin(0.5).setResolution(2).setDepth(22));
+            const l = stat(hx - 85), d = stat(hx).setText("·").setAlpha(0), rr = stat(hx + 85);
+            this.tweens.add({ targets: d, alpha: 1, duration: 140 });
+            proms.push(this.decode(l, it.split[0], fast ? 130 : 220));
+            proms.push(this.decode(rr, it.split[1], fast ? 130 : 220));
             const hit0 = mk(this.add.rectangle(hx, y, W - 60, rowH - 4, 0xffffff, 0.001)
               .setDepth(22).setName("trow"));
             st.rows.push({ t: l, it, extra: [d, rr] }); st.hits.push(hit0);
@@ -640,13 +648,9 @@
           const t = mk(this.add.text(hx, y, "", style(it.info ? fs - 4 : fs, col))
             .setOrigin(0.5).setResolution(2).setDepth(22));
           if (it.dim) t.setAlpha(0.3);
-          if (fast) {                                          // swap loops: instant — no ceremony twice
-            t.setText(txt).setAlpha(0);
-            proms.push(new Promise((r) => this.tweens.add({ targets: t,
-              alpha: it.dim ? 0.3 : 1, duration: 90, onComplete: r })));
-          } else if (anim === "decode" && !it.dim && !it.info) {
-            proms.push(new Promise((r) => this.time.delayedCall(i * 60, () =>
-              this.decode(t, txt, 260).then(r))));
+          if (anim === "decode" || fast) {                     // EVERY text decodes; swaps just decode FAST
+            proms.push(new Promise((r) => this.time.delayedCall(fast ? 0 : i * 60, () =>
+              this.decode(t, txt, fast ? 130 : 260).then(r))));
           } else {
             t.setText(txt);
             const tx = mode === "cols"                         // keep column text on-screen
@@ -744,10 +748,12 @@
 
       th.pickSeat = (kind, ids, note) => new Promise((resolve) => {
         own.forEach((o) => { if (o !== dockCover && o.setVisible) o.setVisible(false); });  // duck — board is the menu
-        const ribbon = this.add.text(W / 2, 86, note, style(13, "#ffffff", { align: "center" }))
-          .setOrigin(0.5).setResolution(2).setDepth(22).setBackgroundColor("#000000");
-        const cancel = this.add.text(W / 2, 776, "✕ CANCEL", style(12, "#aaaaaa")).setOrigin(0.5)
-          .setResolution(2).setDepth(22).setBackgroundColor("#000000").setInteractive();
+        const ribbon = this.add.text(W / 2, 86, "", style(13, "#ffffff", { align: "center" }))
+          .setOrigin(0.5).setResolution(2).setDepth(22);
+        this.decode(ribbon, note, 260);
+        const cancel = this.add.text(W / 2, 776, "", style(12, "#aaaaaa")).setOrigin(0.5)
+          .setResolution(2).setDepth(22);
+        const arm = this.decode(cancel, "✕ CANCEL", 240);
         const done = (id) => {
           if (kind === "trade") this.seatGlow([], false); else this.clearTargets();
           ribbon.destroy(); cancel.destroy();
@@ -756,7 +762,8 @@
           resolve(id);
         };
         th._pickDone = done;                                   // rig hook (films drive picks directly)
-        cancel.on("pointerdown", () => done(null));            // back to the menu — NOT a full abort
+        arm.then(() => { if (cancel.scene) cancel.setInteractive()   // back to the menu — NOT a full abort
+          .on("pointerdown", () => done(null)); });
         if (kind === "shoot" || kind === "flip") this.setTargets(ids, done);  // red frame: danger
         else if (kind === "trade") this.seatGlow(ids, true, done);   // marching ants
         else this.setItemTargets(ids, done);                   // white pulse: item
