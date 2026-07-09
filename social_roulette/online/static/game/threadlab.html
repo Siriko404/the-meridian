@@ -61,15 +61,23 @@
       if (th._hist.length < 2) return;
       th.back(); th._hist.pop(); th._hist[th._hist.length - 1]();
     };
+    th.homeTo = () => {                                        // STAND DOWN → the thread's MAIN menu
+      th._pop = null; th.home();
+      th._hist.length = 1; th._hist[0]();
+    };
     return th;
   }
   const closeSoon = () => scene.time.delayedCall(500, () => scene.closeThread());
   function confirmStep(th, label, blurb) {
     th.show(() => {
       const rows = blurb ? [{ info: true, label: blurb }] : [];
-      rows.push({ label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN" });
+      rows.push({ dot: true },
+        { label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN", down: true });
       th.list("GO", "CONFIRM — " + label, rows);
-      th.onRow = async (i) => { await th.lock(i); closeSoon(); };
+      th.onRow = async (i) => {
+        if (rows[i].down) { th.homeTo(); return; }             // stand down — collapse to the root
+        await th.lock(i); closeSoon();
+      };
     });
   }
 
@@ -103,7 +111,7 @@
         label: iname(en) + " · " + THEME.ITEMS[en].pts + " PTS",
         badge: chosen[en] ? "PAY ×" + chosen[en] : "×" + OWN[en],
         dim: OWN[en] === 0 }));
-      rows.push({ pay: true, label: "✓ PAY " + total + "/" + cost + " PTS",
+      rows.push({ dot: true }, { pay: true, label: "✓ PAY " + total + "/" + cost + " PTS",
         bright: total >= cost, dim: total < cost });
       th.swap("PAY", "FLIP " + name(target) + " — TAP ITEMS TO PAY", rows);
       th.onRow = async (i) => {
@@ -119,16 +127,16 @@
   /* ---- TRADE offer builder: GIVE ⇄ COUNT → WANT → SEND ---- */
   function offer(th, to) {
     const bag = { GIVE: {}, WANT: {} };
-    const sum = (b) => Object.entries(b).filter(([, c]) => c > 0)
-      .map(([en, c]) => c + " " + iname(en)).join(" · ") || "NOTHING";
     const phaseStep = (phase) => th.show(() => renderPhase(phase));
     function renderPhase(phase) {
       const cur = bag[phase], last = phase === "WANT";
       const rows = ORDER.map((en) => ({ en, label: iname(en),
         badge: cur[en] ? "×" + cur[en] : "",
         bright: phase === "GIVE" && OWN[en] > 0 }));       // your real holdings glow — bluff freely
-      rows.push({ go: true, label: last ? "SEND OFFER ▸" : "CONTINUE ▸", bright: true });
-      th.swap(phase, (last ? "WANT ← " : "GIVE → ") + name(to) + " · " + sum(cur).slice(0, 26), rows);
+      rows.push({ dot: true },
+        { go: true, label: last ? "SEND OFFER ▸" : "CONTINUE ▸", bright: true,
+          sub: last ? "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" : "NEXT — WHAT YOU WANT BACK" });
+      th.swap(phase, (last ? "WANT ← " : "GIVE → ") + name(to), rows);
       th.onRow = async (i) => {
         if (rows[i].go) {
           await th.lock(i);
@@ -154,25 +162,13 @@
     if (i != null) await th.lock(i);
     offer(th, id);
   }
-  function move(offerOut, deco) {                              // deco: "A" rules · "B" whispers · "C" both+ticks
-    deco = deco || "";
-    const th = scene.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE",
-      rules: deco === "A" || deco === "C" });
-    th._hist = [];
-    th.show = (fn) => { th._hist.push(fn); fn(); };
-    th.onBack = () => {
-      if (th._pop) { const f = th._pop; th._pop = null; f(); return; }
-      if (th._hist.length < 2) return;
-      th.back(); th._hist.pop(); th._hist[th._hist.length - 1]();
-    };
-    const subs = deco === "B" || deco === "C";
+  function move(offerOut) {                                    // B design — whisper captions (ratified)
+    const th = openTh("YOUR MOVE");
     th.show(() => {
-      const rows = [{ label: "ITEM", sub: subs ? "OPEN YOUR KIT" : undefined },
-        offerOut ? { label: "WITHDRAW OFFER", recall: true,
-            sub: subs ? "PULL YOUR OFFER BACK" : undefined }
-          : { label: "TRADE", trade: true, sub: subs ? "PRIVATE OFFER TO A TEAMMATE" : undefined },
-        { label: "PROCEED", bright: true, frame: deco === "C",
-          sub: subs ? "GO SILENT — DECIDE" : undefined }];
+      const rows = [{ label: "ITEM", sub: "OPEN YOUR KIT" },
+        offerOut ? { label: "WITHDRAW OFFER", recall: true, sub: "PULL YOUR OFFER BACK" }
+          : { label: "TRADE", trade: true, sub: "PRIVATE OFFER TO A TEAMMATE" },
+        { label: "PROCEED", bright: true, sub: "GO SILENT — DECIDE" }];
       th.list("MOVE", "", rows);
       th.onRow = async (i) => {
         if (rows[i].trade) { await tradeFlow(th, i); }
@@ -184,7 +180,7 @@
     return th;
   }
   function tradeDirect() {                                     // straight into the builder
-    const th = move(false, "B");
+    const th = move(false);
     scene.time.delayedCall(800, () => {                        // after the root decodes: auto-tap TRADE
       if (scene._thread === th && th.onRow && !th._act) th.onRow(1);
     });
@@ -192,7 +188,10 @@
   function decide() {
     const th = openTh("YOUR MOVE");
     th.show(() => {
-      const rows = [{ label: "SHOOT", bright: true }, { label: "FLIP" }, { label: "ITEM" }];
+      const rows = [
+        { label: "SHOOT", bright: true, sub: "PICK A TARGET — OR YOURSELF" },
+        { label: "FLIP", sub: "BUY A CHANGE OF LOYALTY" },
+        { label: "ITEM", sub: "OPEN YOUR KIT" }];
       th.list("MOVE", "", rows);
       th.onRow = async (i) => {
         if (i === 0) {                                         // engine: self + living enemies (endgame.py)
@@ -241,13 +240,14 @@
         { info: true, label: "THEY GIVE: 2 MAGNET" },
         { info: true, label: "THEY WANT: 1 SPYCAM" },
         { info: true, label: "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" },
+        { dot: true },
         { label: "✓ ACCEPT", bright: true }, { label: "✕ DECLINE" }];
       th.list("OFFER", name(2) + " OFFERS · PRIVATE", rows);
       th.onRow = async (i) => { await th.lock(i); closeSoon(); };
     });
   }
 
-  const FLOWS = { move: () => move(false, "B"), mover: () => move(true, "B"), decide,
+  const FLOWS = { move: () => move(false), mover: () => move(true), decide,
     trade: tradeDirect, kit: kitInfo, ledger, offerin: offerIn };
   document.querySelectorAll("#bar button").forEach((b) =>
     b.onclick = () => scene && FLOWS[b.dataset.f]());

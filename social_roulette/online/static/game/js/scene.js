@@ -615,30 +615,31 @@
       const colX = (k) => 52 + k * 96;
 
       th.list = (key, header, items, fast) => {                // render the ACTIVE list
-        const st = { key, header, items, rows: [], hits: [], baseY: th.cursorY };
+        const st = { key, header, items, rows: [], hits: [] };
         let hx = W / 2, hy, rowH, fs;
         if (mode === "stack") { hy = 150 + th.steps * 30 + 14; rowH = 48; fs = 15; }
         else if (mode === "fade") { hy = th.cursorY; rowH = items.length >= 6 ? 36 : 44; fs = 14; }
         else { hx = colX(th.steps); hy = 128; rowH = 30; fs = 9; header = key; }
         backB.setAlpha(th.steps ? 1 : 0.3);
-        st.hy = hy;
+        const off = header ? 34 : 14;
+        const pitch = items.map((it) =>                        // per-row heights
+          it.dot ? 38 : ((mode === "fade" && it.sub) ? 58 : rowH));
+        const Hs = off + pitch.reduce((a, b) => a + b, 0);
+        if (mode === "fade") {                                 // ACTIVE list rides screen center;
+          const targetHy = Math.max(112, 384 - Hs / 2);        // the trail slides up out of the way
+          if (!th._sections.length && !th.active) th.cursorY = targetHy;
+          else if (Math.abs(targetHy - th.cursorY) > 4) th._slide(targetHy - th.cursorY);
+          hy = th.cursorY;
+        }
+        st.baseY = th.cursorY; st.hy = hy;                     // AFTER centering — back() restores true
         if (header) {                                          // roots go headerless — the list IS the move
           st.headT = mk(this.add.text(hx, hy, "", style(mode === "cols" ? 9 : 10, "#aaaaaa"))
             .setOrigin(0.5).setResolution(2).setDepth(22).setLetterSpacing(2));
           this.decode(st.headT, header, fast ? 130 : 200);
         }
-        if (mode === "fade" && items.some((i) => i.sub)) rowH = 58;   // room for whisper captions
-        const off = header ? 34 : 14;
-        if (mode === "fade") {                                 // ACTIVE list rides screen center;
-          const Hs = off + items.length * rowH;                // the trail slides up out of the way
-          const targetHy = Math.max(112, 384 - Hs / 2);
-          if (!th._sections.length && !th.active) th.cursorY = targetHy;
-          else if (Math.abs(targetHy - th.cursorY) > 4) th._slide(targetHy - th.cursorY);
-          hy = th.cursorY;
-        }
         if (opts.rules && mode === "fade") {                   // ticket double-rules framing the list
-          const yTop = header ? hy + 18 : hy - (rowH === 58 ? 16 : 8);
-          const yBot = hy + off + items.length * rowH - rowH / 2 + 10;
+          const yTop = header ? hy + 18 : hy - (pitch[0] === 58 ? 16 : 8);
+          const yBot = hy + Hs - pitch[pitch.length - 1] / 2 + 10;
           const rule = (yy) => { const g = this.add.graphics().setDepth(22).setAlpha(0);
             g.lineStyle(2, WHITE, 0.8);
             g.lineBetween(W / 2 - 120, yy, W / 2 + 120, yy);
@@ -648,8 +649,19 @@
           st.rules = [rule(yTop), rule(yBot)];
         }
         const proms = [];
+        let acc = 0;
         items.forEach((it, i) => {
-          const y = hy + off + i * rowH - (it.tight ? 8 : 0);
+          const y = hy + off + acc - (it.tight ? 8 : 0);
+          const rh = pitch[i];
+          acc += rh;
+          if (it.dot) {                                        // divider dot — options above, buttons below
+            const d = mk(this.add.text(hx, y + 4, "·", style(13, "#aaaaaa")).setOrigin(0.5)
+              .setResolution(2).setDepth(22).setAlpha(0));
+            this.tweens.add({ targets: d, alpha: 0.9, duration: 220 });
+            const hit0 = mk(this.add.rectangle(hx, y, 10, 10, 0xffffff, 0.001).setDepth(22));
+            st.rows.push({ t: d, it }); st.hits.push(hit0);
+            return;
+          }
           if (it.split) {                                      // two stat columns around a center dot
             const stat = (x) => mk(this.add.text(x, y, "", style(fs - 3, "#cccccc"))
               .setOrigin(0.5).setResolution(2).setDepth(22));
@@ -657,7 +669,7 @@
             this.tweens.add({ targets: d, alpha: 1, duration: 140 });
             proms.push(this.decode(l, it.split[0], fast ? 130 : 220));
             proms.push(this.decode(rr, it.split[1], fast ? 130 : 220));
-            const hit0 = mk(this.add.rectangle(hx, y, W - 60, rowH - 4, 0xffffff, 0.001)
+            const hit0 = mk(this.add.rectangle(hx, y, W - 60, rh - 4, 0xffffff, 0.001)
               .setDepth(22).setName("trow"));
             st.rows.push({ t: l, it, extra: [d, rr] }); st.hits.push(hit0);
             return;
@@ -687,7 +699,7 @@
             proms.push(new Promise((r) => this.tweens.add({ targets: t, x: tx, alpha: it.dim ? 0.3 : 1,
               duration: 150, delay: i * 25, ease: "Cubic.easeOut", onComplete: r })));
           }
-          const hit = mk(this.add.rectangle(hx, y, mode === "cols" ? 92 : W - 60, rowH - 4, 0xffffff, 0.001)
+          const hit = mk(this.add.rectangle(hx, y, mode === "cols" ? 92 : W - 60, rh - 4, 0xffffff, 0.001)
             .setDepth(22).setName("trow"));
           st.rows.push({ t, it, extra: subT ? [subT] : undefined }); st.hits.push(hit);
         });
@@ -707,7 +719,7 @@
               g.setAlpha(0); this.tweens.add({ targets: g, alpha: 1, duration: 200 });
               mk(g); (r.extra = r.extra || []).push(g);
             }
-            if (r.it.dim || r.it.info || r.it.split || r.it.still || !st.hits[i].scene) return;
+            if (r.it.dim || r.it.info || r.it.split || r.it.still || r.it.dot || !st.hits[i].scene) return;
             st.hits[i].setInteractive().on("pointerdown", () => {
               if (th._act || !th.onRow) return;                // double-tap guard: one action in flight
               th._act = true;
@@ -773,8 +785,9 @@
         own.forEach((o) => {
           if (FIXED.has(o) || !o.scene || o.y == null) return;
           if (o._ba == null) o._ba = o.alpha;                  // remember the resting alpha
-          const ny = o.y + dy;
-          this.tweens.add({ targets: o, y: ny, alpha: ny < 70 ? 0 : o._ba,   // exit through the top edge
+          if (o._oy == null) o._oy = o.y;                      // and the home position
+          o._ty = (o._ty == null ? o.y : o._ty) + dy;          // settled target — overlapping slides
+          this.tweens.add({ targets: o, y: o._ty, alpha: o._ty < 70 ? 0 : o._ba,   // can't drift
             duration: 240, ease: "Cubic.easeInOut" });
         });
         th._sections.forEach((s) => { s.baseY += dy; s.hy += dy; });
@@ -796,6 +809,20 @@
         th.steps--; th.cursorY = prev.baseY;
         backB.setAlpha(th.steps ? 1 : 0.3);
         return prev;
+      };
+      th.home = () => {                                        // STAND DOWN: collapse to the root step
+        th._kill(th.active); th.active = null;
+        while (th._sections.length) {
+          const s = th._sections.pop();
+          th._kill(s); th.steps--; th.cursorY = s.baseY;
+        }
+        own.forEach((o) => {                                   // survivors (title) return home
+          if (FIXED.has(o) || !o.scene || o._oy == null) return;
+          o._ty = o._oy;
+          this.tweens.add({ targets: o, y: o._oy, alpha: o._ba == null ? 1 : o._ba,
+            duration: 240, ease: "Cubic.easeInOut" });
+        });
+        backB.setAlpha(0.3);
       };
       th.swap = (key, header, items) => {                      // re-list IN PLACE (count/pay loops)
         const had = !!th.active;                               // step entry keeps the decode ceremony;

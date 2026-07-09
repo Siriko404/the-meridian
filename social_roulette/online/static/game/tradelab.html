@@ -84,9 +84,10 @@
     if (!band.mine) return;                                    // not your turn — hub is dim
     const th = openTh("YOUR MOVE");
     th.show(() => {
-      const rows = [{ label: "ITEM", dim: true },              // dimmed: out of this sample's scope
-        pendingOut ? { label: "WITHDRAW OFFER" } : { label: "TRADE", trade: true },
-        { label: "PROCEED", bright: true }];
+      const rows = [{ label: "ITEM", dim: true, sub: "OPEN YOUR KIT" },   // dimmed: out of scope here
+        pendingOut ? { label: "WITHDRAW OFFER", sub: "PULL YOUR OFFER BACK" }
+          : { label: "TRADE", trade: true, sub: "PRIVATE OFFER TO A TEAMMATE" },
+        { label: "PROCEED", bright: true, sub: "GO SILENT — DECIDE" }];
       th.list("MOVE", "", rows);
       th.onRow = async (i) => {
         if (rows[i].trade) {
@@ -109,16 +110,16 @@
   /* ---- the offer builder (same as threadlab) ---- */
   function offer(th, to) {
     const bag = { GIVE: {}, WANT: {} };
-    const sum = (b) => Object.entries(b).filter(([, c]) => c > 0)
-      .map(([en, c]) => c + " " + iname(en)).join(" · ") || "NOTHING";
     const phaseStep = (phase) => th.show(() => renderPhase(phase));
     function renderPhase(phase) {
       const cur = bag[phase], last = phase === "WANT";
       const rows = ORDER.map((en) => ({ en, label: iname(en),
         badge: cur[en] ? "×" + cur[en] : "",
         bright: phase === "GIVE" && OWN[en] > 0 }));
-      rows.push({ go: true, label: last ? "SEND OFFER ▸" : "CONTINUE ▸", bright: true });
-      th.swap(phase, (last ? "WANT ← " : "GIVE → ") + name(to) + " · " + sum(cur).slice(0, 26), rows);
+      rows.push({ dot: true },
+        { go: true, label: last ? "SEND OFFER ▸" : "CONTINUE ▸", bright: true,
+          sub: last ? "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" : "NEXT — WHAT YOU WANT BACK" });
+      th.swap(phase, (last ? "WANT ← " : "GIVE → ") + name(to), rows);
       th.onRow = async (i) => {
         if (rows[i].go) {
           await th.lock(i);
@@ -181,6 +182,7 @@
           { info: true, label: "THEY GIVE: 2 MAGNET" },
           { info: true, label: "THEY WANT: 1 SPYCAM" },
           { info: true, label: "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" },
+          { dot: true },
           { label: "✓ ACCEPT", bright: true }, { label: "✕ DECLINE" }];
         th.list("OFFER", name(2) + " OFFERS · PRIVATE", rows);
         th.onRow = async (i) => {
