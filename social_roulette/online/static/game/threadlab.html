@@ -14,9 +14,10 @@
 </style>
 </head><body>
 <div id="bar">
-  <button data-f="talk">TALK</button><button data-f="talkr">TALK·R</button>
-  <button data-f="decide">DECIDE</button><button data-f="kit">KIT</button>
-  <button data-f="ledger">LEDGER</button><button data-f="offerin">OFFER·IN</button>
+  <button data-f="move">MOVE</button><button data-f="mover">MOVE·R</button>
+  <button data-f="decide">DECIDE</button><button data-f="trade">TRADE</button>
+  <button data-f="kit">KIT</button><button data-f="ledger">LEDGER</button>
+  <button data-f="offerin">OFFER·IN</button>
 </div>
 <div id="wrap"><div id="stage" style="width:100%;height:100%"></div></div>
 <script src="/static/vendor/phaser.min.js"></script>
@@ -144,30 +145,40 @@
     phaseStep("GIVE");
   }
 
-  /* ---- roots ---- */
-  function talk(offerOut) {
+  /* ---- roots (headerless — the list IS your move; no TALK wording, talk = the running timer) ---- */
+  async function tradeFlow(th, i) {
+    const id = await th.pickSeat("trade", MATES, "TRADE — TAP A TEAMMATE");
+    if (id == null) return;
+    if (i != null) await th.lock(i);
+    offer(th, id);
+  }
+  function move(offerOut) {
     const th = openTh("YOUR MOVE");
     th.show(() => {
       const rows = [{ label: "ITEM" },
         offerOut ? { label: "RECALL", recall: true } : { label: "TRADE", trade: true },
         { label: "PROCEED", bright: true }];
-      th.list("MOVE", "TALK", rows);
+      th.list("MOVE", "", rows);
       th.onRow = async (i) => {
-        if (rows[i].trade) {
-          const id = await th.pickSeat("trade", MATES, "TRADE — TAP A TEAMMATE");
-          if (id == null) return;
-          await th.lock(i); offer(th, id);
-        } else if (rows[i].recall) { await th.lock(i); confirmStep(th, "RECALL YOUR OFFER"); }
+        if (rows[i].trade) { await tradeFlow(th, i); }
+        else if (rows[i].recall) { await th.lock(i); confirmStep(th, "RECALL YOUR OFFER"); }
         else if (rows[i].label === "ITEM") { await th.lock(i); kitUse(th); }
         else { await th.lock(i); closeSoon(); }                // PROCEED — no ceremony
       };
+    });
+    return th;
+  }
+  function tradeDirect() {                                     // straight into the builder
+    const th = move(false);
+    scene.time.delayedCall(800, () => {                        // after the root decodes: auto-tap TRADE
+      if (scene._thread === th && th.onRow && !th._act) th.onRow(1);
     });
   }
   function decide() {
     const th = openTh("YOUR MOVE");
     th.show(() => {
       const rows = [{ label: "SHOOT", bright: true }, { label: "FLIP" }, { label: "ITEM" }];
-      th.list("MOVE", "DECIDE", rows);
+      th.list("MOVE", "", rows);
       th.onRow = async (i) => {
         if (i === 0) {
           const id = await th.pickSeat("shoot", FOES, "SHOOT — TAP A TARGET");
@@ -212,7 +223,8 @@
     });
   }
 
-  const FLOWS = { talk: () => talk(false), talkr: () => talk(true), decide, kit: kitInfo, ledger, offerin: offerIn };
+  const FLOWS = { move: () => move(false), mover: () => move(true), decide,
+    trade: tradeDirect, kit: kitInfo, ledger, offerin: offerIn };
   document.querySelectorAll("#bar button").forEach((b) =>
     b.onclick = () => scene && FLOWS[b.dataset.f]());
 

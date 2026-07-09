@@ -257,6 +257,9 @@
         this._shuffled(n).forEach((r, i) => { slots[i].at = (r / n) * D; });
         const t0 = this.time.now;
         const ev = this.time.addEvent({ delay: 33, loop: true, callback: () => {
+          if (!txtObj.scene) {                                 // target died mid-decode (menu closed)
+            ev.remove(); slots.forEach((s) => s.t.destroy()); resolve(); return;
+          }
           const el = this.time.now - t0;
           let done = true;
           for (const s of slots) {
@@ -282,6 +285,9 @@
         slots.forEach((s) => s.t.setText(s.ch));
         const t0 = this.time.now;
         const ev = this.time.addEvent({ delay: 33, loop: true, callback: () => {
+          if (!txtObj.scene) {                                 // target died mid-dissolve
+            ev.remove(); slots.forEach((s) => s.t.destroy()); resolve(); return;
+          }
           const el = this.time.now - t0;
           let live = false;
           for (const s of slots) {
@@ -608,12 +614,16 @@
         else if (mode === "fade") { hy = th.cursorY; rowH = items.length >= 6 ? 36 : 44; fs = 14; }
         else { hx = colX(th.steps); hy = 128; rowH = 30; fs = 9; header = key; }
         backB.setAlpha(th.steps ? 1 : 0.3);
-        st.headT = mk(this.add.text(hx, hy, header, style(mode === "cols" ? 9 : 10, "#aaaaaa"))
-          .setOrigin(0.5).setResolution(2).setDepth(22).setLetterSpacing(2).setAlpha(0));
-        this.tweens.add({ targets: st.headT, alpha: 1, duration: 140 });
+        st.hy = hy;
+        if (header) {                                          // roots go headerless — the list IS the move
+          st.headT = mk(this.add.text(hx, hy, header, style(mode === "cols" ? 9 : 10, "#aaaaaa"))
+            .setOrigin(0.5).setResolution(2).setDepth(22).setLetterSpacing(2).setAlpha(0));
+          this.tweens.add({ targets: st.headT, alpha: 1, duration: 140 });
+        }
+        const off = header ? 34 : 14;
         const proms = [];
         items.forEach((it, i) => {
-          const y = hy + 34 + i * rowH;
+          const y = hy + off + i * rowH;
           const txt = it.badge ? it.label + "  " + it.badge : it.label;
           const col = it.info ? "#aaaaaa" : (it.dim ? "#ffffff" : (it.bright ? "#ffffff" : "#cccccc"));
           const t = mk(this.add.text(hx, y, "", style(it.info ? fs - 4 : fs, col))
@@ -636,15 +646,20 @@
           }
           const hit = mk(this.add.rectangle(hx, y, mode === "cols" ? 92 : W - 60, rowH - 4, 0xffffff, 0.001)
             .setDepth(22).setName("trow"));
-          if (!it.dim && !it.info) hit.setInteractive().on("pointerdown", () => {
-            if (th._act || !th.onRow) return;                  // double-tap guard: one action in flight
-            th._act = true;
-            Promise.resolve(th.onRow(i)).catch(() => {}).then(() => { th._act = false; });
-          });
           st.rows.push({ t, it }); st.hits.push(hit);
         });
         th.active = st;
-        return Promise.all(proms);
+        return Promise.all(proms).then(() => {                 // rows arm only once fully landed
+          if (th.active !== st) return;
+          st.rows.forEach((r, i) => {
+            if (r.it.dim || r.it.info || !st.hits[i].scene) return;
+            st.hits[i].setInteractive().on("pointerdown", () => {
+              if (th._act || !th.onRow) return;                // double-tap guard: one action in flight
+              th._act = true;
+              Promise.resolve(th.onRow(i)).catch(() => {}).then(() => { th._act = false; });
+            });
+          });
+        });
       };
 
       th.lock = async (i) => {                                 // pick row i → lock it, retire the list
@@ -658,19 +673,20 @@
         await this.w(150);
         this.tweens.add({ targets: flash, alpha: 0, duration: 130, onComplete: () => flash.destroy() });
         pick.t.setColor("#ffffff").setStroke("#000000", 6);
-        const others = st.rows.filter((_, k) => k !== i).map((r) => r.t);
+        const others = st.rows.filter((_, k) => k !== i).map((r) => r.t)
+          .concat(st.headT ? [st.headT] : []);
         if (mode === "stack") {                                // picked row rises into the breadcrumb line
           const cy = 138 + th.steps * 30;
-          this.tweens.add({ targets: others.concat([st.headT]), alpha: 0, duration: 150 });
+          this.tweens.add({ targets: others, alpha: 0, duration: 150 });
           await new Promise((r) => this.tweens.add({ targets: pick.t, x: W / 2, y: cy, scale: 12 / 15,
             duration: 240, ease: "Cubic.easeInOut", onComplete: r }));
           pick.t.destroy();
           st.crumb = mk(this.add.text(W / 2, cy, st.key + " ▸ " + pick.it.label, style(12))
             .setOrigin(0.5).setResolution(2).setDepth(22));
-          others.concat([st.headT]).forEach((o) => o.destroy());
+          others.forEach((o) => o.destroy());
         } else if (mode === "fade") {                          // list compresses in place, siblings ghost
-          const base = st.headT.y + 22;
-          st.headT.setAlpha(0.55).setScale(0.85);
+          const base = st.headT ? st.headT.y + 22 : st.hy + 4;
+          if (st.headT) st.headT.setAlpha(0.55).setScale(0.85);
           st.rows.forEach((r, k) => {
             r.t.setText((k === i ? "▸ " : "") + r.t.text);
             this.tweens.add({ targets: r.t, y: base + k * 24, scale: 0.72,
@@ -679,7 +695,7 @@
           th.cursorY = base + st.rows.length * 24 + 20;
           await this.w(240);
         } else {                                               // cols: the column dims, pick stays lit
-          st.headT.setAlpha(0.4);
+          if (st.headT) st.headT.setAlpha(0.4);
           st.rows.forEach((r, k) => {
             if (k === i) { r.t.setText("▸ " + r.t.text);
               r.t.setX(Math.min(Math.max(r.t.x, r.t.width / 2 + 4), W - r.t.width / 2 - 4)); }
