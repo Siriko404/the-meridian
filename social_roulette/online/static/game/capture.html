@@ -258,6 +258,26 @@
       await th.list("GO", "CONFIRM — TRADE → C.W.", GO_ROWS()); await s.w(700);
       await th.lock(0); await s.w(400); s.closeThread(); await s.w(200);
     },
+    // ---- YOUR MOVE redesign candidates ----
+    move_r1: async (s) => {                                   // A: ticket double-rules
+      s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
+      const th = s.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE", rules: true });
+      await th.list("MOVE", "", MOVE_TALK());
+      await s.w(1300); await th.lock(0); await s.w(700); s.closeThread(); await s.w(200);
+    },
+    move_r2: async (s) => {                                   // B: whisper captions
+      s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
+      const th = s.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE" });
+      await th.list("MOVE", "", MOVE_TALK(true));
+      await s.w(1500); await th.lock(0); await s.w(700); s.closeThread(); await s.w(200);
+    },
+    move_r3: async (s) => {                                   // C: rules + captions + ticks on default
+      s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
+      const th = s.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE", rules: true });
+      const rows = MOVE_TALK(true); rows[2].frame = true;
+      await th.list("MOVE", "", rows);
+      await s.w(1500); await th.lock(0); await s.w(700); s.closeThread(); await s.w(200);
+    },
     // ---- OVERHAUL samples: every menu, filmed for ratification ----
     thread_talk: async (s) => {                               // talk root → PROCEED
       const th = threadOpen(s);
@@ -448,6 +468,10 @@
     return s.openThread({ mode: "fade", anim: "decode", title, abortLabel });
   }
   const MOVE_ROWS = () => [{ label: "SHOOT", bright: true }, { label: "ITEM" }, { label: "TRADE" }];
+  const MOVE_TALK = (subs) => [
+    { label: "ITEM", sub: subs ? "OPEN YOUR KIT" : undefined },
+    { label: "TRADE", sub: subs ? "PRIVATE OFFER TO A TEAMMATE" : undefined },
+    { label: "PROCEED", bright: true, sub: subs ? "GO SILENT — DECIDE" : undefined }];
   const GO_ROWS = () => [{ label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN" }];
   const KIT_ROWS = () => [
     { label: "MAGNET", badge: "×1" }, { label: "SEDATIVE", badge: "×1", bright: true },

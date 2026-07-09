@@ -627,7 +627,19 @@
             .setOrigin(0.5).setResolution(2).setDepth(22).setLetterSpacing(2));
           this.decode(st.headT, header, fast ? 130 : 200);
         }
+        if (mode === "fade" && items.some((i) => i.sub)) rowH = 58;   // room for whisper captions
         const off = header ? 34 : 14;
+        if (opts.rules && mode === "fade") {                   // ticket double-rules framing the list
+          const yTop = header ? hy + 18 : hy - (rowH === 58 ? 16 : 8);
+          const yBot = hy + off + items.length * rowH - rowH / 2 + 10;
+          const rule = (yy) => { const g = this.add.graphics().setDepth(22).setAlpha(0);
+            g.lineStyle(2, WHITE, 0.8);
+            g.lineBetween(W / 2 - 120, yy, W / 2 + 120, yy);
+            g.lineBetween(W / 2 - 120, yy + 4, W / 2 + 120, yy + 4);
+            this.tweens.add({ targets: g, alpha: 1, duration: 300 });
+            return mk(g); };
+          st.rules = [rule(yTop), rule(yBot)];
+        }
         const proms = [];
         items.forEach((it, i) => {
           const y = hy + off + i * rowH - (it.tight ? 8 : 0);
@@ -648,6 +660,15 @@
           const t = mk(this.add.text(hx, y, "", style(it.info ? fs - 4 : fs, col))
             .setOrigin(0.5).setResolution(2).setDepth(22));
           if (it.dim) t.setAlpha(0.3);
+          let subT = null;
+          if (it.sub) {                                        // whisper caption under the verb
+            subT = mk(this.add.text(hx, y + 20, "", style(8, "#aaaaaa", { strokeThickness: 4 }))
+              .setOrigin(0.5).setResolution(2).setDepth(22).setLetterSpacing(1));
+            if (it.dim) subT.setAlpha(0.3);
+            proms.push(new Promise((r) => this.time.delayedCall(fast ? 0 : i * 60 + 90, () =>
+              this.decode(subT, it.sub, fast ? 130 : 220).then(r))));
+          }
+          if (subT) t.setY(y - 6);                             // pair: verb up, whisper below
           if (anim === "decode" || fast) {                     // EVERY text decodes; swaps just decode FAST
             proms.push(new Promise((r) => this.time.delayedCall(fast ? 0 : i * 60, () =>
               this.decode(t, txt, fast ? 130 : 260).then(r))));
@@ -661,12 +682,24 @@
           }
           const hit = mk(this.add.rectangle(hx, y, mode === "cols" ? 92 : W - 60, rowH - 4, 0xffffff, 0.001)
             .setDepth(22).setName("trow"));
-          st.rows.push({ t, it }); st.hits.push(hit);
+          st.rows.push({ t, it, extra: subT ? [subT] : undefined }); st.hits.push(hit);
         });
         th.active = st;
         return Promise.all(proms).then(() => {                 // rows arm only once fully landed
           if (th.active !== st) return;
           st.rows.forEach((r, i) => {
+            if (r.it.frame && r.t.scene) {                     // corner ticks around the default verb
+              const g = this.add.graphics().setDepth(22);
+              const hw = r.t.width / 2 + 18, hh = 19, x = r.t.x, y = r.t.y;
+              [[-hw, -hh, 1, 1], [hw, -hh, -1, 1], [-hw, hh, 1, -1], [hw, hh, -1, -1]]
+                .forEach(([dx, dy, sx, sy]) => {
+                  g.lineStyle(2, WHITE, 0.95);
+                  g.lineBetween(x + dx, y + dy, x + dx + sx * 10, y + dy);
+                  g.lineBetween(x + dx, y + dy, x + dx, y + dy + sy * 8);
+                });
+              g.setAlpha(0); this.tweens.add({ targets: g, alpha: 1, duration: 200 });
+              mk(g); (r.extra = r.extra || []).push(g);
+            }
             if (r.it.dim || r.it.info || r.it.split || r.it.still || !st.hits[i].scene) return;
             st.hits[i].setInteractive().on("pointerdown", () => {
               if (th._act || !th.onRow) return;                // double-tap guard: one action in flight
@@ -681,6 +714,10 @@
         const st = th.active; if (!st) return;
         const pick = st.rows[i];
         st.hits.forEach((h) => h.disableInteractive());
+        const deco = (st.rules || []).concat(...st.rows.map((r) => r.extra || []));
+        st.rules = null; st.rows.forEach((r) => { r.extra = null; });   // dressings don't ghost
+        deco.forEach((o) => this.tweens.add({ targets: o, alpha: 0, duration: 150,
+          onComplete: () => o.destroy() }));
         const flash = mk(this.add.rectangle(pick.t.x, pick.t.y, pick.t.width + 22, pick.t.height + 4, 0xffffff)
           .setDepth(22));
         this.children.bringToTop(pick.t);
@@ -730,6 +767,7 @@
         st.hits.forEach((h) => h.destroy());
         if (st.headT) st.headT.destroy();
         if (st.crumb) st.crumb.destroy();
+        if (st.rules) st.rules.forEach((o) => o.destroy());
       };
       th.back = () => {                                        // rewind ONE step; caller re-lists it
         th._kill(th.active); th.active = null;
