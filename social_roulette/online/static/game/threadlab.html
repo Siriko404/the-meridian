@@ -157,12 +157,12 @@
     const th = openTh("YOUR MOVE");
     th.show(() => {
       const rows = [{ label: "ITEM" },
-        offerOut ? { label: "RECALL", recall: true } : { label: "TRADE", trade: true },
+        offerOut ? { label: "WITHDRAW OFFER", recall: true } : { label: "TRADE", trade: true },
         { label: "PROCEED", bright: true }];
       th.list("MOVE", "", rows);
       th.onRow = async (i) => {
         if (rows[i].trade) { await tradeFlow(th, i); }
-        else if (rows[i].recall) { await th.lock(i); confirmStep(th, "RECALL YOUR OFFER"); }
+        else if (rows[i].recall) { await th.lock(i); closeSoon(); }   // real: immediate, no ceremony
         else if (rows[i].label === "ITEM") { await th.lock(i); kitUse(th); }
         else { await th.lock(i); closeSoon(); }                // PROCEED — no ceremony
       };

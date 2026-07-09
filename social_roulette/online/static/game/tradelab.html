@@ -1,0 +1,220 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>TRADE LAB</title>
+<!-- DEV-ONLY: the WHOLE trade lifecycle, beat-exact to the real game (room.py 163-207 + choreo tradeBeat).
+     SEND: tap the center hub on your turn -> TRADE -> ants -> GIVE/WANT -> SEND. The offer hangs; the
+     bot answers in ~2.6s (accept: item flights + MADE AN EXCHANGE / decline: OFFER DECLINED). Until it
+     answers you can reopen the hub and WITHDRAW (silent, exactly like trade_withdraw). PROCEED voids
+     the offer silently (leaving talk expires it). RECEIVE: the bot's turn - the respond sheet just
+     arrives, exactly as pending_offer rides the view. -->
+<style>
+  html,body{margin:0;height:100%;background:#000;font-family:Georgia,'Times New Roman',serif}
+  #bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:6px;background:#000}
+  #bar button{background:#000;color:#fff;border:2px solid #fff;font:bold 12px Georgia,serif;
+    letter-spacing:1px;padding:5px 8px;cursor:pointer}
+  #wrap{position:absolute;top:42px;bottom:0;left:0;right:0}
+</style>
+</head><body>
+<div id="bar">
+  <button data-f="sendA">SEND · BOT ACCEPTS</button>
+  <button data-f="sendD">SEND · BOT DECLINES</button>
+  <button data-f="recv">RECEIVE OFFER</button>
+</div>
+<div id="wrap"><div id="stage" style="width:100%;height:100%"></div></div>
+<script src="/static/vendor/phaser.min.js"></script>
+<script>
+  for (const f of ["theme", "dice", "net", "scene", "choreo", "trays"])
+    document.write('<script src="/static/game/js/' + f + '.js?cb=' + Date.now() + '"><\/script>');
+</script>
+<script>
+(function () {
+  "use strict";
+  const BASE = {
+    you: 0, order: [0, 1, 2, 3, 4], current: 0, winner: null, gen: 1,
+    phase: "talk", phase_ends_at: null, server_now: 0, bonus: false, extra_turn: false,
+    saw_active: false, teams_active: true, flipback_discount: false,
+    use_counts: {}, use_limit: 6, feed: [],
+    players: [
+      { id: 0, team: "RED",  lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 1, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 2, team: "RED",  lives: 2, alive: true, handcuffed: false, immune_from: [] },
+      { id: 3, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 4, team: "RED",  lives: 1, alive: true, handcuffed: false, immune_from: [] },
+    ],
+    your_hand: { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1 }, item_counts: {}, peek: "unknown",
+  };
+  const ROSTER = { "0": "S.S." };
+  const ORDER = ["BEER", "HANDCUFFS", "MAGNIFIER", "SAW", "CIGARETTES", "IMMUNITY"];
+  const OWN = { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1, SAW: 0, CIGARETTES: 0, IMMUNITY: 0 };
+  const MATES = [2, 4];
+  let scene = null;
+  const name = (id) => THEME.seatName(id, ROSTER);
+  const iname = (en) => THEME.ITEMS[en].name;
+
+  /* ---- the live band: ticks like the real timer; stands down during beats (drain parity) ---- */
+  const band = { secs: 52, mine: true, on: true };
+  function tickBand() {
+    if (!scene || !band.on) return;
+    if (band.secs > 0) band.secs--;
+    scene.setBand({ phase: "talk", secs: band.secs,
+      name: (band.mine ? "YOUR TURN · " : "") + (band.mine ? "S.S." : "C.W."), note: "" });
+  }
+  setInterval(tickBand, 1000);
+  const standDown = () => { band.on = false; scene.setBand({ phase: null }); };
+  const resume = () => { band.on = true; tickBand(); };
+
+  /* ---- outbound offer state (mirrors room.pending_offer from the sender's side) ---- */
+  let pendingOut = null, botTimer = null, botAnswer = "accept";
+
+  function openTh(title) {
+    const th = scene.openThread({ mode: "fade", anim: "decode", title });
+    th._hist = [];
+    th.show = (fn) => { th._hist.push(fn); fn(); };
+    th.onBack = () => {
+      if (th._pop) { const f = th._pop; th._pop = null; f(); return; }
+      if (th._hist.length < 2) return;
+      th.back(); th._hist.pop(); th._hist[th._hist.length - 1]();
+    };
+    return th;
+  }
+
+  /* ---- the root, exactly as the wired game will build it ---- */
+  function openRoot() {
+    if (!band.mine) return;                                    // not your turn — hub is dim
+    const th = openTh("YOUR MOVE");
+    th.show(() => {
+      const rows = [{ label: "ITEM", dim: true },              // dimmed: out of this sample's scope
+        pendingOut ? { label: "WITHDRAW OFFER" } : { label: "TRADE", trade: true },
+        { label: "PROCEED", bright: true }];
+      th.list("MOVE", "", rows);
+      th.onRow = async (i) => {
+        if (rows[i].trade) {
+          const id = await th.pickSeat("trade", MATES, "TRADE — TAP A TEAMMATE");
+          if (id == null) return;
+          await th.lock(i); offer(th, id);
+        } else if (i === 1) {                                  // WITHDRAW: immediate + silent (real)
+          await th.lock(i);
+          pendingOut = null; if (botTimer) { botTimer.remove(); botTimer = null; }
+          scene.time.delayedCall(400, () => scene.closeThread());
+        } else if (i === 2) {                                  // PROCEED voids a pending offer silently
+          await th.lock(i);
+          pendingOut = null; if (botTimer) { botTimer.remove(); botTimer = null; }
+          scene.time.delayedCall(400, () => scene.closeThread());
+        }
+      };
+    });
+  }
+
+  /* ---- the offer builder (same as threadlab) ---- */
+  function offer(th, to) {
+    const bag = { GIVE: {}, WANT: {} };
+    const sum = (b) => Object.entries(b).filter(([, c]) => c > 0)
+      .map(([en, c]) => c + " " + iname(en)).join(" · ") || "NOTHING";
+    const phaseStep = (phase) => th.show(() => renderPhase(phase));
+    function renderPhase(phase) {
+      const cur = bag[phase], last = phase === "WANT";
+      const rows = ORDER.map((en) => ({ en, label: iname(en),
+        badge: cur[en] ? "×" + cur[en] : "",
+        bright: phase === "GIVE" && OWN[en] > 0 }));
+      rows.push({ go: true, label: last ? "SEND OFFER ▸" : "CONTINUE ▸", bright: true });
+      th.swap(phase, (last ? "WANT ← " : "GIVE → ") + name(to) + " · " + sum(cur).slice(0, 26), rows);
+      th.onRow = async (i) => {
+        if (rows[i].go) {
+          await th.lock(i);
+          if (!last) { phaseStep("WANT"); return; }
+          send(to, bag);                                       // SEND — the thread closes, the offer hangs
+          scene.time.delayedCall(400, () => scene.closeThread());
+          return;
+        }
+        const en = rows[i].en;
+        th._pop = () => renderPhase(phase);
+        const cnt = [0, 1, 2, 3].map((k) => ({ label: String(k),
+          bright: phase === "GIVE" && k === OWN[en] }));
+        if (phase === "GIVE") cnt.push({ info: true, label: "YOU HOLD ×" + OWN[en] });
+        th.swap("N", iname(en) + " — HOW MANY?", cnt);
+        th.onRow = (k) => { bag[phase][en] = k; th._pop = null; renderPhase(phase); };
+      };
+    }
+    phaseStep("GIVE");
+  }
+
+  /* ---- send → the bot answers in ~2.6s (unless you WITHDRAW or PROCEED first) ---- */
+  function send(to, bag) {
+    pendingOut = { to, bag };
+    botTimer = scene.time.delayedCall(2600, () => {
+      botTimer = null;
+      if (!pendingOut) return;                                 // withdrawn/voided — no response ever
+      const { to: t, bag: b } = pendingOut;
+      pendingOut = null;
+      if (botAnswer === "accept") settle(0, t, b.GIVE, b.WANT);
+      else declined();
+    });
+  }
+
+  /* ---- the EXACT beats (choreo tradeBeat, parties branch) ---- */
+  async function settle(actor, target, give, want) {
+    standDown();
+    await scene.dialTo(actor);                                 // trades play on the actor's turn — show it
+    for (const [en, c] of Object.entries(give))
+      for (let k = 0; k < c; k++) await scene.iconFly(THEME.ITEMS[en].icon, actor, target, iname(en));
+    for (const [en, c] of Object.entries(want))
+      for (let k = 0; k < c; k++) await scene.iconFly(THEME.ITEMS[en].icon, target, actor, iname(en));
+    await scene.toast(name(actor) + " AND " + name(target) + " MADE AN EXCHANGE", 1500);
+    resume();
+  }
+  async function declined() {
+    standDown();
+    await scene.toast("OFFER DECLINED", 1800);                 // parties-only private note
+    resume();
+  }
+
+  /* ---- inbound: the bot's turn — the respond sheet just ARRIVES (pending_offer rides the view) ---- */
+  function receive() {
+    band.mine = false; band.secs = 41; tickBand();
+    scene.setAction("· · ·", false);
+    scene.dialTo(2);
+    scene.time.delayedCall(1800, () => {
+      const th = openTh("INCOMING OFFER");
+      th.show(() => {
+        const rows = [
+          { info: true, label: "THEY GIVE: 2 MAGNET" },
+          { info: true, label: "THEY WANT: 1 SPYCAM" },
+          { info: true, label: "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" },
+          { label: "✓ ACCEPT", bright: true }, { label: "✕ DECLINE" }];
+        th.list("OFFER", name(2) + " OFFERS · PRIVATE", rows);
+        th.onRow = async (i) => {
+          await th.lock(i);
+          scene.time.delayedCall(350, async () => {
+            scene.closeThread();
+            if (rows[i].label === "✓ ACCEPT") await settle(2, 0, { BEER: 2 }, { MAGNIFIER: 1 });
+            else await declined();
+            band.mine = true; band.secs = 52; scene.dialTo(0);
+            scene.setAction("YOUR\nMOVE", true); tickBand();
+          });
+        };
+      });
+    });
+  }
+
+  const FLOWS = {
+    sendA: () => { botAnswer = "accept"; band.mine = true; scene.setAction("YOUR\nMOVE", true); scene.dialTo(0); openRoot(); },
+    sendD: () => { botAnswer = "decline"; band.mine = true; scene.setAction("YOUR\nMOVE", true); scene.dialTo(0); openRoot(); },
+    recv: receive,
+  };
+  document.querySelectorAll("#bar button").forEach((b) =>
+    b.onclick = () => scene && FLOWS[b.dataset.f]());
+
+  SCENE.ready = (s) => {
+    scene = s; s.render(BASE, ROSTER); s.setAction("YOUR\nMOVE", true);
+    s.onAction = openRoot;                                     // the REAL entry: tap the center hub
+    s.dialTo(0); tickBand();
+  };
+  new Phaser.Game({
+    type: Phaser.AUTO, parent: "stage", width: SCENE.W, height: SCENE.H,
+    backgroundColor: "#000000", pixelArt: true,
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scene: SCENE.TableScene,
+  });
+})();
+</script></body></html>

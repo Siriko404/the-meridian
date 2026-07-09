@@ -264,12 +264,10 @@
       await th.list("MOVE", "", [{ label: "ITEM" }, { label: "TRADE" }, { label: "PROCEED", bright: true }]);
       await s.w(900); await th.lock(2); await s.w(400); s.closeThread(); await s.w(200);
     },
-    thread_talkr: async (s) => {                              // offer out → RECALL + confirm
+    thread_talkr: async (s) => {                              // offer out → WITHDRAW (immediate, no ceremony)
       const th = threadOpen(s);
-      await th.list("MOVE", "", [{ label: "ITEM" }, { label: "RECALL" }, { label: "PROCEED", bright: true }]);
-      await s.w(800); await th.lock(1);
-      await th.list("GO", "CONFIRM — RECALL YOUR OFFER", GO_ROWS());
-      await s.w(800); await th.lock(0); await s.w(400); s.closeThread(); await s.w(200);
+      await th.list("MOVE", "", [{ label: "ITEM" }, { label: "WITHDRAW OFFER" }, { label: "PROCEED", bright: true }]);
+      await s.w(900); await th.lock(1); await s.w(400); s.closeThread(); await s.w(200);
     },
     thread_decide: async (s) => {                             // decision root
       const th = threadOpen(s);
