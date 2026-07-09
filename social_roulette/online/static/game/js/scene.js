@@ -201,6 +201,25 @@
       }
       this.bandLine2.setText(o.name || "");
       this.bandNote.setText(o.note || "");
+      const th = this._thread;                                 // the menu's own burning circle —
+      if (th && th._clock) {                                   // the player ALWAYS sees the timer
+        if (left == null) th._clock.cont.setVisible(false);
+        else {
+          const red = left <= DEC, col = red ? RED : WHITE;
+          th._clock.cont.setVisible(true);
+          const g = th._clock.g, SEG = 24, R = 17;
+          const lit = Math.ceil((left / TOTAL) * SEG);
+          g.clear();
+          for (let k = 0; k < SEG; k++) {                      // pixel-faceted ring of chords;
+            const a0 = -Math.PI / 2 + (k * 2 * Math.PI) / SEG + 0.06;   // burned segments go dark
+            const a1 = -Math.PI / 2 + ((k + 1) * 2 * Math.PI) / SEG - 0.06;
+            g.lineStyle(4, col, k < lit ? 1 : 0.15);
+            g.lineBetween(Math.cos(a0) * R, Math.sin(a0) * R, Math.cos(a1) * R, Math.sin(a1) * R);
+          }
+          th._clock.t.setText(o.secs != null ? String(o.secs) : "")
+            .setColor(red ? "#c8102e" : "#ffffff");
+        }
+      }
     }
     setCode(code) { this._code = code; this.bandCode.setText(code || ""); }
     setTicker(s) { this.ticker.setText(s.length > 38 ? s.slice(0, 37) + "…" : s); }
@@ -599,6 +618,8 @@
         .setOrigin(0.5).setResolution(2).setDepth(22).setLetterSpacing(3));
       this.decode(title, opts.title || "", 340);
       const dockCover = mk(this.add.rectangle(W / 2, (700 + H) / 2, W, H - 700, 0x000000, 1).setDepth(21));
+      const topCover = mk(this.add.rectangle(W / 2, 62, W, 124, 0x000000, 1).setDepth(21));  // the bar
+      // sleeps behind this while the menu's own burn-circle carries the time (ducks reveal it again)
       const abort = mk(this.add.text(W / 2 + 80, 776, "", style(12, "#aaaaaa")).setOrigin(0.5)
         .setResolution(2).setDepth(22));
       this.decode(abort, opts.abortLabel || "✕ ABORT", 240).then(() => { if (abort.scene)
@@ -611,7 +632,13 @@
           .on("pointerdown", () => { if (!th._act && th.steps && th.onBack) th.onBack(); }); });
       const arrowWas = this._arrow && this._arrow.visible;     // board bleed-through garbles thread copy
       if (arrowWas) this._arrow.setVisible(false);
-      const th = { steps: 0, cursorY: 96, active: null, own, scrim, abort, arrowWas, _sections: [] };
+      const clockC = mk(this.add.container(W / 2, 98).setDepth(22).setVisible(false));
+      const clockG = this.add.graphics();                      // the menu burn-circle (fed by setBand)
+      const clockT = this.add.text(0, 0, "", style(10, "#ffffff", { strokeThickness: 3 }))
+        .setOrigin(0.5).setResolution(2);
+      clockC.add([clockG, clockT]);
+      const th = { steps: 0, cursorY: 96, active: null, own, scrim, abort, arrowWas, _sections: [],
+        _clock: { cont: clockC, g: clockG, t: clockT } };
       const colX = (k) => 52 + k * 96;
 
       th.list = (key, header, items, fast) => {                // render the ACTIVE list
@@ -780,15 +807,15 @@
         backB.setAlpha(1);
       };
 
-      const FIXED = new Set([scrim, dockCover, abort, backB]); // chrome never slides
+      const FIXED = new Set([scrim, dockCover, topCover, abort, backB, clockC]);  // chrome never slides
       th._slide = (dy) => {                                    // move the whole trail (ghosts, crumbs, title)
         own.forEach((o) => {
           if (FIXED.has(o) || !o.scene || o.y == null) return;
           if (o._ba == null) o._ba = o.alpha;                  // remember the resting alpha
           if (o._oy == null) o._oy = o.y;                      // and the home position
           o._ty = (o._ty == null ? o.y : o._ty) + dy;          // settled target — overlapping slides
-          this.tweens.add({ targets: o, y: o._ty, alpha: o._ty < 70 ? 0 : o._ba,   // can't drift
-            duration: 240, ease: "Cubic.easeInOut" });
+          this.tweens.add({ targets: o, y: o._ty, alpha: o._ty < 134 ? 0 : o._ba,  // can't drift; fade
+            duration: 240, ease: "Cubic.easeInOut" });         // BEFORE the burn-circle zone
         });
         th._sections.forEach((s) => { s.baseY += dy; s.hy += dy; });
         th.cursorY += dy;
@@ -832,8 +859,8 @@
 
       th.pickSeat = (kind, ids, note) => new Promise((resolve) => {
         own.forEach((o) => { if (o !== dockCover && o.setVisible) o.setVisible(false); });  // duck — board is the menu
-        const ribbon = this.add.text(W / 2, 86, "", style(13, "#ffffff", { align: "center" }))
-          .setOrigin(0.5).setResolution(2).setDepth(22);
+        const ribbon = this.add.text(W / 2, 116, "", style(13, "#ffffff", { align: "center" }))
+          .setOrigin(0.5).setResolution(2).setDepth(22);       // clear of the live band during the duck
         this.decode(ribbon, note, 260);
         const cancel = this.add.text(W / 2, 776, "", style(12, "#aaaaaa")).setOrigin(0.5)
           .setResolution(2).setDepth(22);

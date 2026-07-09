@@ -238,7 +238,7 @@
     thread_decode: (s) => threadDemo(s, "stack", "decode"),
     // ---- RATIFIED combo (fade+decode) + seat-pick conventions ----
     thread_shoot: async (s) => {                              // red target frame
-      const th = threadOpen(s);
+      const th = threadOpen(s, "decision");
       await th.list("MOVE", "", DEC_ROWS()); await s.w(600);
       const p = th.pickSeat("shoot", [0, 1, 3], "SHOOT — TAP A TARGET");
       await s.w(1300); th._pickDone(3); await p;
@@ -292,12 +292,12 @@
       await s.w(900); await th.lock(1); await s.w(400); s.closeThread(); await s.w(200);
     },
     thread_decide: async (s) => {                             // decision root — B design
-      const th = threadOpen(s);
+      const th = threadOpen(s, "decision");
       await th.list("MOVE", "", DEC_ROWS());
       await s.w(1500); s.closeThread(); await s.w(200);
     },
     thread_flip: async (s) => {                               // flip: red pick → PAY builder
-      const th = threadOpen(s);
+      const th = threadOpen(s, "decision");
       await th.list("MOVE", "", DEC_ROWS());
       await s.w(600);
       const p = th.pickSeat("flip", [0, 1, 2, 3, 4], "FLIP — TAP A TARGET");
@@ -465,13 +465,23 @@
     thumbs++;
     if (thumbs % PER === 0) flushSheet(ROWS);
   }
-  function threadOpen(s) {                                    // the ratified combo
+  function bandLoop(s, phase) {                               // live timer — feeds the menu burn-circle
+    let secs = phase === "decision" ? 24 : 47;
+    const fire = () => s.setBand({ phase, secs, name: "YOUR TURN · S.S." });
+    fire();
+    s.time.addEvent({ delay: 1000, loop: true, callback: () => { if (secs > 0) secs--; fire(); } });
+  }
+  function threadOpen(s, phase) {                             // the ratified combo
     s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
-    return s.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE" });
+    const th = s.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE" });
+    bandLoop(s, phase || "talk");
+    return th;
   }
   function threadOpen2(s, title, abortLabel) {                // info/respond threads
     s.render(BASE(), ROSTER);
-    return s.openThread({ mode: "fade", anim: "decode", title, abortLabel });
+    const th = s.openThread({ mode: "fade", anim: "decode", title, abortLabel });
+    bandLoop(s, "talk");
+    return th;
   }
   const MOVE_TALK = () => [                                   // talk root — B design (whispers)
     { label: "ITEM", sub: "OPEN YOUR KIT" },

@@ -247,8 +247,22 @@
     });
   }
 
-  const FLOWS = { move: () => move(false), mover: () => move(true), decide,
-    trade: tradeDirect, kit: kitInfo, ledger, offerin: offerIn };
+  /* ---- live band: the mini burn-circle in menus feeds off setBand ---- */
+  const band = { phase: "talk", secs: 52 };
+  setInterval(() => {
+    if (!scene) return;
+    if (band.secs > 0) band.secs--;
+    else { band.phase = band.phase === "talk" ? "decision" : "talk"; band.secs = band.phase === "talk" ? 60 : 30; }
+    scene.setBand({ phase: band.phase, secs: band.secs, name: "YOUR TURN · S.S." });
+  }, 1000);
+  const setPhase = (p, s) => { band.phase = p; band.secs = s;
+    scene.setBand({ phase: p, secs: s, name: "YOUR TURN · S.S." }); };
+
+  const FLOWS = { move: () => { setPhase("talk", 52); move(false); },
+    mover: () => { setPhase("talk", 47); move(true); },
+    decide: () => { setPhase("decision", 24); decide(); },
+    trade: () => { setPhase("talk", 52); tradeDirect(); },
+    kit: kitInfo, ledger, offerin: offerIn };
   document.querySelectorAll("#bar button").forEach((b) =>
     b.onclick = () => scene && FLOWS[b.dataset.f]());
 
