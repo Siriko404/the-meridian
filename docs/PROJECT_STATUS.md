@@ -138,11 +138,18 @@ are RATIFIED by the user — do not re-litigate:
   RED brackets `setTargets`, trade = marching ANTS, items = WHITE PULSE `setItemTargets`; ✕ CANCEL
   = back to the open list, ribbon y116) · row types: dim/info/still/split(two stat columns)/dot/
   sub/frame · hits named "trow", arm only after entrance, double-tap guard `th._act`.
-  **Menu ratification status:** YOUR MOVE(talk) ✅B · DECIDE ✅ (user waived) · TRADE builder
-  redesigned (headers "GIVE → C.W.", badges carry counts, dot+whisper actions) — **verdict PENDING**
-  · LEDGER ✅ one-screen "n LIVE · k TO USE" split columns · WITHDRAW OFFER (ex-RECALL, immediate,
-  no confirm) ✅ · burn-circle ✅ synced · NOT yet redesigned: KIT-use, PAY, KIT info(tap-inspect),
-  OFFER-IN, count picker. **Labs (dev pages, cache-busted):** `threadlab.html` (MOVE/MOVE·R/DECIDE/
+  **Menu ratification status:** YOUR MOVE(talk) ✅B · DECIDE ✅ (user waived) · TRADE builder ✅ +
+  count picker ✅ + OFFER-IN ✅ (user played tradelab post-fixes: "looks perfect") · LEDGER ✅
+  one-screen "n LIVE · k TO USE" split columns · WITHDRAW OFFER ✅ · burn-circle ✅ synced ·
+  **KIT-use / PAY / KIT-info redesigned + filmed (rig k_use/k_target/k_home/k_dec/p_flip/p_home/
+  ki_screen, all V0) — PRESENTED, awaiting user verdict.** Designs: KIT rows wear blurb whispers
+  (sub = theme blurb, "· SEALED" suffix; bright = usable per main.js:166 rule) header "YOUR KIT ·
+  3/8" · PAY = real pts (4/4/5/5/6/6), demo cost 9, "PAY n/9 PTS" arms at ≥cost, whisper "OVERPAY
+  IS SPENT — NO CHANGE" (trays.pay truth), ✕ STAND DOWN row · KIT-info = ONE screen (same rows,
+  still, no taps, "✕ CLOSE"). threadlab kitUse/pay/kitInfo updated to match (tap-inspect
+  infoThread deleted). NOTE: threadlab `?auto=` headless smoke is broken for ALL flows
+  (pre-existing — Phaser clock dead under --screenshot; differential-tested vs untouched ledger);
+  interactive play + rig films are the verification. **Labs (dev pages, cache-busted):** `threadlab.html` (MOVE/MOVE·R/DECIDE/
   TRADE/KIT/LEDGER/OFFER·IN buttons, live band ticker) · `tradelab.html` (beat-exact trade
   lifecycle vs scripted bot: SEND→accept/decline, WITHDRAW/PROCEED void silently, RECEIVE arrives
   like pending_offer; real center-hub entry). **Rig:** ~18 thread scenarios in capture.html

@@ -522,6 +522,87 @@
       await s.toast("OFFER DECLINED", 1200);
       await s.w(500);
     },
+    /* ---- KIT-USE / PAY / KIT-INFO redesign catalog: every step of the last 3 menus ---- */
+    k_use: async (s) => {                                     // no-target item: KIT → confirm → EXECUTE
+      const th = threadOpen(s);
+      await th.list("MOVE", "", MOVE_TALK());
+      await s.w(600); await th.lock(0);
+      await th.list("KIT", "YOUR KIT · 3/8", KROWS());
+      await s.w(1600); await th.lock(0);
+      await th.list("GO", "CONFIRM — USE MAGNET",
+        [{ info: true, label: "EJECT CURRENT SHELL" }].concat(GO_ROWS()));
+      await s.w(800); await th.lock(2); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    k_target: async (s) => {                                  // targeted item: pick duck, cancel, re-pick
+      const th = threadOpen(s);
+      await th.list("MOVE", "", MOVE_TALK());
+      await s.w(600); await th.lock(0);
+      await th.list("KIT", "YOUR KIT · 3/8", KROWS());
+      await s.w(900);
+      const p1 = th.pickSeat("item", [1, 3, 4], "SEDATIVE — TAP A PLAYER");
+      await s.w(1100); th._pickDone(null); await p1;          // ✕ CANCEL — kit returns intact
+      await s.w(700);
+      const p2 = th.pickSeat("item", [1, 3, 4], "SEDATIVE — TAP A PLAYER");
+      await s.w(900); th._pickDone(4); await p2;
+      await th.lock(1);
+      await th.list("GO", "CONFIRM — SEDATIVE → W.N.",
+        [{ info: true, label: "TARGET SKIPS A TURN" }].concat(GO_ROWS()));
+      await s.w(800); await th.lock(2); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    k_home: async (s) => {                                    // ✕ STAND DOWN at confirm → back to the ROOT
+      const th = threadOpen(s);
+      await th.list("MOVE", "", MOVE_TALK());
+      await s.w(600); await th.lock(0);
+      await th.list("KIT", "YOUR KIT · 3/8", KROWS());
+      await s.w(800); await th.lock(0);
+      await th.list("GO", "CONFIRM — USE MAGNET",
+        [{ info: true, label: "EJECT CURRENT SHELL" }].concat(GO_ROWS()));
+      await s.w(900); await th.lock(3);                       // ✕ STAND DOWN
+      th.home();
+      await th.list("MOVE", "", MOVE_TALK());
+      await s.w(1200); s.closeThread(); await s.w(200);
+    },
+    k_dec: async (s) => {                                     // kit from the DECIDE root (red circle)
+      const th = threadOpen(s, "decision");
+      await th.list("MOVE", "", DEC_ROWS());
+      await s.w(600); await th.lock(2);
+      await th.list("KIT", "YOUR KIT · 3/8", KROWS());
+      await s.w(1600); s.closeThread(); await s.w(200);
+    },
+    p_flip: async (s) => {                                    // FLIP: red pick → tap items until 9/9 → PAY
+      const th = threadOpen(s, "decision");
+      await th.list("MOVE", "", DEC_ROWS());
+      await s.w(600);
+      const p = th.pickSeat("flip", [0, 1, 2, 3, 4], "FLIP — TAP A TARGET");
+      await s.w(1100); th._pickDone(1); await p;
+      await th.lock(1);
+      await th.swap("PAY", "FLIP C.W. — TAP ITEMS TO PAY", PROWS(0, 0));
+      await s.w(1100);
+      await th.swap("PAY", "FLIP C.W. — TAP ITEMS TO PAY", PROWS(0, 1));
+      await s.w(800);
+      await th.swap("PAY", "FLIP C.W. — TAP ITEMS TO PAY", PROWS(1, 1));
+      await s.w(1000); await th.lock(7); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    p_home: async (s) => {                                    // PAY → ✕ STAND DOWN → DECIDE root
+      const th = threadOpen(s, "decision");
+      await th.list("MOVE", "", DEC_ROWS());
+      await s.w(600);
+      const p = th.pickSeat("flip", [0, 1, 2, 3, 4], "FLIP — TAP A TARGET");
+      await s.w(800); th._pickDone(1); await p;
+      await th.lock(1);
+      await th.swap("PAY", "FLIP C.W. — TAP ITEMS TO PAY", PROWS(1, 0));
+      await s.w(1000); await th.lock(8);                      // ✕ STAND DOWN
+      th.home();
+      await th.list("MOVE", "", DEC_ROWS());
+      await s.w(1200); s.closeThread(); await s.w(200);
+    },
+    ki_screen: async (s) => {                                 // off-turn KIT: ONE screen, blurbs as whispers
+      s.render(BASE(), ROSTER); s.setAction("· · ·", false); s.dialTo(2);
+      const th = s.openThread({ mode: "fade", anim: "decode", title: "KIT 3/8", abortLabel: "✕ CLOSE" });
+      bandLoop(s, "talk", "J.L.");
+      await th.list("i", "", KROWS().map((r) => Object.assign(r, { still: true })));
+      await s.w(2400); s.closeThread(); await s.w(200);
+    },
     seam: async (s) => {                                      // burn edge crossing the digits
       s.render(BASE(), ROSTER);
       for (let t = 18; t >= 11; t--) { s.setBand({ phase: "talk", secs: t, name: "C.W." }); await s.w(240); }
@@ -615,6 +696,28 @@
     { info: true, label: "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" },
     { dot: true },
     { label: "✓ ACCEPT", bright: true }, { label: "✕ DECLINE" }];
+  /* ---- KIT/PAY redesign rows (engine truths: theme.js pts/blurbs; main.js kitRadial
+     usable rule; trays.pay overpay-allowed). Demo hand: MAGNET 1 · SEDATIVE 1 · SPYCAM 1(SEALED). */
+  const KROWS = () => [                                       // every row wears its blurb
+    { label: "MAGNET", badge: "×1", bright: true, sub: "EJECT CURRENT SHELL" },
+    { label: "SEDATIVE", badge: "×1", bright: true, sub: "TARGET SKIPS A TURN" },
+    { label: "SPYCAM", badge: "×1", dim: true, sub: "PEEK NEXT SHELL · SEALED" },
+    { label: "POISON", badge: "×0", dim: true, sub: "NEXT SHOT x2" },
+    { label: "PASSPORT", badge: "×0", dim: true, sub: "+1 COVER" },
+    { label: "BLACKMAIL", badge: "×0", dim: true, sub: "TARGET CAN'T SHOOT YOU" }];
+  const PROWS = (mag, spy) => {                               // FLIP payment: cost 9 = SPYCAM 5 + MAGNET 4
+    const tot = (mag ? 4 : 0) + (spy ? 5 : 0), ok = tot >= 9;
+    return [
+      { label: "MAGNET · 4 PTS", badge: mag ? "PAY ×1" : "×1", bright: !!mag },
+      { label: "SEDATIVE · 4 PTS", badge: "×1" },
+      { label: "SPYCAM · 5 PTS", badge: spy ? "PAY ×1" : "×1", bright: !!spy },
+      { label: "POISON · 5 PTS", badge: "×0", dim: true },
+      { label: "PASSPORT · 6 PTS", badge: "×0", dim: true },
+      { label: "BLACKMAIL · 6 PTS", badge: "×0", dim: true },
+      { dot: true },
+      { label: "✓ PAY " + tot + "/9 PTS", bright: ok, dim: !ok, sub: "OVERPAY IS SPENT — NO CHANGE" },
+      { label: "✕ STAND DOWN" }];
+  };
   const KIT_ROWS = () => [
     { label: "MAGNET", badge: "×1" }, { label: "SEDATIVE", badge: "×1", bright: true },
     { label: "SPYCAM", badge: "×1" }, { label: "POISON", badge: "×0", dim: true },

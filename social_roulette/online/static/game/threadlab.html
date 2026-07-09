@@ -84,12 +84,13 @@
   /* ---- KIT (use an item, on-turn) ---- */
   function kitUse(th) {
     th.show(() => {
-      const rows = ORDER.map((en) => {
+      const rows = ORDER.map((en) => {                         // every row wears its blurb
         const n = OWN[en], sealed = !!SEALED[en];
-        return { en, label: iname(en) + (sealed ? " · SEALED" : ""), badge: "×" + n,
-          dim: n === 0 || sealed, bright: en === "HANDCUFFS" };
+        return { en, label: iname(en), badge: "×" + n,
+          sub: THEME.ITEMS[en].blurb + (sealed ? " · SEALED" : ""),
+          dim: n === 0 || sealed, bright: n > 0 && !sealed };
       });
-      th.list("KIT", "YOUR KIT · 3 CARRIED", rows);
+      th.list("KIT", "YOUR KIT · 3/8", rows);
       th.onRow = async (i) => {
         const en = rows[i].en;
         if (en === "HANDCUFFS") {                              // targeted item → white pulse
@@ -104,17 +105,20 @@
 
   /* ---- FLIP payment (multi-pick, tap cycles the count) ---- */
   function pay(th, target) {
-    const cost = 5, chosen = {};
+    const cost = 9, chosen = {};                               // real pts (theme.js): two items to cover
     const render = () => {
       const total = ORDER.reduce((s, en) => s + (chosen[en] || 0) * THEME.ITEMS[en].pts, 0);
       const rows = ORDER.map((en) => ({ en,
         label: iname(en) + " · " + THEME.ITEMS[en].pts + " PTS",
         badge: chosen[en] ? "PAY ×" + chosen[en] : "×" + OWN[en],
-        dim: OWN[en] === 0 }));
-      rows.push({ dot: true }, { pay: true, label: "✓ PAY " + total + "/" + cost + " PTS",
-        bright: total >= cost, dim: total < cost });
+        bright: !!chosen[en], dim: OWN[en] === 0 }));
+      rows.push({ dot: true },
+        { pay: true, label: "✓ PAY " + total + "/" + cost + " PTS",
+          bright: total >= cost, dim: total < cost, sub: "OVERPAY IS SPENT — NO CHANGE" },
+        { label: "✕ STAND DOWN", down: true });
       th.swap("PAY", "FLIP " + name(target) + " — TAP ITEMS TO PAY", rows);
       th.onRow = async (i) => {
+        if (rows[i].down) { th.homeTo(); return; }
         if (rows[i].pay) { await th.lock(i); closeSoon(); return; }
         const en = rows[i].en;
         chosen[en] = ((chosen[en] || 0) + 1) % (OWN[en] + 1);
@@ -207,19 +211,17 @@
     });
   }
 
-  /* ---- info threads (KIT off-turn / LEDGER) ---- */
-  function infoThread(title, data, detail) {
-    const th = openTh(title, "✕ CLOSE");
-    const render = (sel) => {
-      const rows = ORDER.map((en) => ({ en, label: iname(en), badge: "×" + data[en],
-        dim: data[en] === 0, bright: en === sel }));
-      th.swap("i", sel ? detail(sel) : "TAP TO INSPECT", rows);
-      th.onRow = (i) => render(rows[i].en);
-    };
-    th.show(() => render(null));
+  /* ---- info threads (KIT off-turn / LEDGER) — both ONE screen, no taps ---- */
+  function kitInfo() {                                         // counts + blurbs at a glance
+    const th = openTh("KIT 3/8", "✕ CLOSE");
+    const rows = ORDER.map((en) => {
+      const n = OWN[en], sealed = !!SEALED[en];
+      return { label: iname(en), badge: "×" + n, still: true,
+        sub: THEME.ITEMS[en].blurb + (sealed ? " · SEALED" : ""),
+        dim: n === 0 || sealed, bright: n > 0 && !sealed };
+    });
+    th.show(() => { th.list("i", "", rows); th.onRow = null; });
   }
-  const kitInfo = () => infoThread("KIT 3/8", { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1, SAW: 0, CIGARETTES: 0, IMMUNITY: 0 },
-    (en) => iname(en) + " · " + OWN[en] + "/3 · " + (SEALED[en] ? "SEALED" : (6 - (en === "BEER" ? 2 : 0)) + " USES LEFT"));
   function ledger() {                                          // ONE screen, no taps: LIVE · TO USE columns
     const th = openTh("LEDGER", "✕ CLOSE");
     const LIVE = { BEER: 3, HANDCUFFS: 2, MAGNIFIER: 2, SAW: 1, CIGARETTES: 3, IMMUNITY: 0 };
