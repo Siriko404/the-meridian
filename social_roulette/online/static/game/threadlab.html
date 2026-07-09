@@ -14,7 +14,8 @@
 </style>
 </head><body>
 <div id="bar">
-  <button data-f="move">MOVE</button><button data-f="mover">MOVE·R</button>
+  <button data-f="moveA">MOVE·A</button><button data-f="moveB">MOVE·B</button>
+  <button data-f="moveC">MOVE·C</button><button data-f="mover">MOVE·R</button>
   <button data-f="decide">DECIDE</button><button data-f="trade">TRADE</button>
   <button data-f="kit">KIT</button><button data-f="ledger">LEDGER</button>
   <button data-f="offerin">OFFER·IN</button>
@@ -154,12 +155,25 @@
     if (i != null) await th.lock(i);
     offer(th, id);
   }
-  function move(offerOut) {
-    const th = openTh("YOUR MOVE");
+  function move(offerOut, deco) {                              // deco: "A" rules · "B" whispers · "C" both+ticks
+    deco = deco || "";
+    const th = scene.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE",
+      rules: deco === "A" || deco === "C" });
+    th._hist = [];
+    th.show = (fn) => { th._hist.push(fn); fn(); };
+    th.onBack = () => {
+      if (th._pop) { const f = th._pop; th._pop = null; f(); return; }
+      if (th._hist.length < 2) return;
+      th.back(); th._hist.pop(); th._hist[th._hist.length - 1]();
+    };
+    const subs = deco === "B" || deco === "C";
     th.show(() => {
-      const rows = [{ label: "ITEM" },
-        offerOut ? { label: "WITHDRAW OFFER", recall: true } : { label: "TRADE", trade: true },
-        { label: "PROCEED", bright: true }];
+      const rows = [{ label: "ITEM", sub: subs ? "OPEN YOUR KIT" : undefined },
+        offerOut ? { label: "WITHDRAW OFFER", recall: true,
+            sub: subs ? "PULL YOUR OFFER BACK" : undefined }
+          : { label: "TRADE", trade: true, sub: subs ? "PRIVATE OFFER TO A TEAMMATE" : undefined },
+        { label: "PROCEED", bright: true, frame: deco === "C",
+          sub: subs ? "GO SILENT — DECIDE" : undefined }];
       th.list("MOVE", "", rows);
       th.onRow = async (i) => {
         if (rows[i].trade) { await tradeFlow(th, i); }
@@ -234,7 +248,8 @@
     });
   }
 
-  const FLOWS = { move: () => move(false), mover: () => move(true), decide,
+  const FLOWS = { moveA: () => move(false, "A"), moveB: () => move(false, "B"),
+    moveC: () => move(false, "C"), mover: () => move(true), decide,
     trade: tradeDirect, kit: kitInfo, ledger, offerin: offerIn };
   document.querySelectorAll("#bar button").forEach((b) =>
     b.onclick = () => scene && FLOWS[b.dataset.f]());
