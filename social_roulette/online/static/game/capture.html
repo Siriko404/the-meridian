@@ -603,8 +603,8 @@
       await th.list("i", "", KROWS().map((r) => Object.assign(r, { still: true })));
       await s.w(2400); s.closeThread(); await s.w(200);
     },
-    /* ---- BIG CLOCK (FINAL — user-picked C w/ single rules): full → red → empty ---- */
-    clock_final: (s) => clockDemo(s, 1),
+    /* ---- BIG CLOCK (RATIFIED slash clock): full → red → empty ---- */
+    clock_final: (s) => clockDemo(s),
     seam: async (s) => {                                      // burn edge crossing the digits
       s.render(BASE(), ROSTER);
       for (let t = 18; t >= 11; t--) { s.setBand({ phase: "talk", secs: t, name: "C.W." }); await s.w(240); }
@@ -648,9 +648,8 @@
     thumbs++;
     if (thumbs % PER === 0) flushSheet(ROWS);
   }
-  async function clockDemo(s, styleN) {                       // ride the burn across the red boundary
+  async function clockDemo(s) {                               // ride the burn across the red boundary
     s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
-    s._bandStyle = styleN;
     const fire = (p, t) => s.setBand({ phase: p, secs: t, name: "YOUR TURN · S.S." });
     fire("talk", 55); await s.w(6200);                        // near-full field — catches one shimmer sweep
     fire("talk", 30); await s.w(800);                         // two-thirds
@@ -658,7 +657,6 @@
     for (let t = 30; t >= 24; t--) { fire("decision", t); await s.w(420); }  // RED zone
     for (let t = 2; t >= 0; t--) { fire("decision", t); await s.w(420); }    // the field runs dry
     await s.w(400);
-    s._bandStyle = 0;
   }
   function bandLoop(s, phase, name) {                         // live timer — feeds the menu burn-circle
     let secs = phase === "decision" ? 24 : 47;

@@ -14,8 +14,7 @@
 </style>
 </head><body>
 <div id="bar">
-  <button data-s="0">OLD (SOLID)</button>
-  <button data-s="1" class="on">FINAL · RULES</button>
+  <button class="on">THE CLOCK (RATIFIED)</button>
 </div>
 <div id="wrap"><div id="stage" style="width:100%;height:100%"></div></div>
 <script src="/static/vendor/phaser.min.js"></script>
@@ -49,17 +48,8 @@
     else { tick.phase = "talk"; tick.secs = 60; }
     scene.setBand({ phase: tick.phase, secs: tick.secs, name: "YOUR TURN · S.S." });
   }, 1000);
-  document.querySelectorAll("#bar button").forEach((b) =>
-    b.onclick = () => {
-      if (!scene) return;
-      document.querySelectorAll("#bar button").forEach((q) => q.classList.remove("on"));
-      b.classList.add("on");
-      scene._bandStyle = +b.dataset.s;
-      scene.setBand({ phase: tick.phase, secs: tick.secs, name: "YOUR TURN · S.S." });
-    });
   SCENE.ready = (s) => {
     scene = s; s.render(BASE, { "0": "S.S." }); s.setAction("YOUR\nMOVE", true);
-    s._bandStyle = 1;
     s.setBand({ phase: tick.phase, secs: tick.secs, name: "YOUR TURN · S.S." });
   };
   new Phaser.Game({

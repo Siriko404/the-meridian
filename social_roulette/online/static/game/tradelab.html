@@ -210,7 +210,7 @@
     b.onclick = () => scene && FLOWS[b.dataset.f]());
 
   SCENE.ready = (s) => {
-    scene = s; s._bandStyle = 1;                               // the FINAL slash clock (pending ratify)
+    scene = s;
     s.render(BASE, ROSTER); s.setAction("YOUR\nMOVE", true);
     s.onAction = openRoot;                                     // the REAL entry: tap the center hub
     s.dialTo(0); tickBand();

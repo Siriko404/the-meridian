@@ -29,26 +29,17 @@
       this._brackets = []; this._glows = [];
       this.onKit = null; this.onLedger = null; this.onPhone = null; this.onAction = null;
 
-      // ---- BURNING TIMER BAR (white = talk 60s, red = decision 30s; seconds centered) ----
-      const BARX = 18, BARW = W - 36, BARY = 34, BARH = 40;
+      // ---- BURNING TIMER BAR (RATIFIED slash clock): ///// field drains L→R between two
+      //      single ticket rules; digits FIXED center, black-outlined, riding the field;
+      //      everything red in the last 30s; a 3-slash shimmer sweeps every 5s. ----
+      const BARX = 18, BARW = W - 36, BARY = 34;
       this._bar = { x: BARX, y: BARY, w: BARW };
-      this.barFill = this.add.rectangle(BARX, BARY, BARW, BARH, WHITE).setOrigin(0, 0.5).setDepth(5).setVisible(false);
-      this.barHatch = this.add.graphics().setDepth(5).setVisible(false);   // slash-fill clock variants
+      this.barHatch = this.add.graphics().setDepth(5).setVisible(false);
       this.barPulse = this.add.graphics().setDepth(5);         // the loading-shimmer that rides the field
-      this._bandStyle = 0;                                     // 0 = solid burn (current) · 1-4 = samples
       this._hatchInfo = null;
       this.time.addEvent({ delay: 33, loop: true, callback: () => this._drawPulse() });
-      this.barFrame = this.add.rectangle(W / 2, BARY, BARW, BARH).setStrokeStyle(2, WHITE, 0.4).setDepth(6).setVisible(false);
-      // burn-through digits: two layers masked at the fill edge — the burn INVERTS them pixel by pixel
-      const secStyle = (col) => style(20, col, { strokeThickness: 0 });
-      this.barSecs = this.add.text(W / 2, BARY, "", secStyle("#ffffff")).setOrigin(0.5)
-        .setResolution(2).setDepth(7).setLetterSpacing(1).setVisible(false);      // over the VOID
-      this.barSecsD = this.add.text(W / 2, BARY, "", secStyle("#000000")).setOrigin(0.5)
-        .setResolution(2).setDepth(7).setLetterSpacing(1).setVisible(false);      // over the FILL
-      this._mFillG = this.make.graphics({ add: false });
-      this._mEmptyG = this.make.graphics({ add: false });
-      this.barSecsD.setMask(this._mFillG.createGeometryMask());
-      this.barSecs.setMask(this._mEmptyG.createGeometryMask());
+      this.barSecs = this.add.text(W / 2, BARY, "", style(20, "#ffffff", { strokeThickness: 8 }))
+        .setOrigin(0.5).setResolution(2).setDepth(7).setLetterSpacing(1).setVisible(false);
       this.bandLine2 = this.add.text(W / 2, BARY + 34, "", style(13, "#aaaaaa")).setOrigin(0.5).setResolution(2).setDepth(6).setLetterSpacing(2);
       this.bandCode = this.add.text(W - 6, 2, "", style(11, "#777777")).setOrigin(1, 0).setResolution(2).setDepth(7);
       this.bandNote = this.add.text(W / 2, BARY + 54, "", style(12, "#cccccc", { align: "center",
@@ -186,47 +177,25 @@
       else if (o.phase === "decision" && o.secs != null) left = Math.min(o.secs, DEC);
       if (left != null) {
         const red = left <= DEC, col = red ? RED : WHITE;     // last 30s = red
-        const stl = this._bandStyle || 0;
         const fw = this._bar.w * (left / TOTAL);
         const bx = this._bar.x, by = this._bar.y;
-        this.barFrame.setVisible(!stl).setStrokeStyle(2, col, 0.95);
-        if (stl === 0) {                                       // solid burn + masked digit inversion
-          this.barHatch.setVisible(false);
-          this._hatchInfo = null; this.barPulse.clear();
-          this.barFill.setVisible(true);
-          this.barFill.width = fw;
-          this.barFill.setFillStyle(col);
-          this._mFillG.clear().fillStyle(0xffffff).fillRect(bx, by - 20, fw, 40);
-          this._mEmptyG.clear().fillStyle(0xffffff).fillRect(bx + fw, by - 20, this._bar.w - fw, 40);
-          this.barSecs.setVisible(true).setText(fmt(left)).setX(W / 2)   // digits FIXED center —
-            .setColor("#ffffff").setStroke("#000000", 0);      // the burn inverts them in place
-          this.barSecsD.setVisible(true).setText(fmt(left)).setX(W / 2)
-            .setColor(red ? "#ffffff" : "#000000");
-        } else {                                               // FINAL (user-picked C, single rules):
-          this.barFill.setVisible(false);                      // ///// field drains between two rules,
-          this.barSecsD.setVisible(false);                     // digits fixed in a parted window
-          this._mEmptyG.clear().fillStyle(0xffffff).fillRect(bx, by - 20, this._bar.w, 40);  // unmask
-          const g = this.barHatch.setVisible(true);
-          g.clear();
-          const hh = 14, pitch = 7, lean = 8, edge = bx + fw;
-          for (let x = bx + 4; x + lean <= edge; x += pitch) { // the field runs BEHIND the digits —
-            g.lineStyle(2, col, 0.45);                         // their black outline cuts them free,
-            g.lineBetween(x, by + hh, x + lean, by - hh);      // and the burn edge crosses in view
-          }
-          g.lineStyle(2, col, 0.95);                           // ticket rules, SINGLE, no box
-          [-20, 20].forEach((dy) => g.lineBetween(bx, by + dy, bx + this._bar.w, by + dy));
-          this._hatchInfo = { fw, col };                       // the shimmer sweep reads this
-          this.barSecs.setVisible(true).setText(fmt(left)).setX(W / 2)   // fixed digits OVER the field
-            .setColor(red ? "#c8102e" : "#ffffff").setStroke("#000000", 8);
+        const g = this.barHatch.setVisible(true);
+        g.clear();
+        const hh = 14, pitch = 7, lean = 8, edge = bx + fw;
+        for (let x = bx + 4; x + lean <= edge; x += pitch) {   // the field runs BEHIND the digits —
+          g.lineStyle(2, col, 0.45);                           // their black outline cuts them free,
+          g.lineBetween(x, by + hh, x + lean, by - hh);        // and the burn edge crosses in view
         }
+        g.lineStyle(2, col, 0.95);                             // ticket rules, SINGLE, no box
+        [-20, 20].forEach((dy) => g.lineBetween(bx, by + dy, bx + this._bar.w, by + dy));
+        this._hatchInfo = { fw, col };                         // the shimmer sweep reads this
+        this.barSecs.setVisible(true).setText(fmt(left)).setX(W / 2)   // fixed digits OVER the field
+          .setColor(red ? "#c8102e" : "#ffffff").setStroke("#000000", 8);
         this.bandCode.setVisible(false);                      // code only rides an idle band
       } else {
-        this.barFill.setVisible(false);
         this.barHatch.setVisible(false);
         this._hatchInfo = null; this.barPulse.clear();
         this.barSecs.setVisible(false);
-        this.barSecsD.setVisible(false);
-        this.barFrame.setVisible(false);
         this.bandCode.setVisible(true);
       }
       this.bandLine2.setText(o.name || "");
