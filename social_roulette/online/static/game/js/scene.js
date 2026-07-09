@@ -629,6 +629,13 @@
         }
         if (mode === "fade" && items.some((i) => i.sub)) rowH = 58;   // room for whisper captions
         const off = header ? 34 : 14;
+        if (mode === "fade") {                                 // ACTIVE list rides screen center;
+          const Hs = off + items.length * rowH;                // the trail slides up out of the way
+          const targetHy = Math.max(112, 384 - Hs / 2);
+          if (!th._sections.length && !th.active) th.cursorY = targetHy;
+          else if (Math.abs(targetHy - th.cursorY) > 4) th._slide(targetHy - th.cursorY);
+          hy = th.cursorY;
+        }
         if (opts.rules && mode === "fade") {                   // ticket double-rules framing the list
           const yTop = header ? hy + 18 : hy - (rowH === 58 ? 16 : 8);
           const yBot = hy + off + items.length * rowH - rowH / 2 + 10;
@@ -761,6 +768,18 @@
         backB.setAlpha(1);
       };
 
+      const FIXED = new Set([scrim, dockCover, abort, backB]); // chrome never slides
+      th._slide = (dy) => {                                    // move the whole trail (ghosts, crumbs, title)
+        own.forEach((o) => {
+          if (FIXED.has(o) || !o.scene || o.y == null) return;
+          if (o._ba == null) o._ba = o.alpha;                  // remember the resting alpha
+          const ny = o.y + dy;
+          this.tweens.add({ targets: o, y: ny, alpha: ny < 70 ? 0 : o._ba,   // exit through the top edge
+            duration: 240, ease: "Cubic.easeInOut" });
+        });
+        th._sections.forEach((s) => { s.baseY += dy; s.hy += dy; });
+        th.cursorY += dy;
+      };
       th._kill = (st) => { if (!st) return;                    // shared by back/swap
         st.rows.forEach((r) => { if (r.t) r.t.destroy();
           if (r.extra) r.extra.forEach((o) => o.destroy()); });

@@ -14,8 +14,7 @@
 </style>
 </head><body>
 <div id="bar">
-  <button data-f="moveA">MOVE·A</button><button data-f="moveB">MOVE·B</button>
-  <button data-f="moveC">MOVE·C</button><button data-f="mover">MOVE·R</button>
+  <button data-f="move">MOVE</button><button data-f="mover">MOVE·R</button>
   <button data-f="decide">DECIDE</button><button data-f="trade">TRADE</button>
   <button data-f="kit">KIT</button><button data-f="ledger">LEDGER</button>
   <button data-f="offerin">OFFER·IN</button>
@@ -185,7 +184,7 @@
     return th;
   }
   function tradeDirect() {                                     // straight into the builder
-    const th = move(false);
+    const th = move(false, "B");
     scene.time.delayedCall(800, () => {                        // after the root decodes: auto-tap TRADE
       if (scene._thread === th && th.onRow && !th._act) th.onRow(1);
     });
@@ -248,8 +247,7 @@
     });
   }
 
-  const FLOWS = { moveA: () => move(false, "A"), moveB: () => move(false, "B"),
-    moveC: () => move(false, "C"), mover: () => move(true), decide,
+  const FLOWS = { move: () => move(false, "B"), mover: () => move(true, "B"), decide,
     trade: tradeDirect, kit: kitInfo, ledger, offerin: offerIn };
   document.querySelectorAll("#bar button").forEach((b) =>
     b.onclick = () => scene && FLOWS[b.dataset.f]());
