@@ -174,7 +174,8 @@
 
     /* ================= band ================= */
     setBand(o) {                                              // burning bar: one 90s burn, white 60s -> red 30s
-      const TALK = 60, DEC = 30, TOTAL = TALK + DEC;
+      this._bandO = o;                                        // remembered — a menu opening mid-tick
+      const TALK = 60, DEC = 30, TOTAL = TALK + DEC;          // paints its burn-circle immediately
       let left = null;
       if (o.phase === "talk" && o.secs != null) left = DEC + Math.min(o.secs, TALK);
       else if (o.phase === "decision" && o.secs != null) left = Math.min(o.secs, DEC);
@@ -203,8 +204,8 @@
       this.bandNote.setText(o.note || "");
       const th = this._thread;                                 // the menu's own burning circle —
       if (th && th._clock) {                                   // the player ALWAYS sees the timer
-        if (left == null) th._clock.cont.setVisible(false);
-        else {
+        if (left == null || th._picking) th._clock.cont.setVisible(false);  // (during a seat-pick
+        else {                                                 // the duck reveals the big bar instead)
           const red = left <= DEC, col = red ? RED : WHITE;
           th._clock.cont.setVisible(true);
           const g = th._clock.g, SEG = 24, R = 20;
@@ -431,7 +432,7 @@
         this._arrowTween = this.tweens.add({ targets: this._arrow, y: "+=6", yoyo: true,
           repeat: -1, duration: 420, ease: "Sine.easeInOut" });
       }
-      this._arrow.setVisible(true);
+      this._arrow.setVisible(!this._thread);                  // never over an open menu
       this._arrowTween.stop();
       this._arrow.setPosition(s.x, s.y - 86);                 // above the chip stack, never on it
       this._arrowTween = this.tweens.add({ targets: this._arrow, y: "+=6", yoyo: true,
@@ -785,8 +786,8 @@
         } else if (mode === "fade") {                          // list compresses in place, siblings ghost
           const base = st.headT ? st.headT.y + 22 : st.hy + 4;
           if (st.headT) st.headT.setAlpha(0.55).setScale(0.85);
-          st.rows.forEach((r, k) => {
-            r.t.setText((k === i ? "▸ " : "") + r.t.text);
+          st.rows.forEach((r, k) => {                          // buttons with their own "▸" keep it
+            r.t.setText((k === i && r.t.text.indexOf("▸") < 0 ? "▸ " : "") + r.t.text);
             this.tweens.add({ targets: r.t, y: base + k * 24, scale: 0.72,
               alpha: k === i ? 1 : (r.it.dim ? 0.15 : 0.25), duration: 220, ease: "Cubic.easeInOut" });
           });
@@ -858,17 +859,22 @@
       };
 
       th.pickSeat = (kind, ids, note) => new Promise((resolve) => {
+        th._picking = true;                                    // the burn-circle sleeps — the big bar is back
         own.forEach((o) => { if (o !== dockCover && o.setVisible) o.setVisible(false); });  // duck — board is the menu
-        const ribbon = this.add.text(W / 2, 116, "", style(13, "#ffffff", { align: "center" }))
-          .setOrigin(0.5).setResolution(2).setDepth(22);       // clear of the live band during the duck
+        const ribbon = mk(this.add.text(W / 2, 116, "", style(13, "#ffffff", { align: "center" }))
+          .setOrigin(0.5).setResolution(2).setDepth(22));      // clear of the live band during the duck
         this.decode(ribbon, note, 260);
-        const cancel = this.add.text(W / 2, 776, "", style(12, "#aaaaaa")).setOrigin(0.5)
-          .setResolution(2).setDepth(22);
+        const cancel = mk(this.add.text(W / 2, 776, "", style(12, "#aaaaaa")).setOrigin(0.5)
+          .setResolution(2).setDepth(22));
         const arm = this.decode(cancel, "✕ CANCEL", 240);
         const done = (id) => {
           if (kind === "trade") this.seatGlow([], false); else this.clearTargets();
           ribbon.destroy(); cancel.destroy();
-          if (this._thread === th) own.forEach((o) => o.setVisible && o.setVisible(true));
+          th._picking = false;
+          if (this._thread === th) {
+            own.forEach((o) => o.setVisible && o.setVisible(true));
+            if (this._bandO) this.setBand(this._bandO);        // circle returns with FRESH digits
+          }
           th._pickDone = null;
           resolve(id);
         };
@@ -881,13 +887,15 @@
       });
       th.close = () => this.closeThread();
       this._thread = th;
+      if (this._bandO) this.setBand(this._bandO);              // burn-circle lights NOW, not next tick
       return th;
     }
     closeThread() {
       if (!this._thread) return;
       const t = this._thread;
       this._thread = null;
-      t.own.forEach((o) => { if (o && o.destroy) o.destroy(); });
+      if (t._pickDone) t._pickDone(null);                      // mid-pick close: clear brackets/ants,
+      t.own.forEach((o) => { if (o && o.destroy) o.destroy(); });  // resolve the pick as cancelled
       if (t.arrowWas && this._arrow) this._arrow.setVisible(true);
     }
     setAction(label, on) {                                    // the center hub's face

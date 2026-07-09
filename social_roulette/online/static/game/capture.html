@@ -255,7 +255,7 @@
       const p2 = th.pickSeat("trade", [2, 4], "TRADE — TAP A TEAMMATE");
       await s.w(900); th._pickDone(2); await p2;
       await th.lock(1);
-      await th.list("GO", "CONFIRM — TRADE → C.W.", GO_ROWS()); await s.w(700);
+      await th.list("GO", "CONFIRM — TRADE → J.L.", GO_ROWS()); await s.w(700);
       await th.lock(1); await s.w(400); s.closeThread(); await s.w(200);
     },
     // ---- YOUR MOVE redesign candidates ----
@@ -348,15 +348,15 @@
         { label: "POISON" }, { label: "PASSPORT" }, { label: "BLACKMAIL" },
         { dot: true },
         { label: "CONTINUE ▸", bright: true, sub: "NEXT — WHAT YOU WANT BACK" }];
-      await th.swap("GIVE", "GIVE → C.W.", give(0));
+      await th.swap("GIVE", "GIVE → J.L.", give(0));
       await s.w(900);
       await th.swap("N", "MAGNET — HOW MANY?", [                 // count sub-list
         { label: "0" }, { label: "1", bright: true }, { label: "2" }, { label: "3" },
         { info: true, label: "YOU HOLD ×1" }]);
       await s.w(1000);
-      await th.swap("GIVE", "GIVE → C.W.", give(2));             // bluffed above holdings — allowed
+      await th.swap("GIVE", "GIVE → J.L.", give(2));             // bluffed above holdings — allowed
       await s.w(900); await th.lock(7);
-      await th.swap("WANT", "WANT ← C.W.", [
+      await th.swap("WANT", "WANT ← J.L.", [
         { label: "MAGNET" }, { label: "SEDATIVE" }, { label: "SPYCAM", badge: "×1" },
         { label: "POISON" }, { label: "PASSPORT" }, { label: "BLACKMAIL" },
         { dot: true },
@@ -393,7 +393,7 @@
     },
     thread_respond: async (s) => {                            // incoming offer
       const th = threadOpen2(s, "INCOMING OFFER");
-      await th.list("OFFER", "C.W. OFFERS · PRIVATE", [
+      await th.list("OFFER", "J.L. OFFERS · PRIVATE", [
         { info: true, label: "THEY GIVE: 2 MAGNET" },
         { info: true, label: "THEY WANT: 1 SPYCAM" },
         { info: true, label: "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" },
@@ -418,9 +418,109 @@
       const p = th.pickSeat("item", [1, 3, 4], "SEDATIVE — TAP A PLAYER");
       await s.w(1300); th._pickDone(4); await p;
       await th.lock(1);
-      await th.list("GO", "CONFIRM — SEDATIVE → J.L.",
+      await th.list("GO", "CONFIRM — SEDATIVE → W.N.",
         [{ info: true, label: "TARGET SKIPS A TURN" }].concat(GO_ROWS()));
       await s.w(700); await th.lock(2); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    /* ---- TRADE PROCESS CATALOG: every step of the lifecycle, beat-exact to
+       tradelab.html / room.py 163-207 / choreo tradeBeat. Data everywhere:
+       give 2 MAGNET (bluff — you hold 1), want 1 SPYCAM, partner C.W.(2). ---- */
+    tr_build: async (s) => {                                  // sender: root → ants → GIVE → count → bluff → WANT → SEND
+      const th = threadOpen(s);
+      await th.list("MOVE", "", TR_ROOT(false));
+      await s.w(700);
+      const p = th.pickSeat("trade", [2, 4], "TRADE — TAP A TEAMMATE");
+      await s.w(1100); th._pickDone(2); await p;
+      await th.lock(1);
+      await th.swap("GIVE", "GIVE → J.L.", TR_GIVE(0));
+      await s.w(1000);
+      await th.swap("N", "MAGNET — HOW MANY?", [               // count sub-list (BACK = _pop to GIVE)
+        { label: "0" }, { label: "1", bright: true }, { label: "2" }, { label: "3" },
+        { info: true, label: "YOU HOLD ×1" }]);
+      await s.w(900);
+      await th.swap("GIVE", "GIVE → J.L.", TR_GIVE(2));        // bluffed above holdings — allowed
+      await s.w(900); await th.lock(7);
+      await th.swap("WANT", "WANT ← J.L.", TR_WANT());
+      await s.w(1100); await th.lock(7);
+      await s.w(400); s.closeThread(); await s.w(300);
+    },
+    tr_hang: async (s) => {                                   // offer out: reopened root → WITHDRAW (silent)
+      const th = threadOpen(s);
+      await th.list("MOVE", "", TR_ROOT(true));
+      await s.w(1300); await th.lock(1);
+      await s.w(400); s.closeThread(); await s.w(300);
+    },
+    tr_settle: async (s) => {                                 // accept beats, sender side (choreo tradeBeat)
+      s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true); s.dialTo(0);
+      const band = bandLoop(s, "talk");
+      await s.w(900);
+      band.remove(); s.setBand({ phase: null });               // band stands down during beats (drain parity)
+      await s.dialTo(0);
+      const IT = THEME.ITEMS;
+      await s.iconFly(IT.BEER.icon, 0, 2, "MAGNET");
+      await s.iconFly(IT.BEER.icon, 0, 2, "MAGNET");
+      await s.iconFly(IT.MAGNIFIER.icon, 2, 0, "SPYCAM");
+      await s.toast("S.S. AND J.L. MADE AN EXCHANGE", 1500);
+      bandLoop(s, "talk");
+      await s.w(800);
+    },
+    tr_declined: async (s) => {                               // decline, sender side (private note)
+      s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true); s.dialTo(0);
+      const band = bandLoop(s, "talk");
+      await s.w(700);
+      band.remove(); s.setBand({ phase: null });
+      await s.toast("OFFER DECLINED", 1800);
+      bandLoop(s, "talk");
+      await s.w(800);
+    },
+    tr_recv: async (s) => {                                   // receiver: sheet ARRIVES on their turn → ACCEPT → beats
+      s.render(BASE(), ROSTER); s.setAction("· · ·", false); s.dialTo(2);
+      const band = bandLoop(s, "talk", "J.L.");
+      await s.w(1100);
+      const th = s.openThread({ mode: "fade", anim: "decode", title: "INCOMING OFFER" });
+      await th.list("OFFER", "J.L. OFFERS · PRIVATE", TR_IN());
+      await s.w(1500); await th.lock(4);
+      await s.w(350); s.closeThread();
+      band.remove(); s.setBand({ phase: null });
+      await s.dialTo(2);
+      const IT = THEME.ITEMS;
+      await s.iconFly(IT.BEER.icon, 2, 0, "MAGNET");
+      await s.iconFly(IT.BEER.icon, 2, 0, "MAGNET");
+      await s.iconFly(IT.MAGNIFIER.icon, 0, 2, "SPYCAM");
+      await s.toast("J.L. AND S.S. MADE AN EXCHANGE", 1500);
+      s.dialTo(0); s.setAction("YOUR\nMOVE", true);
+      bandLoop(s, "talk");
+      await s.w(800);
+    },
+    tr_recv_d: async (s) => {                                 // receiver declines
+      s.render(BASE(), ROSTER); s.setAction("· · ·", false); s.dialTo(2);
+      const band = bandLoop(s, "talk", "J.L.");
+      await s.w(800);
+      const th = s.openThread({ mode: "fade", anim: "decode", title: "INCOMING OFFER" });
+      await th.list("OFFER", "J.L. OFFERS · PRIVATE", TR_IN());
+      await s.w(1200); await th.lock(5);
+      await s.w(350); s.closeThread();
+      band.remove(); s.setBand({ phase: null });
+      await s.toast("OFFER DECLINED", 1800);
+      bandLoop(s, "talk", "J.L.");
+      await s.w(800);
+    },
+    tr_race: async (s) => {                                   // bot answers WHILE the menu is up:
+      const th = threadOpen(s);                                // policy — the menu closes, beats play clean
+      await th.list("MOVE", "", TR_ROOT(true));
+      await s.w(1000);
+      th._band.remove(); s.closeThread(); s.setBand({ phase: null });
+      await s.dialTo(0);
+      await s.iconFly(THEME.ITEMS.BEER.icon, 0, 2, "MAGNET");
+      await s.toast("S.S. AND J.L. MADE AN EXCHANGE", 1200);
+      const th2 = threadOpen(s);                               // answer lands MID-PICK: no leaked
+      await th2.list("MOVE", "", TR_ROOT(false));              // ribbon/ants/cancel on the board
+      await s.w(600);
+      th2.pickSeat("trade", [2, 4], "TRADE — TAP A TEAMMATE");
+      await s.w(900);
+      th2._band.remove(); s.closeThread(); s.setBand({ phase: null });
+      await s.toast("OFFER DECLINED", 1200);
+      await s.w(500);
     },
     seam: async (s) => {                                      // burn edge crossing the digits
       s.render(BASE(), ROSTER);
@@ -465,16 +565,16 @@
     thumbs++;
     if (thumbs % PER === 0) flushSheet(ROWS);
   }
-  function bandLoop(s, phase) {                               // live timer — feeds the menu burn-circle
+  function bandLoop(s, phase, name) {                         // live timer — feeds the menu burn-circle
     let secs = phase === "decision" ? 24 : 47;
-    const fire = () => s.setBand({ phase, secs, name: "YOUR TURN · S.S." });
+    const fire = () => s.setBand({ phase, secs, name: name || "YOUR TURN · S.S." });
     fire();
-    s.time.addEvent({ delay: 1000, loop: true, callback: () => { if (secs > 0) secs--; fire(); } });
+    return s.time.addEvent({ delay: 1000, loop: true, callback: () => { if (secs > 0) secs--; fire(); } });
   }
   function threadOpen(s, phase) {                             // the ratified combo
     s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
     const th = s.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE" });
-    bandLoop(s, phase || "talk");
+    th._band = bandLoop(s, phase || "talk");
     return th;
   }
   function threadOpen2(s, title, abortLabel) {                // info/respond threads
@@ -493,6 +593,28 @@
     { label: "ITEM", sub: "OPEN YOUR KIT" }];
   const GO_ROWS = () => [{ dot: true },
     { label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN" }];
+  const TR_ROOT = (out) => [                                  // talk root, tradelab-exact (ITEM out of scope)
+    { label: "ITEM", dim: true, sub: "OPEN YOUR KIT" },
+    out ? { label: "WITHDRAW OFFER", sub: "PULL YOUR OFFER BACK" }
+        : { label: "TRADE", sub: "PRIVATE OFFER TO A TEAMMATE" },
+    { label: "PROCEED", bright: true, sub: "GO SILENT — DECIDE" }];
+  const TR_GIVE = (mag) => [                                  // GIVE phase: owned rows glow
+    { label: "MAGNET", badge: mag ? "×" + mag : "", bright: true },
+    { label: "SEDATIVE", bright: true }, { label: "SPYCAM", bright: true },
+    { label: "POISON" }, { label: "PASSPORT" }, { label: "BLACKMAIL" },
+    { dot: true },
+    { label: "CONTINUE ▸", bright: true, sub: "NEXT — WHAT YOU WANT BACK" }];
+  const TR_WANT = () => [
+    { label: "MAGNET" }, { label: "SEDATIVE" }, { label: "SPYCAM", badge: "×1" },
+    { label: "POISON" }, { label: "PASSPORT" }, { label: "BLACKMAIL" },
+    { dot: true },
+    { label: "SEND OFFER ▸", bright: true, sub: "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" }];
+  const TR_IN = () => [                                       // the respond sheet (tradelab receive)
+    { info: true, label: "THEY GIVE: 2 MAGNET" },
+    { info: true, label: "THEY WANT: 1 SPYCAM" },
+    { info: true, label: "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" },
+    { dot: true },
+    { label: "✓ ACCEPT", bright: true }, { label: "✕ DECLINE" }];
   const KIT_ROWS = () => [
     { label: "MAGNET", badge: "×1" }, { label: "SEDATIVE", badge: "×1", bright: true },
     { label: "SPYCAM", badge: "×1" }, { label: "POISON", badge: "×0", dim: true },

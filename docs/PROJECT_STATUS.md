@@ -150,13 +150,24 @@ are RATIFIED by the user — do not re-litigate:
   move_r1-3) all V0 (×1 mid-tween transients benign); bandLoop feeds the mini clock; decision
   scenarios pass ("decision"). **Engine truths honored in samples:** sedative = any living
   non-self non-sedated; shoot = SELF + living enemies; flip = any living affordable; legacy
-  MOVE_ROWS hybrid (SHOOT+TRADE) was fake and is dead. **OPEN:** ① user has NEW BUGS with
-  screenshots to report right after this compaction — expect that first ② TRADE builder verdict
-  ③ server gap: bots can't answer/send offers (room.py has no bot respond path; offer to a bot
-  hangs until withdraw/phase-end) — user decision pending ④ after all menus ratified: wire
-  threads into main.js (replace actionRadial/kitRadial/ledgerRadial/offerRadial/countRadial/
-  confirmAct/pickTarget/pickItemTargets/pickTrade + TRAYS.respond/pay), delete openRadial+trays.js,
-  update monkey bot to "trow" hits, full bot-play verify, THEN Task-9 user gate.
+  MOVE_ROWS hybrid (SHOOT+TRADE) was fake and is dead. **TRADE-STEP SWEEP DONE (2026-07-09 night,
+  user: "a bunch of errors"):** 7 tr_* scenarios render the WHOLE lifecycle in capture.html
+  (tr_build/hang/settle/declined/recv/recv_d/race). 6 defects found+fixed: ① setBand re-showed the
+  burn-circle during the seat-pick duck (now `th._picking`; circle returns w/ fresh digits on done)
+  ② `_arrowTo` re-showed ▼ over an open thread (now `setVisible(!this._thread)`) ③ menu opened
+  clockless ≤1s (setBand caches `_bandO`; openThread re-applies) ④ lock "▸ " doubled arrows on
+  ▸-suffixed buttons ⑤ **id2=J.L., id4=W.N.** (CODENAMES theme.js:20) — tradelab band hardcoded
+  "C.W."; rig headers lied ("GIVE → C.W." etc.) — all copy fixed ⑥ bot answer while a menu is up
+  painted beats UNDER the scrim + leaked pick chrome — policy: closeThread FIRST (tradelab settle/
+  declined; closeThread now resolves a live pick null + own-registers ribbon/cancel). **WIRING
+  LAW:** main.js trade/choreo event handler must closeThread() before beats. offer_in (legacy
+  trays sheet) audits ×15 overlaps = dead UI, ignore. **OPEN:** ① TRADE builder verdict (also:
+  ghost trail after GIVE lock reads only "CONTINUE ▸" — no give-summary on the WANT screen;
+  surface w/ verdict) ② server gap: bots can't answer/send offers (room.py has no bot respond
+  path; offer to a bot hangs until withdraw/phase-end) — user decision pending ③ after all menus
+  ratified: wire threads into main.js (replace actionRadial/kitRadial/ledgerRadial/offerRadial/
+  countRadial/confirmAct/pickTarget/pickItemTargets/pickTrade + TRAYS.respond/pay), delete
+  openRadial+trays.js, update monkey bot to "trow" hits, full bot-play verify, THEN Task-9 user gate.
   PowerShell gotcha: NEVER pipe file content through PS regex replaces (mojibake — use Edit tool or
   [System.IO.File]::ReadAllLines/WriteAllLines).
 - **RULES FIXED IN PLAY:** bots may NOT pass items unilaterally — `room.py social_enabled=False`

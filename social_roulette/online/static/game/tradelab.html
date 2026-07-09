@@ -58,7 +58,7 @@
     if (!scene || !band.on) return;
     if (band.secs > 0) band.secs--;
     scene.setBand({ phase: "talk", secs: band.secs,
-      name: (band.mine ? "YOUR TURN · " : "") + (band.mine ? "S.S." : "C.W."), note: "" });
+      name: (band.mine ? "YOUR TURN · " : "") + name(band.mine ? 0 : 2), note: "" });
   }
   setInterval(tickBand, 1000);
   const standDown = () => { band.on = false; scene.setBand({ phase: null }); };
@@ -155,6 +155,7 @@
 
   /* ---- the EXACT beats (choreo tradeBeat, parties branch) ---- */
   async function settle(actor, target, give, want) {
+    scene.closeThread();                                       // an open menu never watches beats
     standDown();
     await scene.dialTo(actor);                                 // trades play on the actor's turn — show it
     for (const [en, c] of Object.entries(give))
@@ -165,6 +166,7 @@
     resume();
   }
   async function declined() {
+    scene.closeThread();                                       // an open menu never watches beats
     standDown();
     await scene.toast("OFFER DECLINED", 1800);                 // parties-only private note
     resume();
