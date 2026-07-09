@@ -1,0 +1,89 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>THREAD LAB</title>
+<!-- DEV-ONLY interactive sampler for the click-thread menu variants (not linked from the game).
+     Tap a variant, then play the 4-step SEDATIVE chain by hand. -->
+<style>
+  html,body{margin:0;height:100%;background:#000;font-family:Georgia,'Times New Roman',serif}
+  #bar{display:flex;gap:8px;justify-content:center;padding:8px;background:#000}
+  #bar button{background:#000;color:#fff;border:2px solid #fff;font:bold 13px Georgia,serif;
+    letter-spacing:1px;padding:6px 10px;cursor:pointer}
+  #bar button.dim{border-color:#555;color:#888}
+  #wrap{position:absolute;top:44px;bottom:0;left:0;right:0}
+</style>
+</head><body>
+<div id="bar">
+  <button id="a">A STACK</button><button id="b">B FADE</button>
+  <button id="c">C COLS</button><button id="d">D DECODE</button>
+</div>
+<div id="wrap"><div id="stage" style="width:100%;height:100%"></div></div>
+<script src="/static/vendor/phaser.min.js"></script>
+<script>
+  for (const f of ["theme", "dice", "net", "scene", "choreo", "trays"])
+    document.write('<script src="/static/game/js/' + f + '.js?cb=' + Date.now() + '"><\/script>');
+</script>
+<script>
+(function () {
+  "use strict";
+  const BASE = {
+    you: 0, order: [0, 1, 2, 3, 4], current: 0, winner: null, gen: 1,
+    phase: "talk", phase_ends_at: null, server_now: 0, bonus: false, extra_turn: false,
+    saw_active: false, teams_active: true, flipback_discount: false,
+    use_counts: {}, use_limit: 6, feed: [],
+    players: [
+      { id: 0, team: "RED",  lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 1, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 2, team: "RED",  lives: 2, alive: true, handcuffed: true,  immune_from: [3] },
+      { id: 3, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 4, team: "RED",  lives: 1, alive: true, handcuffed: false, immune_from: [] },
+    ],
+    your_hand: { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1 }, item_counts: {}, peek: "unknown",
+  };
+  const ROSTER = { "0": "S.S." };
+  let scene = null;
+
+  const STEPS = [
+    ["MOVE", "TALK ACTIONS", [
+      { label: "ITEM", bright: true }, { label: "TRADE" }, { label: "PROCEED" }]],
+    ["KIT", "YOUR KIT · 3 CARRIED", [
+      { label: "MAGNET", badge: "×1" }, { label: "SEDATIVE", badge: "×1", bright: true },
+      { label: "SPYCAM", badge: "×1" }, { label: "POISON", badge: "×0", dim: true },
+      { label: "PASSPORT", badge: "×0", dim: true }, { label: "BLACKMAIL", badge: "×0", dim: true }]],
+    ["TARGET", "SEDATIVE — PICK A NEIGHBOR", [
+      { label: "C.W." }, { label: "N.D.", bright: true }]],
+    ["GO", "CONFIRM", [
+      { label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN" }]],
+  ];
+
+  function open(mode, anim) {
+    if (!scene) return;
+    const th = scene.openThread({ mode, anim, title: "YOUR MOVE" });
+    let k = 0;
+    const show = () => th.list(STEPS[k][0], STEPS[k][1], STEPS[k][2]);
+    th.onRow = async (i) => {
+      await th.lock(i);
+      k++;
+      if (k < STEPS.length) show();
+      else scene.time.delayedCall(500, () => scene.closeThread());
+    };
+    show();
+  }
+  document.getElementById("a").onclick = () => open("stack", "stagger");
+  document.getElementById("b").onclick = () => open("fade", "stagger");
+  document.getElementById("c").onclick = () => open("cols", "stagger");
+  document.getElementById("d").onclick = () => open("stack", "decode");
+
+  SCENE.ready = (s) => {
+    scene = s; s.render(BASE, ROSTER); s.setAction("YOUR\nMOVE", true);
+    const auto = new URLSearchParams(location.search).get("auto");   // smoke-test hook
+    if (auto) s.time.delayedCall(400, () => open(auto, "stagger"));
+  };
+  new Phaser.Game({
+    type: Phaser.AUTO, parent: "stage", width: SCENE.W, height: SCENE.H,
+    backgroundColor: "#000000", pixelArt: true,
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scene: SCENE.TableScene,
+  });
+})();
+</script></body></html>
