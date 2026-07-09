@@ -574,6 +574,121 @@
       this._radial.scrim.destroy(); this._radial.cont.destroy();
       this._radial = null;
     }
+
+    /* ---- CLICK-THREAD MENU (prototype under review — Skyrim/CoD list threads to replace dial chains).
+     * mode: "stack" locked picks collapse to breadcrumb lines · "fade" lists stay, siblings fade
+     *       · "cols" each step is a column. anim: "stagger" | "decode". All objects live at scene
+     * root depth 22 (decode slots inherit txtObj.depth — containers would strand them behind the scrim). */
+    openThread(opts) {
+      this.closeRadial(); this.closeThread();
+      opts = opts || {};
+      const mode = opts.mode || "stack", anim = opts.anim || "stagger";
+      const own = [];                                          // everything the thread ever draws
+      const mk = (o) => { own.push(o); return o; };
+      const scrim = mk(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.88).setDepth(21).setInteractive());
+      const title = mk(this.add.text(W / 2, mode === "fade" ? 58 : 86, "", style(15))
+        .setOrigin(0.5).setResolution(2).setDepth(22).setLetterSpacing(3));
+      this.decode(title, opts.title || "", 340);
+      mk(this.add.rectangle(W / 2, (700 + H) / 2, W, H - 700, 0x000000, 1).setDepth(21));  // dock blackout
+      const abort = mk(this.add.text(W / 2, 776, "✕ ABORT", style(12, "#aaaaaa")).setOrigin(0.5)
+        .setResolution(2).setDepth(22).setInteractive()
+        .on("pointerdown", () => { this.closeThread(); if (opts.onAbort) opts.onAbort(); }));
+      const arrowWas = this._arrow && this._arrow.visible;     // board bleed-through garbles thread copy
+      if (arrowWas) this._arrow.setVisible(false);
+      const th = { steps: 0, cursorY: 96, active: null, own, scrim, abort, arrowWas };
+      const colX = (k) => 52 + k * 96;
+
+      th.list = (key, header, items) => {                      // render the ACTIVE list
+        const st = { key, header, items, rows: [], hits: [] };
+        let hx = W / 2, hy, rowH, fs;
+        if (mode === "stack") { hy = 150 + th.steps * 30 + 14; rowH = 48; fs = 15; }
+        else if (mode === "fade") { hy = th.cursorY; rowH = 44; fs = 14; }
+        else { hx = colX(th.steps); hy = 128; rowH = 30; fs = 9; header = key; }
+        st.headT = mk(this.add.text(hx, hy, header, style(mode === "cols" ? 9 : 10, "#aaaaaa"))
+          .setOrigin(0.5).setResolution(2).setDepth(22).setLetterSpacing(2).setAlpha(0));
+        this.tweens.add({ targets: st.headT, alpha: 1, duration: 140 });
+        const proms = [];
+        items.forEach((it, i) => {
+          const y = hy + 34 + i * rowH;
+          const txt = it.badge ? it.label + "  " + it.badge : it.label;
+          const col = it.dim ? "#ffffff" : (it.bright ? "#ffffff" : "#cccccc");
+          const t = mk(this.add.text(hx, y, "", style(fs, col)).setOrigin(0.5).setResolution(2).setDepth(22));
+          if (it.dim) t.setAlpha(0.3);
+          if (anim === "decode" && !it.dim) {
+            proms.push(new Promise((r) => this.time.delayedCall(i * 60, () =>
+              this.decode(t, txt, 260).then(r))));
+          } else {
+            t.setText(txt);
+            const tx = mode === "cols"                         // keep column text on-screen
+              ? Math.min(Math.max(hx, t.width / 2 + 4), W - t.width / 2 - 4) : hx;
+            t.setX(tx - 26).setAlpha(0);
+            proms.push(new Promise((r) => this.tweens.add({ targets: t, x: tx, alpha: it.dim ? 0.3 : 1,
+              duration: 150, delay: i * 25, ease: "Cubic.easeOut", onComplete: r })));
+          }
+          const hit = mk(this.add.rectangle(hx, y, mode === "cols" ? 92 : W - 60, rowH - 4, 0xffffff, 0.001)
+            .setDepth(22));
+          if (!it.dim) hit.setInteractive().on("pointerdown", () => th.onRow && th.onRow(i));
+          st.rows.push({ t, it }); st.hits.push(hit);
+        });
+        th.active = st;
+        return Promise.all(proms);
+      };
+
+      th.lock = async (i) => {                                 // pick row i → lock it, retire the list
+        const st = th.active; if (!st) return;
+        const pick = st.rows[i];
+        st.hits.forEach((h) => h.disableInteractive());
+        const flash = mk(this.add.rectangle(pick.t.x, pick.t.y, pick.t.width + 22, pick.t.height + 4, 0xffffff)
+          .setDepth(22));
+        this.children.bringToTop(pick.t);
+        pick.t.setColor("#000000").setStroke("#ffffff", 6);    // invert while the flash bar is under it
+        await this.w(150);
+        this.tweens.add({ targets: flash, alpha: 0, duration: 130, onComplete: () => flash.destroy() });
+        pick.t.setColor("#ffffff").setStroke("#000000", 6);
+        const others = st.rows.filter((_, k) => k !== i).map((r) => r.t);
+        if (mode === "stack") {                                // picked row rises into the breadcrumb line
+          const cy = 138 + th.steps * 30;
+          this.tweens.add({ targets: others.concat([st.headT]), alpha: 0, duration: 150 });
+          await new Promise((r) => this.tweens.add({ targets: pick.t, x: W / 2, y: cy, scale: 12 / 15,
+            duration: 240, ease: "Cubic.easeInOut", onComplete: r }));
+          pick.t.destroy();
+          mk(this.add.text(W / 2, cy, st.key + " ▸ " + pick.it.label, style(12))
+            .setOrigin(0.5).setResolution(2).setDepth(22));
+          others.concat([st.headT]).forEach((o) => o.destroy());
+        } else if (mode === "fade") {                          // list compresses in place, siblings ghost
+          const base = st.headT.y + 22;
+          st.headT.setAlpha(0.55).setScale(0.85);
+          st.rows.forEach((r, k) => {
+            r.t.setText((k === i ? "▸ " : "") + r.t.text);
+            this.tweens.add({ targets: r.t, y: base + k * 24, scale: 0.72,
+              alpha: k === i ? 1 : (r.it.dim ? 0.15 : 0.25), duration: 220, ease: "Cubic.easeInOut" });
+          });
+          th.cursorY = base + st.rows.length * 24 + 20;
+          await this.w(240);
+        } else {                                               // cols: the column dims, pick stays lit
+          st.headT.setAlpha(0.4);
+          st.rows.forEach((r, k) => {
+            if (k === i) { r.t.setText("▸ " + r.t.text);
+              r.t.setX(Math.min(Math.max(r.t.x, r.t.width / 2 + 4), W - r.t.width / 2 - 4)); }
+            this.tweens.add({ targets: r.t, alpha: k === i ? 1 : (r.it.dim ? 0.12 : 0.3), duration: 200 });
+          });
+          await this.w(220);
+        }
+        st.hits.forEach((h) => h.destroy());
+        th.steps++; th.active = null;
+      };
+
+      th.close = () => this.closeThread();
+      this._thread = th;
+      return th;
+    }
+    closeThread() {
+      if (!this._thread) return;
+      const t = this._thread;
+      this._thread = null;
+      t.own.forEach((o) => { if (o && o.destroy) o.destroy(); });
+      if (t.arrowWas && this._arrow) this._arrow.setVisible(true);
+    }
     setAction(label, on) {                                    // the center hub's face
       this.actionT.setText(label || "· · ·").setColor(on ? "#ffffff" : "#888888");
       this.actionHub.setStrokeStyle(on ? 3 : 2, WHITE, on ? 1 : 0.9);

@@ -231,6 +231,11 @@
       ], { title: "SEND OFFER →", sub: "WANT: 1 SEDATIVE · 2 PASSPORT", hubBright: true });
       await s.w(1500);
     },
+    // ---- CLICK-THREAD samples (candidate dial replacement): full 4-step item chain each ----
+    thread_stack:  (s) => threadDemo(s, "stack", "stagger"),
+    thread_fade:   (s) => threadDemo(s, "fade", "stagger"),
+    thread_cols:   (s) => threadDemo(s, "cols", "stagger"),
+    thread_decode: (s) => threadDemo(s, "stack", "decode"),
     seam: async (s) => {                                      // burn edge crossing the digits
       s.render(BASE(), ROSTER);
       for (let t = 18; t >= 11; t--) { s.setBand({ phase: "talk", secs: t, name: "C.W." }); await s.w(240); }
@@ -273,6 +278,27 @@
     sctx.strokeStyle = "#444"; sctx.strokeRect(x, y, TW, TH);
     thumbs++;
     if (thumbs % PER === 0) flushSheet(ROWS);
+  }
+  async function threadDemo(s, mode, anim) {                  // the SEDATIVE chain, human tap cadence
+    s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
+    const th = s.openThread({ mode, anim, title: "YOUR MOVE" });
+    await th.list("MOVE", "TALK ACTIONS", [
+      { label: "ITEM", bright: true }, { label: "TRADE" }, { label: "PROCEED" }]);
+    await s.w(700); await th.lock(0);
+    await th.list("KIT", "YOUR KIT · 3 CARRIED", [
+      { label: "MAGNET", badge: "×1" }, { label: "SEDATIVE", badge: "×1", bright: true },
+      { label: "SPYCAM", badge: "×1" }, { label: "POISON", badge: "×0", dim: true },
+      { label: "PASSPORT", badge: "×0", dim: true }, { label: "BLACKMAIL", badge: "×0", dim: true }]);
+    await s.w(700); await th.lock(1);
+    await th.list("TARGET", "SEDATIVE — PICK A NEIGHBOR", [
+      { label: "C.W." }, { label: "N.D.", bright: true }]);
+    await s.w(700); await th.lock(1);
+    await th.list("GO", "CONFIRM", [
+      { label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN" }]);
+    await s.w(700); await th.lock(0);
+    await s.w(450);
+    th.close();
+    await s.w(300);
   }
   async function post(name, dataUrl) {
     await fetch("http://localhost:8017/cap", { method: "POST",
