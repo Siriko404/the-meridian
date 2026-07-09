@@ -209,17 +209,15 @@
           const g = this.barHatch.setVisible(true);
           g.clear();
           const hh = 14, pitch = 7, lean = 8, edge = bx + fw;
-          const DW = 48;                                       // the field PARTS around the digits
-          for (let x = bx + 4; x + lean <= edge; x += pitch) {
-            if (x + lean > W / 2 - DW && x < W / 2 + DW) continue;
-            g.lineStyle(2, col, 0.45);                         // darker field — the shimmer rides OVER it
-            g.lineBetween(x, by + hh, x + lean, by - hh);
+          for (let x = bx + 4; x + lean <= edge; x += pitch) { // the field runs BEHIND the digits —
+            g.lineStyle(2, col, 0.45);                         // their black outline cuts them free,
+            g.lineBetween(x, by + hh, x + lean, by - hh);      // and the burn edge crosses in view
           }
           g.lineStyle(2, col, 0.95);                           // ticket rules, SINGLE, no box
           [-20, 20].forEach((dy) => g.lineBetween(bx, by + dy, bx + this._bar.w, by + dy));
           this._hatchInfo = { fw, col };                       // the shimmer sweep reads this
           this.barSecs.setVisible(true).setText(fmt(left)).setX(W / 2)   // fixed digits OVER the field
-            .setColor(red ? "#c8102e" : "#ffffff").setStroke("#000000", 6);
+            .setColor(red ? "#c8102e" : "#ffffff").setStroke("#000000", 8);
         }
         this.bandCode.setVisible(false);                      // code only rides an idle band
       } else {
@@ -263,11 +261,10 @@
       const el = this.time.now % PER;
       if (el > SWEEP) return;
       const bx = this._bar.x, by = this._bar.y;
-      const hh = 14, pitch = 7, lean = 8, DW = 48;
+      const hh = 14, pitch = 7, lean = 8;
       const edge = bx + info.fw;
       const head = bx + (info.fw + 3 * pitch) * (el / SWEEP) - 2 * pitch;
       for (let x = bx + 4; x + lean <= edge; x += pitch) {
-        if (x + lean > W / 2 - DW && x < W / 2 + DW) continue; // the digit window stays parted
         const d = Math.abs(x - head);
         if (d > pitch * 1.6) continue;                        // 3 slashes wide, comet-faded
         g.lineStyle(2, info.col, 1 - (d / (pitch * 1.6)) * 0.55);
