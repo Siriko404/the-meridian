@@ -141,13 +141,14 @@ are RATIFIED by the user — do not re-litigate:
   **Menu ratification status:** YOUR MOVE(talk) ✅B · DECIDE ✅ (user waived) · TRADE builder ✅ +
   count picker ✅ + OFFER-IN ✅ (user played tradelab post-fixes: "looks perfect") · LEDGER ✅
   one-screen "n LIVE · k TO USE" split columns · WITHDRAW OFFER ✅ · burn-circle ✅ synced ·
-  **KIT-use / PAY / KIT-info redesigned + filmed (rig k_use/k_target/k_home/k_dec/p_flip/p_home/
-  ki_screen, all V0) — PRESENTED, awaiting user verdict.** Designs: KIT rows wear blurb whispers
-  (sub = theme blurb, "· SEALED" suffix; bright = usable per main.js:166 rule) header "YOUR KIT ·
-  3/8" · PAY = real pts (4/4/5/5/6/6), demo cost 9, "PAY n/9 PTS" arms at ≥cost, whisper "OVERPAY
-  IS SPENT — NO CHANGE" (trays.pay truth), ✕ STAND DOWN row · KIT-info = ONE screen (same rows,
-  still, no taps, "✕ CLOSE"). threadlab kitUse/pay/kitInfo updated to match (tap-inspect
-  infoThread deleted). NOTE: threadlab `?auto=` headless smoke is broken for ALL flows
+  **KIT-use ✅ · PAY ✅ · KIT-info ✅ (ratified 2026-07-09 night via AskUserQuestion; user caught
+  the fake demo flip cost — REAL cost 5, self flip-back 4, actions.py:85; POINT_VALUE ==
+  theme.js pts). ALL MENUS NOW RATIFIED.** Designs: KIT rows wear blurb whispers (sub = theme
+  blurb, "· SEALED" suffix; bright = usable per main.js:166 rule) header "YOUR KIT · 3/8" · PAY =
+  real pts (4/4/5/5/6/6), "PAY n/5 PTS" arms at ≥cost, whisper "OVERPAY IS SPENT — NO CHANGE"
+  (trays.pay truth), ✕ STAND DOWN row · KIT-info = ONE screen (same rows, still, no taps,
+  "✕ CLOSE"). threadlab kitUse/pay/kitInfo match (tap-inspect infoThread deleted). **NEXT = THE
+  WIRING** (open item ③ below). NOTE: threadlab `?auto=` headless smoke is broken for ALL flows
   (pre-existing — Phaser clock dead under --screenshot; differential-tested vs untouched ledger);
   interactive play + rig films are the verification. **Labs (dev pages, cache-busted):** `threadlab.html` (MOVE/MOVE·R/DECIDE/
   TRADE/KIT/LEDGER/OFFER·IN buttons, live band ticker) · `tradelab.html` (beat-exact trade
