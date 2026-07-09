@@ -207,7 +207,7 @@
         else {
           const red = left <= DEC, col = red ? RED : WHITE;
           th._clock.cont.setVisible(true);
-          const g = th._clock.g, SEG = 24, R = 17;
+          const g = th._clock.g, SEG = 24, R = 20;
           const lit = Math.ceil((left / TOTAL) * SEG);
           g.clear();
           for (let k = 0; k < SEG; k++) {                      // pixel-faceted ring of chords;
@@ -216,7 +216,7 @@
             g.lineStyle(4, col, k < lit ? 1 : 0.15);
             g.lineBetween(Math.cos(a0) * R, Math.sin(a0) * R, Math.cos(a1) * R, Math.sin(a1) * R);
           }
-          th._clock.t.setText(o.secs != null ? String(o.secs) : "")
+          th._clock.t.setText(fmt(left))                       // SAME digits as the big bar — in sync
             .setColor(red ? "#c8102e" : "#ffffff");
         }
       }
@@ -632,9 +632,9 @@
           .on("pointerdown", () => { if (!th._act && th.steps && th.onBack) th.onBack(); }); });
       const arrowWas = this._arrow && this._arrow.visible;     // board bleed-through garbles thread copy
       if (arrowWas) this._arrow.setVisible(false);
-      const clockC = mk(this.add.container(W / 2, 98).setDepth(22).setVisible(false));
+      const clockC = mk(this.add.container(W / 2, 100).setDepth(22).setVisible(false));
       const clockG = this.add.graphics();                      // the menu burn-circle (fed by setBand)
-      const clockT = this.add.text(0, 0, "", style(10, "#ffffff", { strokeThickness: 3 }))
+      const clockT = this.add.text(0, 0, "", style(9, "#ffffff", { strokeThickness: 3 }))
         .setOrigin(0.5).setResolution(2);
       clockC.add([clockG, clockT]);
       const th = { steps: 0, cursorY: 96, active: null, own, scrim, abort, arrowWas, _sections: [],
