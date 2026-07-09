@@ -85,7 +85,8 @@
       th.onRow = async (i) => {
         const en = rows[i].en;
         if (en === "HANDCUFFS") {                              // targeted item → white pulse
-          const id = await th.pickSeat("item", MATES, iname(en) + " — TAP A NEIGHBOR");
+          const id = await th.pickSeat("item", [1, 3, 4], iname(en) + " — TAP A PLAYER");   // anyone but
+          // you; seat 2 already SEDATED (engine: non-self, no stacking)
           if (id == null) return;
           await th.lock(i); confirmStep(th, iname(en) + " → " + name(id), THEME.ITEMS[en].blurb);
         } else { await th.lock(i); confirmStep(th, "USE " + iname(en), THEME.ITEMS[en].blurb); }

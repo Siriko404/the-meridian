@@ -389,7 +389,7 @@
       await th.list("MOVE", "", MOVE_ROWS()); await s.w(600);
       await th.lock(1);
       await th.list("KIT", "YOUR KIT · 3 CARRIED", KIT_ROWS()); await s.w(700);
-      const p = th.pickSeat("item", [2, 4], "SEDATIVE — TAP A NEIGHBOR");
+      const p = th.pickSeat("item", [1, 3, 4], "SEDATIVE — TAP A PLAYER");
       await s.w(1300); th._pickDone(4); await p;
       await th.lock(1);
       await th.list("GO", "CONFIRM — SEDATIVE → J.L.",
