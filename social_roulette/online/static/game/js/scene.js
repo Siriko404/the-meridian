@@ -33,6 +33,11 @@
       const BARX = 18, BARW = W - 36, BARY = 34, BARH = 40;
       this._bar = { x: BARX, y: BARY, w: BARW };
       this.barFill = this.add.rectangle(BARX, BARY, BARW, BARH, WHITE).setOrigin(0, 0.5).setDepth(5).setVisible(false);
+      this.barHatch = this.add.graphics().setDepth(5).setVisible(false);   // slash-fill clock variants
+      this.barPulse = this.add.graphics().setDepth(5);         // the loading-shimmer that rides the field
+      this._bandStyle = 0;                                     // 0 = solid burn (current) · 1-4 = samples
+      this._hatchInfo = null;
+      this.time.addEvent({ delay: 33, loop: true, callback: () => this._drawPulse() });
       this.barFrame = this.add.rectangle(W / 2, BARY, BARW, BARH).setStrokeStyle(2, WHITE, 0.4).setDepth(6).setVisible(false);
       // burn-through digits: two layers masked at the fill edge — the burn INVERTS them pixel by pixel
       const secStyle = (col) => style(20, col, { strokeThickness: 0 });
@@ -181,20 +186,65 @@
       else if (o.phase === "decision" && o.secs != null) left = Math.min(o.secs, DEC);
       if (left != null) {
         const red = left <= DEC, col = red ? RED : WHITE;     // last 30s = red
-        this.barFrame.setVisible(true);
-        this.barFill.setVisible(true);
+        const stl = this._bandStyle || 0;
         const fw = this._bar.w * (left / TOTAL);
-        this.barFill.width = fw;
-        this.barFill.setFillStyle(col);
-        this.barFrame.setStrokeStyle(2, col, 0.95);
-        this._mFillG.clear().fillStyle(0xffffff).fillRect(this._bar.x, this._bar.y - 20, fw, 40);
-        this._mEmptyG.clear().fillStyle(0xffffff).fillRect(this._bar.x + fw, this._bar.y - 20, this._bar.w - fw, 40);
-        this.barSecs.setVisible(true).setText(fmt(left)).setX(W / 2);    // digits FIXED center —
-        this.barSecsD.setVisible(true).setText(fmt(left)).setX(W / 2)    // the burn inverts them in place
-          .setColor(red ? "#ffffff" : "#000000");
+        const bx = this._bar.x, by = this._bar.y;
+        this.barFrame.setVisible(stl !== 3).setStrokeStyle(2, col, 0.95);
+        if (stl === 0) {                                       // solid burn + masked digit inversion
+          this.barHatch.setVisible(false);
+          this._hatchInfo = null; this.barPulse.clear();
+          this.barFill.setVisible(true);
+          this.barFill.width = fw;
+          this.barFill.setFillStyle(col);
+          this._mFillG.clear().fillStyle(0xffffff).fillRect(bx, by - 20, fw, 40);
+          this._mEmptyG.clear().fillStyle(0xffffff).fillRect(bx + fw, by - 20, this._bar.w - fw, 40);
+          this.barSecs.setVisible(true).setText(fmt(left)).setX(W / 2)   // digits FIXED center —
+            .setColor("#ffffff").setStroke("#000000", 0);      // the burn inverts them in place
+          this.barSecsD.setVisible(true).setText(fmt(left)).setX(W / 2)
+            .setColor(red ? "#ffffff" : "#000000");
+        } else {                                               // slash-field burn: ///// drains, digits ride it
+          this.barFill.setVisible(false);
+          this.barSecsD.setVisible(false);
+          this._mEmptyG.clear().fillStyle(0xffffff).fillRect(bx, by - 20, this._bar.w, 40);  // unmask
+          const g = this.barHatch.setVisible(true);
+          g.clear();
+          const hh = 14, pitch = 7, lean = 8, edge = bx + fw;
+          const DW = 48;                                       // the field PARTS around the digits
+          const inWin = (x) => x + lean > W / 2 - DW && x < W / 2 + DW;
+          if (stl === 4) {                                     // D: spent time = faint counter-slashes
+            for (let x = edge + pitch; x + lean <= bx + this._bar.w - 2; x += pitch) {
+              if (inWin(x)) continue;
+              g.lineStyle(2, col, 0.16);
+              g.lineBetween(x, by - hh, x + lean, by + hh);
+            }
+          }
+          const total = Math.max(0, Math.floor((fw - lean - 4) / pitch));
+          const fray = stl === 2 ? Math.min(6, total) : 0;     // B: the edge decodes into noise
+          let k = 0;
+          for (let x = bx + 4; x + lean <= edge; x += pitch, k++) {
+            if (inWin(x)) continue;
+            let a = 0.45, c = 1;                               // darker field — the pulse rides OVER it
+            if (fray && k >= total - fray) {
+              const d = k - (total - fray);
+              a = Math.max(0.1, 0.5 - d * 0.07 - Math.random() * 0.18);
+              if (Math.random() < 0.55) c = 0.35 + Math.random() * 0.45;
+            }
+            g.lineStyle(2, col, a);
+            g.lineBetween(x, by + hh * c, x + lean, by - hh * c);
+          }
+          this._hatchInfo = { fw, col };                       // the shimmer sweep reads this
+          if (stl === 3) {                                     // C: ticket double-rules, no box
+            g.lineStyle(2, col, 0.95);
+            [-20, -16, 16, 20].forEach((dy) => g.lineBetween(bx, by + dy, bx + this._bar.w, by + dy));
+          }
+          this.barSecs.setVisible(true).setText(fmt(left)).setX(W / 2)   // fixed digits OVER the field
+            .setColor(red ? "#c8102e" : "#ffffff").setStroke("#000000", 6);
+        }
         this.bandCode.setVisible(false);                      // code only rides an idle band
       } else {
         this.barFill.setVisible(false);
+        this.barHatch.setVisible(false);
+        this._hatchInfo = null; this.barPulse.clear();
         this.barSecs.setVisible(false);
         this.barSecsD.setVisible(false);
         this.barFrame.setVisible(false);
@@ -220,6 +270,27 @@
           th._clock.t.setText(fmt(left))                       // SAME digits as the big bar — in sync
             .setColor(red ? "#c8102e" : "#ffffff");
         }
+      }
+    }
+    _drawPulse() {                                            // 3-slash shimmer, left → right every 5s —
+      const g = this.barPulse;                                 // vintage loading-bar, mechanical linear ride
+      if (!g) return;
+      g.clear();
+      const info = this._hatchInfo;
+      if (!info || !info.fw) return;
+      const PER = 5000, SWEEP = 1100;
+      const el = this.time.now % PER;
+      if (el > SWEEP) return;
+      const bx = this._bar.x, by = this._bar.y;
+      const hh = 14, pitch = 7, lean = 8, DW = 48;
+      const edge = bx + info.fw;
+      const head = bx + (info.fw + 3 * pitch) * (el / SWEEP) - 2 * pitch;
+      for (let x = bx + 4; x + lean <= edge; x += pitch) {
+        if (x + lean > W / 2 - DW && x < W / 2 + DW) continue; // the digit window stays parted
+        const d = Math.abs(x - head);
+        if (d > pitch * 1.6) continue;                        // 3 slashes wide, comet-faded
+        g.lineStyle(2, info.col, 1 - (d / (pitch * 1.6)) * 0.55);
+        g.lineBetween(x, by + hh, x + lean, by - hh);
       }
     }
     setCode(code) { this._code = code; this.bandCode.setText(code || ""); }
