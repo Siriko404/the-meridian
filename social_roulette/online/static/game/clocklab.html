@@ -41,12 +41,12 @@
     your_hand: { BEER: 1, MAGNIFIER: 1, CIGARETTES: 1 }, item_counts: {}, peek: "unknown",
   };
   let scene = null;
-  const tick = { phase: "talk", secs: 8 };
+  const tick = { phase: "talk", secs: 60 };                   // the REAL ride: 1:30 total, red last 30
   setInterval(() => {
     if (!scene) return;
     if (tick.secs > 0) tick.secs--;
     else if (tick.phase === "talk") { tick.phase = "decision"; tick.secs = 30; }
-    else { tick.phase = "talk"; tick.secs = 8; }
+    else { tick.phase = "talk"; tick.secs = 60; }
     scene.setBand({ phase: tick.phase, secs: tick.secs, name: "YOUR TURN · S.S." });
   }, 1000);
   document.querySelectorAll("#bar button").forEach((b) =>
