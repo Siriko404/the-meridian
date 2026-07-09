@@ -717,8 +717,8 @@
     { label: "POISON", badge: "×0", dim: true, sub: "NEXT SHOT x2" },
     { label: "PASSPORT", badge: "×0", dim: true, sub: "+1 COVER" },
     { label: "BLACKMAIL", badge: "×0", dim: true, sub: "TARGET CAN'T SHOOT YOU" }];
-  const PROWS = (mag, spy) => {                               // FLIP payment: cost 9 = SPYCAM 5 + MAGNET 4
-    const tot = (mag ? 4 : 0) + (spy ? 5 : 0), ok = tot >= 9;
+  const PROWS = (mag, spy) => {                               // FLIP payment: REAL cost 5 (actions.py:85)
+    const tot = (mag ? 4 : 0) + (spy ? 5 : 0), ok = tot >= 5;
     return [
       { label: "MAGNET · 4 PTS", badge: mag ? "PAY ×1" : "×1", bright: !!mag },
       { label: "SEDATIVE · 4 PTS", badge: "×1" },
@@ -727,7 +727,7 @@
       { label: "PASSPORT · 6 PTS", badge: "×0", dim: true },
       { label: "BLACKMAIL · 6 PTS", badge: "×0", dim: true },
       { dot: true },
-      { label: "✓ PAY " + tot + "/9 PTS", bright: ok, dim: !ok, sub: "OVERPAY IS SPENT — NO CHANGE" },
+      { label: "✓ PAY " + tot + "/5 PTS", bright: ok, dim: !ok, sub: "OVERPAY IS SPENT — NO CHANGE" },
       { label: "✕ STAND DOWN" }];
   };
   const KIT_ROWS = () => [

@@ -105,7 +105,7 @@
 
   /* ---- FLIP payment (multi-pick, tap cycles the count) ---- */
   function pay(th, target) {
-    const cost = 9, chosen = {};                               // real pts (theme.js): two items to cover
+    const cost = 5, chosen = {};                               // REAL flip cost (actions.py:85; self=4)
     const render = () => {
       const total = ORDER.reduce((s, en) => s + (chosen[en] || 0) * THEME.ITEMS[en].pts, 0);
       const rows = ORDER.map((en) => ({ en,
