@@ -240,7 +240,7 @@
     thread_shoot: async (s) => {                              // red target frame
       const th = threadOpen(s);
       await th.list("MOVE", "", MOVE_ROWS()); await s.w(600);
-      const p = th.pickSeat("shoot", [1, 3], "SHOOT — TAP A TARGET");
+      const p = th.pickSeat("shoot", [0, 1, 3], "SHOOT — TAP A TARGET");
       await s.w(1300); th._pickDone(3); await p;
       await th.lock(0);
       await th.list("GO", "CONFIRM — SHOOT N.D.", GO_ROWS()); await s.w(700);
@@ -278,7 +278,7 @@
       const th = threadOpen(s);
       await th.list("MOVE", "", [{ label: "SHOOT", bright: true }, { label: "FLIP" }, { label: "ITEM" }]);
       await s.w(600);
-      const p = th.pickSeat("flip", [1, 3], "FLIP — TAP A TARGET");
+      const p = th.pickSeat("flip", [0, 1, 2, 3, 4], "FLIP — TAP A TARGET");
       await s.w(1200); th._pickDone(1); await p;
       await th.lock(1);
       const pays = (a, b, tot, ok) => [

@@ -182,12 +182,12 @@
       const rows = [{ label: "SHOOT", bright: true }, { label: "FLIP" }, { label: "ITEM" }];
       th.list("MOVE", "", rows);
       th.onRow = async (i) => {
-        if (i === 0) {
-          const id = await th.pickSeat("shoot", FOES, "SHOOT — TAP A TARGET");
+        if (i === 0) {                                         // engine: self + living enemies (endgame.py)
+          const id = await th.pickSeat("shoot", [0, 1, 3], "SHOOT — TAP A TARGET");
           if (id == null) return;
-          await th.lock(0); confirmStep(th, "SHOOT " + name(id));
-        } else if (i === 1) {
-          const id = await th.pickSeat("flip", FOES, "FLIP — TAP A TARGET");
+          await th.lock(0); confirmStep(th, "SHOOT " + (id === 0 ? "YOURSELF" : name(id)));
+        } else if (i === 1) {                                  // engine: ANY living player you can afford
+          const id = await th.pickSeat("flip", [0, 1, 2, 3, 4], "FLIP — TAP A TARGET");
           if (id == null) return;
           await th.lock(1); pay(th, id);
         } else { await th.lock(2); kitUse(th); }
