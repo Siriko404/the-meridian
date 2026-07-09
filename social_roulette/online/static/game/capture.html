@@ -310,8 +310,9 @@
         { label: "PASSPORT", badge: "×0", dim: true },
         { label: "BLACKMAIL", badge: "×0", dim: true }]);
       await s.w(1100); await th.lock(0);
-      await th.list("GO", "CONFIRM — USE MAGNET", GO_ROWS());
-      await s.w(700); await th.lock(0); await s.w(400); s.closeThread(); await s.w(200);
+      await th.list("GO", "CONFIRM — USE MAGNET",
+        [{ info: true, label: "EJECT CURRENT SHELL" }].concat(GO_ROWS()));
+      await s.w(700); await th.lock(1); await s.w(400); s.closeThread(); await s.w(200);
     },
     thread_trade: async (s) => {                              // the offer builder, full ride
       const th = threadOpen(s);
@@ -393,8 +394,9 @@
       const p = th.pickSeat("item", [2, 4], "SEDATIVE — TAP A NEIGHBOR");
       await s.w(1300); th._pickDone(4); await p;
       await th.lock(1);
-      await th.list("GO", "CONFIRM — SEDATIVE → J.L.", GO_ROWS()); await s.w(700);
-      await th.lock(0); await s.w(400); s.closeThread(); await s.w(200);
+      await th.list("GO", "CONFIRM — SEDATIVE → J.L.",
+        [{ info: true, label: "TARGET SKIPS A TURN" }].concat(GO_ROWS()));
+      await s.w(700); await th.lock(1); await s.w(400); s.closeThread(); await s.w(200);
     },
     seam: async (s) => {                                      // burn edge crossing the digits
       s.render(BASE(), ROSTER);

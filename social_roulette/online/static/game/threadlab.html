@@ -64,10 +64,11 @@
     return th;
   }
   const closeSoon = () => scene.time.delayedCall(500, () => scene.closeThread());
-  function confirmStep(th, label) {
+  function confirmStep(th, label, blurb) {
     th.show(() => {
-      th.list("GO", "CONFIRM — " + label, [
-        { label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN" }]);
+      const rows = blurb ? [{ info: true, label: blurb }] : [];
+      rows.push({ label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN" });
+      th.list("GO", "CONFIRM — " + label, rows);
       th.onRow = async (i) => { await th.lock(i); closeSoon(); };
     });
   }
@@ -86,8 +87,8 @@
         if (en === "HANDCUFFS") {                              // targeted item → white pulse
           const id = await th.pickSeat("item", MATES, iname(en) + " — TAP A NEIGHBOR");
           if (id == null) return;
-          await th.lock(i); confirmStep(th, iname(en) + " → " + name(id));
-        } else { await th.lock(i); confirmStep(th, "USE " + iname(en)); }
+          await th.lock(i); confirmStep(th, iname(en) + " → " + name(id), THEME.ITEMS[en].blurb);
+        } else { await th.lock(i); confirmStep(th, "USE " + iname(en), THEME.ITEMS[en].blurb); }
       };
     });
   }
