@@ -111,37 +111,47 @@ are RATIFIED by the user — do not re-litigate:
   (join `code`, trade `give/want` lists) can still kill a socket · offer-lifecycle broadcasts leak
   traffic-level "something private happened" · `trade_offer` accepts bot targets (withdraw
   recovers) · post-winner chat muted (undecided) · `last_skipped` drain-contract comment.
-- **PLAN B NEAR-DONE — branch `uiv2-client` @ `1f37495`, INLINE execution** (user: "no delegation";
+- **PLAN B NEAR-DONE — branch `uiv2-client` @ `87278a3`, INLINE execution** (user: "no delegation";
   "remove me from the loop, YOU handle 100%"). Plan doc `docs/superpowers/plans/2026-07-09-uiv2-client.md`
-  — **Tasks 1-8 DONE** (T6 live wiring, T7 trays+interaction grammar, T8 `/`=v2 `/v1`=old + 2 route
-  tests; 238 pytest + 8 node green). Aesthetics round 2 DONE (detector-verified). LIVE-PLAY VERIFIED:
-  in-page random autopilot played 2 FULL games to the winner (+1 partial), 0 JS errors; 9 UX bugs
-  found+fixed (empty verb strip busy-flag, strip overflow x2, uncloseable trays, unreadable bar
-  seconds, stale band during beats, dead-seat chips, kit-landing pileup, tray label overflow).
-  REMAINS: **Task 9 = USER GATE** (user plays on his phone/browser, then merge --no-ff to master)
-  · icon picks (SPYCAM 8/MAGNET 5/SEDATIVE 2 drafts; LEDGER icon 37 dup of PASSPORT — LEDGER box
-  uses text) · winner-face spritesheet edge-bleed at scale 6 (asset-level nit).
-- **REVIEW PROTOCOL (user-mandated, hard):** user must SEE everything — present in-engine pages,
-  never prose; **3 items per batch** with "what you're expected to see"; VERY CONCISE messages;
-  full phone screen NEVER blocked (side panel only). Review page `/static/game/review.html`.
-- **DESIGN DECISIONS RATIFIED (supersede spec §6/§7 details):** Times-serif (setResolution 2,
-  FS=1.4) · **OPAQUE black overlay** for ALL global events (coin/dice/announce/winner own the
-  stage) · turn = white bobbing ARROW · **burning BAR timer** (1:30: white 60s talk → red 30s
-  decision, m:ss on its own black chip, hidden when no phase or while beats play; room code shows
-  only on idle band) · chips ("DIRT·NAME"/"SEDATED") stacked BELOW seat, alive seats only · pips
-  centered per lives · corner menus: LEDGER box bottom-left + KIT briefcase bottom-right (64px,
-  icon-gated, sheet-tap dismisses) · item flights ride the CENTER AISLE and stop short of seats
-  (nothing ever covers a face; kit-bound drop-point above the case) · verb strip auto-fits the
-  [80,310] dock zone, confirm = [ACTION][✕] · copy: SHELL EJECTED / BONUS TURN / HAVE-HAS grammar.
-- **CAPTURE RIG v2 (Claude's eyes):** `capture.html?run=<scenario>` — virtual clock (rAF+
-  performance.now+Date.now via MessageChannel pump), FULL-RES 390x844 thumbs 3x2/sheet multi-page,
-  **geometry DEFECT DETECTOR** (Text/Image overlap + offscreen + copy inventory every 100ms game
-  time, dim-aware, fx/stamp exempt) → `<run>_audit.txt`. `runner.html` sweeps all 29 scenarios
-  sequentially (title `ALLDONE runs=N bad=N viol=N`); latest sweep V0 clean. **LIVE-PLAY rig:**
-  inject pump (steps `game.loop.step()` when rAF dead) + 3fps recorder (`live*_sNN.jpg`) + random
-  monkey bot tapping at the Phaser layer (hit-test emit; automated window is 0x0 — real clicks
-  impossible, synthetic DOM events don't reach Phaser). Automated-tab facts (measured): rAF 0x,
-  setTimeout ~1/s, CDP screenshots STALE — `canvas.toDataURL` is truth; cache-bust game js always.
+  — **Tasks 1-8 DONE** (T6 live wiring, T7 interaction, T8 `/`=v2 `/v1`=old; 238 pytest + 8 node
+  green). LIVE-PLAY VERIFIED by in-page autopilot bots: multiple FULL games to the winner incl. a
+  **2-human game (two tabs, same team)** proving the offer→respond→settle round-trip on the wire;
+  0 JS errors across all runs. REMAINS: **Task 9 = USER GATE** (user plays on his phone, then merge
+  --no-ff to master) · icon picks (SPYCAM 8/MAGNET 5/SEDATIVE 2 drafts) · winner-face spritesheet
+  edge-bleed at scale 6 (asset nit) · flip PAY tray + respond tray still sheet-based (rest is dials).
+- **RULES FIXED IN PLAY:** bots may NOT pass items unilaterally — `room.py social_enabled=False`
+  (every transfer = turn-holder offers → counterparty ACCEPT/DECLINE; engine Trade backdoor was
+  RL legacy; user caught the gift toast) · self flip-back copy = "X SWITCHED SIDES" · every
+  item/flip/fine/trade beat dials the ARROW to its actor first (replay never looks off-turn) ·
+  token read at CONNECT not page-load (second same-browser tab used to hijack the seat).
+- **THE DIAL (ratified UI idiom — user "LOVED" it):** `scene.openRadial(cx,cy,items,opts)` —
+  GTA-style ring on an OPAQUE black stage; full circle mid-screen (195,430), auto half-arc at the
+  dock hub (195,776); slots = circle+icon/label+top-right ×badge, bright ring/dim states; hub =
+  wrapped title + confirm trigger; caption BELOW the ring; entrance stagger. Dashboard = 3 circular
+  hubs: ≣ LEDGER · center ACTION face ("YOUR MOVE"/"· · ·", opens verb dial, becomes armed confirm
+  [SHOOT C.W.]+✕) · briefcase KIT — NO text labels; phone icon dead, the ticker row IS the chat
+  button. OFFER dial: all items offerable (bluff free), owned counts = badge+bright ring, tap item
+  → count dial 0-3 with YOUR holding lit, GIVE→WANT→SEND on hub. Trade targets = MARCHING-ANTS
+  dotted frames. Bots + humans all wear MONOGRAM initials (join asks 2 letters "F.L."; bot
+  codenames V.K./C.W./J.L./N.D./W.N.). Pre-game = boarding-pass ticket (double-rule frame, serif
+  masthead, two big initial boxes auto-advance, dashed code field, manifest lobby).
+- **TEXT SYSTEM:** serif FS=1.5, **INVERSE outlines** (white text/black rim, black text/white rim,
+  NO gray, thickness 6; trays 4); every setColor site must ALSO setStroke (South-plate blob bug).
+  **BURN-THROUGH CLOCK:** digits FIXED at bar center as two masked layers (black over fill, white
+  over void, GeometryMask at the fill edge) — the burn inverts them pixel-by-pixel in place; red
+  phase = white digits; no chip. Game page index.html CACHE-BUSTS its scripts (?v=Date.now()) —
+  stale JS twice faked dead masks for the user.
+- **CAPTURE RIG v3 (Claude's eyes):** `capture.html?run=<scenario>[&canvas=1]` — virtual clock
+  (rAF+performance.now+Date.now via MessageChannel pump), FULL-RES 390x844 thumbs 3x2/sheet,
+  **DEFECT DETECTOR** (Text/Image overlap+offscreen+copy inventory /100ms; exemptions: fx, stamp,
+  masked twin layers, dim-aware cut ≥0.8 fillAlpha) → `<run>_audit.txt`. `runner.html` sweeps all
+  **~43 scenarios** incl. 11 dial states + ants + seam (title `ALLDONE runs bad viol`); ×1-count
+  hits at slide/stagger moments = benign transients. **LIVE-PLAY rig:** inject pump (steps
+  `game.loop.step()` when rAF dead) + 3fps recorder + random monkey (taps rslot/rhub circles,
+  brackets, ants, trays, ACTION hub when face says YOUR) — plays full games unattended; two-tab
+  variant for 2-human tests (clear meridian_token in BOTH tabs first or the seat is reclaimed).
+  Automated-tab facts: rAF 0x, window 0x0 (no real clicks; Phaser-layer emit only), CDP screenshots
+  STALE — `canvas.toDataURL` is truth; cache-bust everything.
   Servers: game `./.venv/Scripts/python -m uvicorn social_roulette.online.server:app --port 8016`
   (bg) · sink `./.venv/Scripts/python _devcap.py` (bg, threaded; beware SO_REUSEADDR double-bind).
   Node tests: `node --test social_roulette/online/static/game/test/*.test.mjs`.
