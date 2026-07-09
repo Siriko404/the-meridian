@@ -236,6 +236,48 @@
     thread_fade:   (s) => threadDemo(s, "fade", "stagger"),
     thread_cols:   (s) => threadDemo(s, "cols", "stagger"),
     thread_decode: (s) => threadDemo(s, "stack", "decode"),
+    // ---- RATIFIED combo (fade+decode) + seat-pick conventions ----
+    thread_shoot: async (s) => {                              // red target frame
+      const th = threadOpen(s);
+      await th.list("MOVE", "CHOOSE", MOVE_ROWS()); await s.w(600);
+      const p = th.pickSeat("shoot", [1, 3], "SHOOT — TAP A TARGET");
+      await s.w(1300); th._pickDone(3); await p;
+      await th.lock(0);
+      await th.list("GO", "CONFIRM — SHOOT N.D.", GO_ROWS()); await s.w(700);
+      await th.lock(0); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    thread_ants: async (s) => {                               // marching ants + CANCEL back to menu
+      const th = threadOpen(s);
+      await th.list("MOVE", "CHOOSE", MOVE_ROWS()); await s.w(600);
+      const p1 = th.pickSeat("trade", [2, 4], "TRADE — TAP A TEAMMATE");
+      await s.w(1300); th._pickDone(null); await p1;         // CANCEL — the menu returns intact
+      await s.w(800);
+      const p2 = th.pickSeat("trade", [2, 4], "TRADE — TAP A TEAMMATE");
+      await s.w(900); th._pickDone(2); await p2;
+      await th.lock(2);
+      await th.list("GO", "CONFIRM — TRADE → C.W.", GO_ROWS()); await s.w(700);
+      await th.lock(0); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    thread_back: async (s) => {                               // ◂ BACK rewinds one step, list restored
+      const th = threadOpen(s);
+      await th.list("MOVE", "CHOOSE", MOVE_ROWS()); await s.w(600);
+      await th.lock(1);
+      await th.list("KIT", "YOUR KIT · 3 CARRIED", KIT_ROWS()); await s.w(1100);
+      th.back();                                              // ◂ BACK
+      await th.list("MOVE", "CHOOSE", MOVE_ROWS()); await s.w(1100);
+      s.closeThread(); await s.w(200);
+    },
+    thread_sedate: async (s) => {                             // white pulsing brackets (item)
+      const th = threadOpen(s);
+      await th.list("MOVE", "CHOOSE", MOVE_ROWS()); await s.w(600);
+      await th.lock(1);
+      await th.list("KIT", "YOUR KIT · 3 CARRIED", KIT_ROWS()); await s.w(700);
+      const p = th.pickSeat("item", [2, 4], "SEDATIVE — TAP A NEIGHBOR");
+      await s.w(1300); th._pickDone(4); await p;
+      await th.lock(1);
+      await th.list("GO", "CONFIRM — SEDATIVE → J.L.", GO_ROWS()); await s.w(700);
+      await th.lock(0); await s.w(400); s.closeThread(); await s.w(200);
+    },
     seam: async (s) => {                                      // burn edge crossing the digits
       s.render(BASE(), ROSTER);
       for (let t = 18; t >= 11; t--) { s.setBand({ phase: "talk", secs: t, name: "C.W." }); await s.w(240); }
@@ -279,6 +321,16 @@
     thumbs++;
     if (thumbs % PER === 0) flushSheet(ROWS);
   }
+  function threadOpen(s) {                                    // the ratified combo
+    s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
+    return s.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE" });
+  }
+  const MOVE_ROWS = () => [{ label: "SHOOT", bright: true }, { label: "ITEM" }, { label: "TRADE" }];
+  const GO_ROWS = () => [{ label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN" }];
+  const KIT_ROWS = () => [
+    { label: "MAGNET", badge: "×1" }, { label: "SEDATIVE", badge: "×1", bright: true },
+    { label: "SPYCAM", badge: "×1" }, { label: "POISON", badge: "×0", dim: true },
+    { label: "PASSPORT", badge: "×0", dim: true }, { label: "BLACKMAIL", badge: "×0", dim: true }];
   async function threadDemo(s, mode, anim) {                  // the SEDATIVE chain, human tap cadence
     s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
     const th = s.openThread({ mode, anim, title: "YOUR MOVE" });
@@ -322,6 +374,10 @@
   }
   function audit(s, el) {
     const cut = screenCut(s), out = [];
+    const covers = [];                          // opaque partial covers (e.g. the thread dock blackout)
+    for (const o of s.children.list)
+      if (o.type === "Rectangle" && o.visible && o.alpha * (o.fillAlpha == null ? 1 : o.fillAlpha) >= 0.8
+          && o.width >= 150 && o.height >= 80) covers.push({ b: o.getBounds(), d: o.depth });
     const push = (o, d, pa) => {
       const a = o.alpha * pa;
       if (!o.visible || a < 0.05) return;
@@ -330,8 +386,10 @@
       if (o.type === "Text" && !o.text.trim()) return;
       if (d < cut) return;
       if (o.name === "fx") return;
-      if (o.type === "Text") COPY.add(o.text.replace(/\n/g, " | "));
       const b = o.getBounds();
+      if (covers.some((c) => c.d > d && b.left >= c.b.left - 1 && b.right <= c.b.right + 1
+          && b.top >= c.b.top - 1 && b.bottom <= c.b.bottom + 1)) return;   // hidden under a cover
+      if (o.type === "Text") COPY.add(o.text.replace(/\n/g, " | "));
       if (b.width > 0) out.push({ o, b });
     };
     s.children.list.forEach((o) => push(o, o.depth, 1));

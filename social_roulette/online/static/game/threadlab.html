@@ -14,8 +14,7 @@
 </style>
 </head><body>
 <div id="bar">
-  <button id="a">A STACK</button><button id="b">B FADE</button>
-  <button id="c">C COLS</button><button id="d">D DECODE</button>
+  <button id="go">OPEN — YOUR MOVE</button>
 </div>
 <div id="wrap"><div id="stage" style="width:100%;height:100%"></div></div>
 <script src="/static/vendor/phaser.min.js"></script>
@@ -43,41 +42,56 @@
   const ROSTER = { "0": "S.S." };
   let scene = null;
 
-  const STEPS = [
-    ["MOVE", "TALK ACTIONS", [
-      { label: "ITEM", bright: true }, { label: "TRADE" }, { label: "PROCEED" }]],
-    ["KIT", "YOUR KIT · 3 CARRIED", [
-      { label: "MAGNET", badge: "×1" }, { label: "SEDATIVE", badge: "×1", bright: true },
-      { label: "SPYCAM", badge: "×1" }, { label: "POISON", badge: "×0", dim: true },
-      { label: "PASSPORT", badge: "×0", dim: true }, { label: "BLACKMAIL", badge: "×0", dim: true }]],
-    ["TARGET", "SEDATIVE — PICK A NEIGHBOR", [
-      { label: "C.W." }, { label: "N.D.", bright: true }]],
-    ["GO", "CONFIRM", [
-      { label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN" }]],
-  ];
+  const KIT = [
+    { label: "MAGNET", badge: "×1" }, { label: "SEDATIVE", badge: "×1", bright: true },
+    { label: "SPYCAM", badge: "×1" }, { label: "POISON", badge: "×0", dim: true },
+    { label: "PASSPORT", badge: "×0", dim: true }, { label: "BLACKMAIL", badge: "×0", dim: true }];
+  const name = (id) => THEME.seatName(id, ROSTER);
 
-  function open(mode, anim) {
+  function open() {
     if (!scene) return;
-    const th = scene.openThread({ mode, anim, title: "YOUR MOVE" });
-    let k = 0;
-    const show = () => th.list(STEPS[k][0], STEPS[k][1], STEPS[k][2]);
-    th.onRow = async (i) => {
-      await th.lock(i);
-      k++;
-      if (k < STEPS.length) show();
-      else scene.time.delayedCall(500, () => scene.closeThread());
-    };
-    show();
+    const th = scene.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE" });
+    const hist = [];                                    // step stack — BACK pops one level
+    const show = (fn) => { hist.push(fn); fn(); };
+    th.onBack = () => { if (hist.length < 2) return; th.back(); hist.pop(); hist[hist.length - 1](); };
+    const confirm = (label) => show(() => {
+      th.list("GO", "CONFIRM — " + label, [
+        { label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN" }]);
+      th.onRow = async (i) => { await th.lock(i); scene.time.delayedCall(500, () => scene.closeThread()); };
+    });
+    const kit = () => show(() => {
+      th.list("KIT", "YOUR KIT · 3 CARRIED", KIT);
+      th.onRow = async (i) => {
+        if (KIT[i].label === "SEDATIVE") {
+          const id = await th.pickSeat("item", [2, 4], "SEDATIVE — TAP A NEIGHBOR");
+          if (id == null) return;                       // cancel — the kit list is still open
+          await th.lock(i); confirm("SEDATIVE → " + name(id));
+        } else { await th.lock(i); confirm(KIT[i].label); }
+      };
+    });
+    show(() => {
+      th.list("MOVE", "CHOOSE", [
+        { label: "SHOOT", bright: true }, { label: "ITEM" }, { label: "TRADE" }]);
+      th.onRow = async (i) => {
+        if (i === 0) {
+          const id = await th.pickSeat("shoot", [1, 3], "SHOOT — TAP A TARGET");
+          if (id == null) return;
+          await th.lock(0); confirm("SHOOT " + name(id));
+        } else if (i === 1) { await th.lock(1); kit(); }
+        else {
+          const id = await th.pickSeat("trade", [2, 4], "TRADE — TAP A TEAMMATE");
+          if (id == null) return;
+          await th.lock(2); confirm("TRADE → " + name(id));
+        }
+      };
+    });
   }
-  document.getElementById("a").onclick = () => open("stack", "stagger");
-  document.getElementById("b").onclick = () => open("fade", "stagger");
-  document.getElementById("c").onclick = () => open("cols", "stagger");
-  document.getElementById("d").onclick = () => open("stack", "decode");
+  document.getElementById("go").onclick = open;
 
   SCENE.ready = (s) => {
     scene = s; s.render(BASE, ROSTER); s.setAction("YOUR\nMOVE", true);
     const auto = new URLSearchParams(location.search).get("auto");   // smoke-test hook
-    if (auto) s.time.delayedCall(400, () => open(auto, "stagger"));
+    if (auto) s.time.delayedCall(400, open);
   };
   new Phaser.Game({
     type: Phaser.AUTO, parent: "stage", width: SCENE.W, height: SCENE.H,

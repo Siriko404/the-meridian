@@ -589,21 +589,25 @@
       const title = mk(this.add.text(W / 2, mode === "fade" ? 58 : 86, "", style(15))
         .setOrigin(0.5).setResolution(2).setDepth(22).setLetterSpacing(3));
       this.decode(title, opts.title || "", 340);
-      mk(this.add.rectangle(W / 2, (700 + H) / 2, W, H - 700, 0x000000, 1).setDepth(21));  // dock blackout
-      const abort = mk(this.add.text(W / 2, 776, "✕ ABORT", style(12, "#aaaaaa")).setOrigin(0.5)
+      const dockCover = mk(this.add.rectangle(W / 2, (700 + H) / 2, W, H - 700, 0x000000, 1).setDepth(21));
+      const abort = mk(this.add.text(W / 2 + 80, 776, "✕ ABORT", style(12, "#aaaaaa")).setOrigin(0.5)
         .setResolution(2).setDepth(22).setInteractive()
         .on("pointerdown", () => { this.closeThread(); if (opts.onAbort) opts.onAbort(); }));
+      const backB = mk(this.add.text(W / 2 - 80, 776, "◂ BACK", style(12, "#aaaaaa")).setOrigin(0.5)
+        .setResolution(2).setDepth(22).setAlpha(0.3).setInteractive()
+        .on("pointerdown", () => { if (th.steps && th.onBack) th.onBack(); }));
       const arrowWas = this._arrow && this._arrow.visible;     // board bleed-through garbles thread copy
       if (arrowWas) this._arrow.setVisible(false);
-      const th = { steps: 0, cursorY: 96, active: null, own, scrim, abort, arrowWas };
+      const th = { steps: 0, cursorY: 96, active: null, own, scrim, abort, arrowWas, _sections: [] };
       const colX = (k) => 52 + k * 96;
 
       th.list = (key, header, items) => {                      // render the ACTIVE list
-        const st = { key, header, items, rows: [], hits: [] };
+        const st = { key, header, items, rows: [], hits: [], baseY: th.cursorY };
         let hx = W / 2, hy, rowH, fs;
         if (mode === "stack") { hy = 150 + th.steps * 30 + 14; rowH = 48; fs = 15; }
         else if (mode === "fade") { hy = th.cursorY; rowH = 44; fs = 14; }
         else { hx = colX(th.steps); hy = 128; rowH = 30; fs = 9; header = key; }
+        backB.setAlpha(th.steps ? 1 : 0.3);
         st.headT = mk(this.add.text(hx, hy, header, style(mode === "cols" ? 9 : 10, "#aaaaaa"))
           .setOrigin(0.5).setResolution(2).setDepth(22).setLetterSpacing(2).setAlpha(0));
         this.tweens.add({ targets: st.headT, alpha: 1, duration: 140 });
@@ -652,7 +656,7 @@
           await new Promise((r) => this.tweens.add({ targets: pick.t, x: W / 2, y: cy, scale: 12 / 15,
             duration: 240, ease: "Cubic.easeInOut", onComplete: r }));
           pick.t.destroy();
-          mk(this.add.text(W / 2, cy, st.key + " ▸ " + pick.it.label, style(12))
+          st.crumb = mk(this.add.text(W / 2, cy, st.key + " ▸ " + pick.it.label, style(12))
             .setOrigin(0.5).setResolution(2).setDepth(22));
           others.concat([st.headT]).forEach((o) => o.destroy());
         } else if (mode === "fade") {                          // list compresses in place, siblings ghost
@@ -676,8 +680,45 @@
         }
         st.hits.forEach((h) => h.destroy());
         th.steps++; th.active = null;
+        th._sections.push(st);
+        backB.setAlpha(1);
       };
 
+      th.back = () => {                                        // rewind ONE step; caller re-lists it
+        const kill = (st) => { if (!st) return;
+          st.rows.forEach((r) => r.t && r.t.destroy());
+          st.hits.forEach((h) => h.destroy());
+          if (st.headT) st.headT.destroy();
+          if (st.crumb) st.crumb.destroy();
+        };
+        kill(th.active); th.active = null;
+        const prev = th._sections.pop();
+        if (!prev) return null;
+        kill(prev);
+        th.steps--; th.cursorY = prev.baseY;
+        backB.setAlpha(th.steps ? 1 : 0.3);
+        return prev;
+      };
+
+      th.pickSeat = (kind, ids, note) => new Promise((resolve) => {
+        own.forEach((o) => { if (o !== dockCover && o.setVisible) o.setVisible(false); });  // duck — board is the menu
+        const ribbon = this.add.text(W / 2, 86, note, style(13, "#ffffff", { align: "center" }))
+          .setOrigin(0.5).setResolution(2).setDepth(22).setBackgroundColor("#000000");
+        const cancel = this.add.text(W / 2, 776, "✕ CANCEL", style(12, "#aaaaaa")).setOrigin(0.5)
+          .setResolution(2).setDepth(22).setBackgroundColor("#000000").setInteractive();
+        const done = (id) => {
+          if (kind === "trade") this.seatGlow([], false); else this.clearTargets();
+          ribbon.destroy(); cancel.destroy();
+          if (this._thread === th) own.forEach((o) => o.setVisible && o.setVisible(true));
+          th._pickDone = null;
+          resolve(id);
+        };
+        th._pickDone = done;                                   // rig hook (films drive picks directly)
+        cancel.on("pointerdown", () => done(null));            // back to the menu — NOT a full abort
+        if (kind === "shoot") this.setTargets(ids, done);      // red frame: danger
+        else if (kind === "trade") this.seatGlow(ids, true, done);   // marching ants
+        else this.setItemTargets(ids, done);                   // white pulse: item
+      });
       th.close = () => this.closeThread();
       this._thread = th;
       return th;
@@ -711,6 +752,22 @@
       });
     }
     clearTargets() { this._brackets.forEach((o) => o.destroy()); this._brackets = []; }
+    setItemTargets(ids, onTap) {                               // item targeting — WHITE pulsing brackets
+      this.clearTargets();                                     // (red = danger only; ants = trade)
+      ids.forEach((id) => {
+        const s = this.seats.get(id); if (!s) return;
+        const g = this.add.graphics().setDepth(12);
+        [[-44, -44, 1, 1], [44, -44, -1, 1], [-44, 44, 1, -1], [44, 44, -1, -1]].forEach(([dx, dy, sx, sy]) => {
+          g.lineStyle(3, WHITE, 1);
+          g.lineBetween(s.x + dx, s.y + dy, s.x + dx + sx * 14, s.y + dy);
+          g.lineBetween(s.x + dx, s.y + dy, s.x + dx, s.y + dy + sy * 14);
+        });
+        const tw = this.tweens.add({ targets: g, alpha: 0.25, duration: 480, yoyo: true, repeat: -1 });
+        const hit = this.add.rectangle(s.x, s.y, 88, 88, 0xffffff, 0.001).setDepth(12).setInteractive()
+          .on("pointerdown", () => onTap && onTap(id));
+        this._brackets.push({ destroy: () => { tw.remove(); g.destroy(); } }, hit);
+      });
+    }
     seatGlow(ids, on, onTap) {                                 // M26 — MARCHING ANTS dotted frame.
       this._glows.forEach((o) => { o.ev.remove(); o.g.destroy(); if (o.hit) o.hit.destroy(); });
       this._glows = [];                                        // WHITE + tap — never red (trade ≠ danger)
