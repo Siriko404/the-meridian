@@ -269,7 +269,8 @@
     b.onclick = () => scene && FLOWS[b.dataset.f]());
 
   SCENE.ready = (s) => {
-    scene = s; s.render(BASE, ROSTER); s.setAction("YOUR\nMOVE", true);
+    scene = s; s._bandStyle = 1;                               // the FINAL slash clock (pending ratify)
+    s.render(BASE, ROSTER); s.setAction("YOUR\nMOVE", true);
     const auto = new URLSearchParams(location.search).get("auto");   // smoke-test hook
     if (auto && FLOWS[auto]) s.time.delayedCall(400, FLOWS[auto]);
   };

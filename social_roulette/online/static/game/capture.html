@@ -603,11 +603,8 @@
       await th.list("i", "", KROWS().map((r) => Object.assign(r, { still: true })));
       await s.w(2400); s.closeThread(); await s.w(200);
     },
-    /* ---- BIG-CLOCK slash variants: full field → burn-down → white→red boundary ---- */
-    clock_a: (s) => clockDemo(s, 1),                          // A: clean hatch
-    clock_b: (s) => clockDemo(s, 2),                          // B: frayed decode edge
-    clock_c: (s) => clockDemo(s, 3),                          // C: ticket double-rules
-    clock_d: (s) => clockDemo(s, 4),                          // D: ghost counter-slash burn
+    /* ---- BIG CLOCK (FINAL — user-picked C w/ single rules): full → red → empty ---- */
+    clock_final: (s) => clockDemo(s, 1),
     seam: async (s) => {                                      // burn edge crossing the digits
       s.render(BASE(), ROSTER);
       for (let t = 18; t >= 11; t--) { s.setBand({ phase: "talk", secs: t, name: "C.W." }); await s.w(240); }
@@ -659,6 +656,7 @@
     fire("talk", 30); await s.w(800);                         // two-thirds
     for (let t = 3; t >= 1; t--) { fire("talk", t); await s.w(420); }
     for (let t = 30; t >= 24; t--) { fire("decision", t); await s.w(420); }  // RED zone
+    for (let t = 2; t >= 0; t--) { fire("decision", t); await s.w(420); }    // the field runs dry
     await s.w(400);
     s._bandStyle = 0;
   }

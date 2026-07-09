@@ -198,7 +198,13 @@ are RATIFIED by the user — do not re-litigate:
   NO gray, thickness 6; trays 4); every setColor site must ALSO setStroke (South-plate blob bug).
   **BURN-THROUGH CLOCK:** digits FIXED at bar center as two masked layers (black over fill, white
   over void, GeometryMask at the fill edge) — the burn inverts them pixel-by-pixel in place; red
-  phase = white digits; no chip. Game page index.html CACHE-BUSTS its scripts (?v=Date.now()) —
+  phase = white digits; no chip. **⟲ SLASH-CLOCK FINAL (scene `_bandStyle=1`, PENDING RATIFY —
+  wiring = default it in main.js then delete style 0):** user picked C-single-rules from 4 filmed
+  samples: ///// field (2px, α.45) drains L→R between TWO single ticket rules (±20, no box),
+  digits fs20 white/black-stroke-6 FIXED in a parted 96px window, ALL red at ≤30s, 5s loading
+  shimmer (3-slash comet, `_drawPulse` 33ms loop reads `_hatchInfo`); labs (clocklab/threadlab/
+  tradelab) run style 1; rig `clock_final` films full→red→0:00; style 0 solid burn still the
+  live-game default. Game page index.html CACHE-BUSTS its scripts (?v=Date.now()) —
   stale JS twice faked dead masks for the user.
 - **CAPTURE RIG v3 (Claude's eyes):** `capture.html?run=<scenario>[&canvas=1]` — virtual clock
   (rAF+performance.now+Date.now via MessageChannel pump), FULL-RES 390x844 thumbs 3x2/sheet,

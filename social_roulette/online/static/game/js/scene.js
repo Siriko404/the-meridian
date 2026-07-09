@@ -189,7 +189,7 @@
         const stl = this._bandStyle || 0;
         const fw = this._bar.w * (left / TOTAL);
         const bx = this._bar.x, by = this._bar.y;
-        this.barFrame.setVisible(stl !== 3).setStrokeStyle(2, col, 0.95);
+        this.barFrame.setVisible(!stl).setStrokeStyle(2, col, 0.95);
         if (stl === 0) {                                       // solid burn + masked digit inversion
           this.barHatch.setVisible(false);
           this._hatchInfo = null; this.barPulse.clear();
@@ -202,41 +202,22 @@
             .setColor("#ffffff").setStroke("#000000", 0);      // the burn inverts them in place
           this.barSecsD.setVisible(true).setText(fmt(left)).setX(W / 2)
             .setColor(red ? "#ffffff" : "#000000");
-        } else {                                               // slash-field burn: ///// drains, digits ride it
-          this.barFill.setVisible(false);
-          this.barSecsD.setVisible(false);
+        } else {                                               // FINAL (user-picked C, single rules):
+          this.barFill.setVisible(false);                      // ///// field drains between two rules,
+          this.barSecsD.setVisible(false);                     // digits fixed in a parted window
           this._mEmptyG.clear().fillStyle(0xffffff).fillRect(bx, by - 20, this._bar.w, 40);  // unmask
           const g = this.barHatch.setVisible(true);
           g.clear();
           const hh = 14, pitch = 7, lean = 8, edge = bx + fw;
           const DW = 48;                                       // the field PARTS around the digits
-          const inWin = (x) => x + lean > W / 2 - DW && x < W / 2 + DW;
-          if (stl === 4) {                                     // D: spent time = faint counter-slashes
-            for (let x = edge + pitch; x + lean <= bx + this._bar.w - 2; x += pitch) {
-              if (inWin(x)) continue;
-              g.lineStyle(2, col, 0.16);
-              g.lineBetween(x, by - hh, x + lean, by + hh);
-            }
+          for (let x = bx + 4; x + lean <= edge; x += pitch) {
+            if (x + lean > W / 2 - DW && x < W / 2 + DW) continue;
+            g.lineStyle(2, col, 0.45);                         // darker field — the shimmer rides OVER it
+            g.lineBetween(x, by + hh, x + lean, by - hh);
           }
-          const total = Math.max(0, Math.floor((fw - lean - 4) / pitch));
-          const fray = stl === 2 ? Math.min(6, total) : 0;     // B: the edge decodes into noise
-          let k = 0;
-          for (let x = bx + 4; x + lean <= edge; x += pitch, k++) {
-            if (inWin(x)) continue;
-            let a = 0.45, c = 1;                               // darker field — the pulse rides OVER it
-            if (fray && k >= total - fray) {
-              const d = k - (total - fray);
-              a = Math.max(0.1, 0.5 - d * 0.07 - Math.random() * 0.18);
-              if (Math.random() < 0.55) c = 0.35 + Math.random() * 0.45;
-            }
-            g.lineStyle(2, col, a);
-            g.lineBetween(x, by + hh * c, x + lean, by - hh * c);
-          }
+          g.lineStyle(2, col, 0.95);                           // ticket rules, SINGLE, no box
+          [-20, 20].forEach((dy) => g.lineBetween(bx, by + dy, bx + this._bar.w, by + dy));
           this._hatchInfo = { fw, col };                       // the shimmer sweep reads this
-          if (stl === 3) {                                     // C: ticket double-rules, no box
-            g.lineStyle(2, col, 0.95);
-            [-20, -16, 16, 20].forEach((dy) => g.lineBetween(bx, by + dy, bx + this._bar.w, by + dy));
-          }
           this.barSecs.setVisible(true).setText(fmt(left)).setX(W / 2)   // fixed digits OVER the field
             .setColor(red ? "#c8102e" : "#ffffff").setStroke("#000000", 6);
         }
