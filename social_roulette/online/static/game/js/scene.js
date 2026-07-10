@@ -5,6 +5,8 @@
 (function (global) {
   "use strict";
   const W = 390, H = 844, RED = 0xc8102e, WHITE = 0xffffff;
+  const READ = 1.6;   // beat-text pacing: decode slower + linger longer so EVERY player
+                      // can read (user 2026-07-10). Menus keep their own fast timings.
   const SERIF = "'Times New Roman','Times',Georgia,serif";   // 1-bit-crisp serif (setResolution 2)
   const CX = 195, CY = 430, RX = 142, RY = 150;      // arc (spike-proven); drop CY if KIT collides
   const SCENE = { ready: null };
@@ -346,9 +348,9 @@
       if (!this._toast) this._toast = this.add.text(W / 2, 150, "", style(17, "#ffffff",
         { align: "center", wordWrap: { width: W - 40 } })).setOrigin(0.5)
         .setResolution(2).setDepth(18);
-      await this.decode(this._toast, str, 440);
-      await this.w(hold || 1400);
-      await this.decodeOut(this._toast, 480);
+      await this.decode(this._toast, str, 440 * READ);
+      await this.w((hold || 1400) * READ);
+      await this.decodeOut(this._toast, 480 * READ);
     }
     flashWhite() {
       const f = this.add.rectangle(W / 2, H / 2, W, H, 0xffffff).setDepth(20);
@@ -376,7 +378,7 @@
     floatAt(pt, str, red) {
       const t = this.add.text(pt.x, pt.y, str, style(20, red ? "#c8102e" : "#ffffff")).setOrigin(0.5)
         .setResolution(2).setDepth(15).setName("fx");
-      this.tweens.add({ targets: t, y: pt.y - 50, alpha: 0, duration: 950, onComplete: () => t.destroy() });
+      this.tweens.add({ targets: t, y: pt.y - 50, alpha: 0, duration: 950 * READ, onComplete: () => t.destroy() });
     }
     async stampSeat(id, str, red) {
       const s = this.seats.get(id); if (!s) return;
@@ -384,7 +386,7 @@
       const hw = s.stamp.width * 0.9 + 6;                     // clamp at peak entrance scale (1.6 + overshoot)
       s.stamp.x = Math.min(Math.max(s.x, hw), W - hw);
       this.tweens.add({ targets: s.stamp, scale: 1, alpha: 1, duration: 190, ease: "Back.easeOut" });
-      await this.w(900);
+      await this.w(900 * READ);
       if (str !== "BURNED") { this.tweens.add({ targets: s.stamp, alpha: 0, duration: 400 }); await this.w(400);
         s.stamp.setVisible(false).setAlpha(1); }
     }
@@ -980,6 +982,6 @@
   }
 
   SCENE.TableScene = TableScene; SCENE.W = W; SCENE.H = H; SCENE.RED = RED; SCENE.WHITE = WHITE;
-  SCENE.CX = CX; SCENE.CY = CY;
+  SCENE.CX = CX; SCENE.CY = CY; SCENE.READ = READ;
   global.SCENE = SCENE;
 })(typeof window !== "undefined" ? window : globalThis);

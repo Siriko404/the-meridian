@@ -44,7 +44,7 @@
     const cap = scene.add.text(SCENE.W / 2, 160, "", { fontFamily: "'Times New Roman','Times',Georgia,serif",
       fontSize: "24px", color: "#ffffff", fontStyle: "bold", stroke: "#000000", strokeThickness: 6 })
       .setOrigin(0.5).setResolution(2).setDepth(18);
-    const capIn = scene.decode(cap, "THE ODD SEAT…", 420);    // decode-in while the coin spins
+    const capIn = scene.decode(cap, "THE ODD SEAT…", 420 * SCENE.READ);   // decode-in while the coin spins
     const c = scene.add.circle(SCENE.W / 2, 210, 24, 0xffffff).setStrokeStyle(3, 0xffffff, 1).setDepth(18);
     for (let k = 0; k < 6; k++) {
       await new Promise((r) => scene.tweens.add({ targets: c, scaleX: 0.06, duration: 90, yoyo: true,
@@ -55,8 +55,8 @@
     const t = scene.add.text(SCENE.W / 2, 258, "", { fontFamily: "'Times New Roman','Times',Georgia,serif",
       fontSize: "26px", color: "#ffffff", fontStyle: "bold", stroke: "#000000", strokeThickness: 6 })
       .setOrigin(0.5).setResolution(2).setDepth(18);
-    await scene.decode(t, tm.name + " +1 SEAT", 460);
-    await scene.w(1100);
+    await scene.decode(t, tm.name + " +1 SEAT", 460 * SCENE.READ);
+    await scene.w(1100 * SCENE.READ);
     await Promise.all([scene.decodeOut(cap, 420), scene.decodeOut(t, 420),
       new Promise((r) => scene.tweens.add({ targets: c, alpha: 0, duration: 350, onComplete: r }))]);
     c.destroy(); t.destroy(); cap.destroy();                  // await cleanup — no leak
