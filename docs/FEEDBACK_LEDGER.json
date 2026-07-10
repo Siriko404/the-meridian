@@ -1,0 +1,62 @@
+{
+  "_readme": "SYSTEMATIC LEDGER for the 2026-07-10 feedback batch. Read AFTER docs/PROJECT_STATUS.md. Statuses: LIVE (deployed) / WIRED (committed, not deployed) / QUEUED / DEFERRED / RESOLVED-BY-AUDIT. Every ratified design carries its EXACT parameters — do not re-litigate, do not re-sample. Update this file after every completed item.",
+  "updated": "2026-07-10",
+  "branch_state": {
+    "head": "2d81a9c",
+    "branches": "master == uiv2-client, both pushed",
+    "deploy": "Render watches uiv2-client; push = deploy; confirm live via curl BEFORE giving the user a link",
+    "live_url": "https://meridian-ta39.onrender.com"
+  },
+  "items": [
+    { "id": 1,  "name": "timer authority bug", "status": "LIVE", "commit": "1024a2f", "note": "_deadline early-wake left NO task; else-branch re-arms; tests/test_server_deadline.py" },
+    { "id": 2,  "name": "consume cap x1.3 -> x1.0", "status": "LIVE", "commit": "7b657bd", "note": "CONSUMPTION_MULT=1.0; guide synced" },
+    { "id": 3,  "name": "sedative teammate ban", "status": "LIVE", "commit": "e12e36d", "note": "legal_actions gate; IMMUNITY on teammates stays legal; FFA unaffected; RL possibility test widened to 150 seeds" },
+    { "id": 4,  "name": "item changes header", "status": "RESOLVED", "note": "= item redesign work item (#7)" },
+    { "id": 5,  "name": "seat card redesign", "status": "LIVE", "commit": "2d81a9c", "note": "see design_constants.seat_card_v2 — 10 lab iterations, all params ratified" },
+    { "id": 6,  "name": "win condition: max cover held one full circle", "status": "QUEUED", "note": "EVALUATE FIRST via simulation, report, user decides. Punch-card full-5 pulse is the UI tell already. Needs #7 item wiring first (user ordering)." },
+    { "id": 7,  "name": "image->1bit engine", "status": "DEFERRED", "note": "user: later ambitions" },
+    { "id": 8,  "name": "sedative/blackmail teammate rules", "status": "LIVE", "note": "folded into item 3" },
+    { "id": 9,  "name": "login page + ticket profile + waiting room", "status": "QUEUED" },
+    { "id": 10, "name": "soften item names", "status": "QUEUED", "note": "inside item redesign session (#itemsession)" },
+    { "id": 11, "name": "special item: steal items from one player", "status": "QUEUED", "note": "#itemsession" },
+    { "id": 12, "name": "special item: see all inventories", "status": "QUEUED", "note": "#itemsession; theme: call intelligence-service backup" },
+    { "id": 13, "name": "special item: steal/force a player's shot (mind-switch); rename current BLACKMAIL->BRIBE", "status": "QUEUED", "note": "#itemsession" },
+    { "id": 14, "name": "special items are non-chargeable", "status": "QUEUED", "note": "NOT drawn; allocated ONCE at game start; 0 economy value; tradable; usable on ANYONE incl. teammates" },
+    { "id": 15, "name": "special item theme: calling a higher power", "status": "QUEUED", "note": "#itemsession" },
+    { "id": 16, "name": "language JSON ledger + LLM personality re-skin", "status": "QUEUED", "note": "all narration/comments in labeled structured JSON with default text + context; user describes persona -> LLM transforms" },
+    { "id": 17, "name": "lives -> COVER copy", "status": "RESOLVED-BY-AUDIT", "note": "client already says COVER; engine/docs vocabulary lands in the rename sweep" },
+    { "id": 18, "name": "beat text slower + linger", "status": "LIVE", "commit": "710e447", "note": "READ=1.6 in scene.js scales toast/stamp/float/coin captions; menus untouched" },
+    { "id": 19, "name": "phone FPS", "status": "LIVE", "commit": "99a7cbd", "note": "cause = WebGL path; CANVAS is default; ?webgl=1 restores AUTO; ?diag=1 FPS HUD exists" },
+    { "id": 20, "name": "PWA installable + install-before-signin", "status": "QUEUED", "note": "PWA does NOT fix FPS (settled); it is the install/login flow item, ties to id 9" },
+    { "id": 21, "name": "draw rework", "status": "QUEUED", "note": "draws at every full table circle (3 items/player) + on death (dead player's items scattered randomly to everyone); total cards bounded 1-2x living players; REPLACES reload-trigger draws (verify reading with user before build)" }
+  ],
+  "work_order_ratified": ["#itemsession (items 10-15,4)", "rename sweep: engine enums + docs to FINAL post-redesign names, ONE pass (legal mitigation 1+2+3: diverge 2-3 effects, rename enums, SHELLS->ROUNDS)", "item 6 win-cond simulation", "then 9/16/20/21 re-prioritized with user"],
+  "design_constants": {
+    "seat_card_v2": {
+      "cover_meter": "5 punch dots RIGHT of frame: r=3, pitch=12, 6px gap from tile edge (px = x+48); solid=cover, punched = lasting ring 1px @0.30 alpha; RED when shown<=2; +1 = stamp t:0->1 170ms Back.easeOut; -1 = alpha->0.25 60ms then ring; FULL5 = pulse A: per-dot alpha *= 1-max(0,1-|t*6-0.5-k|*1.4)*0.75, cycle 1800ms, continuous, bottom->top",
+      "chips": "LEFT of frame, bx = x-52 (5px gap; leftmost ring seat x~60 lands at screen edge 0); BARE glyphs no boxes: sedated = circle r7 stroke2 + diagonal slash; dirt = serif ! style(15); placer monograms stacked under ! at style(9.6) (~80% of plate name), spacing: sedated->! +25, !->tags +17, tag pitch height+3; chips setVisible(false) DURING stampSeat (audit fix); dead = no chips",
+      "plates": "frame-width w2=39, ny = y+61 (gap22), h2=13; team A (RED, plate 0xffffff) = BOX: white fill, black serif style(12) no stroke; team B (BLUE) = RULES: white serif + 2 hairlines at ny+-13; FFA = bare name only; dead = gray #666666 + strike line; name letterSpacing 2",
+      "frames": "all 1px; team A alpha 1.0, team B alpha 0.5 (THEME.TEAMS fa); active seat alpha 1 vs idle 0.55, multiplied by fa",
+      "removed": "heart pips, tally sticks, plate rectangles, chipT text, strike line object"
+    },
+    "beat_pacing": "READ = 1.6 (scene.js) — toast decode 440*R hold(1400)*R out 480*R, stampSeat hold 900*R, floatAt 950*R, coinFlip captions * SCENE.READ",
+    "renderer": "Phaser.CANVAS default (phone-verified smooth); ?webgl=1 -> AUTO; ?diag=1 -> FPS HUD (js/diag.js)",
+    "engine_balance": "CONSUMPTION_MULT=1.0; HANDCUFFS never on teammates while teams_active"
+  },
+  "session_laws": [
+    "labs (lifelab/platelab/framelab) need NO deploy — user views http://127.0.0.1:8000/... on this machine; game server runs on :8000, devcap sink on :8017",
+    "before giving the user ANY live link: curl-confirm the deploy finished (Render ~2min)",
+    "SELF-AUDIT every design sample: screenshot + zoom at REAL size, judge aesthetics/readability, iterate BEFORE presenting — shipping unlooked-at designs burned trust twice",
+    "film discipline gate: runner.html moments must be DONE with viol=0; sheets land in %TEMP%/sr_devcap",
+    "browser automation CANNOT judge motion (rAF-throttled when occluded) — force states via window.__lab/__scene JS injection for frames; user judges motion live",
+    "red = danger ONLY; faces sacred (alpha only, never tint); every menu opens from a tapped icon; copy must match engine truth",
+    "atomic commit per item; push only on user's word; master and uiv2-client always synced together",
+    "preference choices -> AskUserQuestion; frustration -> stop and diagnose with ONE atomic question"
+  ],
+  "environment": {
+    "servers": "game: ./.venv/Scripts/python -m uvicorn social_roulette.online.server:app --port 8000 ; devcap sink: ./.venv/Scripts/python _devcap.py (:8017, needed by capture/runner)",
+    "tests": "./.venv/Scripts/python -m pytest -q (243) ; node social_roulette/online/static/game/test/net.test.mjs (2)",
+    "film": "http://127.0.0.1:8000/static/game/runner.html?list=board,... poll title ALLDONE; audits+sheets in %TEMP%/sr_devcap",
+    "never_touch": ["HowToRun.txt", "docs/LEGAL_RISK_AUDIT.md"]
+  }
+}

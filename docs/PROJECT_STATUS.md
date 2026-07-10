@@ -1,8 +1,18 @@
 # Social Roulette — Project Status (resume anchor)
 
-**Updated:** 2026-07-09 · **Branch:** master (uiv2-client MERGED, `7dbadfa`) · Read this first after any context reset.
+**Updated:** 2026-07-10 · **Branch:** master == uiv2-client @ `2d81a9c`, both pushed · Read this first after any context reset.
 
-## ═══ HANDOFF 2026-07-09 — SESSION CONCLUDED, SAFE TO /clear ═══
+## ═══ HANDOFF 2026-07-10 — FEEDBACK BATCH IN FLIGHT ═══
+- **READ `docs/FEEDBACK_LEDGER.json` SECOND** — it is the systematic ledger for the active
+  feedback batch: all 21 items with status/commits, EXACT ratified design parameters
+  (seat card v2: punch dots / pulse A / glyph chips / frame-width plates), session laws
+  (labs = localhost only, self-audit before presenting, confirm deploys via curl), and the
+  ratified work order: item-redesign session → rename sweep → win-cond simulation.
+- LIVE today: timer-deadline fix · cap ×1.0 · sedative teammate ban · CANVAS renderer
+  default (phone FPS fix) · READ=1.6 beat pacing · seat card v2 (`2d81a9c`).
+- Dev servers: game :8000 · devcap sink :8017 (film runner needs it).
+
+## ═══ HANDOFF 2026-07-09 — previous session ═══
 - **GAME IS LIVE: https://meridian-ta39.onrender.com** — Render free tier, auto-deploys on
   `git push origin uiv2-client` (Render watches THAT branch, not master). GitHub: private repo
   `Siriko404/the-meridian` (gh CLI authed as Siriko404). Sleeps 15 min idle → ~50 s wake.
