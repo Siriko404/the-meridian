@@ -92,6 +92,15 @@
   async function play(scene, events, prev, view, roster) {
     bind(scene);
     let sawElim = false, lastBeer = null;
+    /* live state — each beat mutates a working copy of the PREV view and repaints the
+     * affected seat AT the beat: lives/chips/cuffs never wait for the end-of-cascade settle */
+    const work = {};
+    if (prev && prev.players) prev.players.forEach((p) => {
+      work[p.id] = Object.assign({}, p, { immune_from: (p.immune_from || []).slice() });
+    });
+    const ctx = prev ? { teams_active: prev.teams_active, current: view.current,
+      winner: view.winner } : view;
+    const paint = (id) => { if (work[id]) scene.paintSeat(work[id], ctx, roster, true); };
     for (const e of events || []) {
       if (e.type === "announce") {
         await scene.diceCeremony(e.total, e.live, { keepDim: true });
@@ -109,6 +118,10 @@
           scene.seatRecoil(e.target);
           scene.pipShatter(e.target, e.damage || 1);
           scene.floatText(e.target, "−" + (e.damage || 1), true);
+          if (work[e.target]) {                               // pips drop AT impact
+            work[e.target].lives = Math.max(0, work[e.target].lives - (e.damage || 1));
+            paint(e.target);
+          }
           await scene.w(1000);
         } else {
           scene.tweens.add({ targets: scene.center, angle: "+=3", yoyo: true, repeat: 3, duration: 40 });
@@ -120,13 +133,26 @@
         scene.setSawChip(false); lastBeer = null;
       } else if (e.type === "elimination") {
         sawElim = true;
+        if (work[e.target]) { work[e.target].alive = false; work[e.target].lives = 0; }
+        Object.values(work).forEach((w) => {                  // their DIRT dissolves with them
+          w.immune_from = w.immune_from.filter((c) => c !== e.target); });
         await deathBeat(scene, e.target, roster);             // M14
       } else if (e.type === "item") {
         if (e.item === "BEER") lastBeer = e.actor;
         await scene.dialTo(e.actor);                          // the arrow OWNS every beat's actor
+        if (e.item === "HANDCUFFS" && work[e.target] != null) {
+          work[e.target].handcuffed = true; paint(e.target);  // SEDATED chip lands with the beat
+        } else if (e.item === "IMMUNITY" && work[e.target] != null) {
+          work[e.target].immune_from.push(e.actor); paint(e.target);
+        } else if (e.item === "CIGARETTES" && work[e.actor] != null) {
+          work[e.actor].lives = Math.min(work[e.actor].lives + 1, THEME.MAX_LIVES);
+          paint(e.actor);
+        }
         await itemBeat(scene, e, view, roster);
       } else if (e.type === "flip") {
         await scene.dialTo(e.actor);
+        const fp = view.players.find((q) => q.id === e.target);
+        if (fp && work[e.target]) work[e.target].team = fp.team;   // later repaints keep the new color
         await flipBeat(scene, e, view, roster);               // M25
       } else if (e.type === "fine") {
         await scene.dialTo(e.actor);
@@ -135,6 +161,7 @@
       } else if (e.type === "draw") {
         await drawBeat(scene, e, view, roster);               // M17
       } else if (e.type === "skip") {
+        if (work[e.target]) { work[e.target].handcuffed = false; paint(e.target); }
         await scene.skipBeat(e.target, roster);               // M23 beat
       } else if (e.type === "trade" || e.type === "gift") {
         await scene.dialTo(e.actor);                          // trades are legal ONLY on the actor's
@@ -168,6 +195,7 @@
     scene.tweens.add({ targets: s.face, alpha: 0.35, duration: 650 });           // faces SACRED: alpha only
     s.pips.forEach((p) => p.setVisible(false));
     s.plate.setFillStyle(0x000000);
+    s.chipT.setText("");                                                          // a corpse wears no chips
     s.nameT.setColor("#666666").setStroke("#000000", 6); s.strike.setVisible(true);
     await scene.stampSeat(id, "BURNED", true);                                   // red — danger list
     const dead = "DIRT·" + nm(id, roster).slice(0, 6);                           // a12: only THEIR placed

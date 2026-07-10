@@ -124,48 +124,50 @@
     render(view, roster) {
       if (!this.built) this.layout(view.order);
       if (this._arrow) this._arrow.setVisible(false);         // re-shown by _arrowTo for the active seat
-      const eq = !view.teams_active;                          // M27: agencies dissolved — equalize
-      view.players.forEach((p) => {
-        const s = this.seats.get(p.id); if (!s) return;
-        const tm = THEME.TEAMS[p.team] || THEME.TEAMS.RED;
-        const tk = eq ? 3 : tm.tk, plate = eq ? 0x000000 : tm.plate, txt = eq ? "#ffffff" : tm.text;
-        s.tk = tk;
-        const nm = THEME.seatName(p.id, roster);
-        const nc = p.alive ? txt : "#666666";
-        s.nameT.setText(nm).setColor(nc)
-          .setStroke(nc === "#000000" ? "#ffffff" : "#000000", 6)   // stroke must FLIP with the color
-          .setFontSize(nm.length <= 4 ? 18 : 15);             // monogram initials read BIG (spy plate)
-        s.plate.setFillStyle(p.alive ? plate : 0x000000);
-        s.plate.setStrokeStyle(tk, WHITE, 0.95);
-        s.pips.forEach((pp, k) => {                           // row centered on the seat, 16px pitch
-          pp.setVisible(p.alive && k < p.lives);
-          pp.x = s.x + (k - (p.lives - 1) / 2) * 16;
-        });
-        const chips = [];                                     // short, stacked — never wider than the tile
-        if (p.alive) {                                        // a dead agent's chips are noise
-          (p.immune_from || []).forEach((c) => chips.push("DIRT·" + THEME.seatName(c, roster).slice(0, 6)));
-          if (p.handcuffed) chips.push("SEDATED");
-        }
-        s.chipT.setText(chips.join("\n"));
-        const active = p.alive && p.id === view.current && view.winner == null;
-        s.tile.setStrokeStyle(tk, WHITE, active ? 1 : 0.55);
-        s.face.setScale(2);                                   // uniform — turn is shown by the ARROW only
-        if (active) this._arrowTo(p.id);
-        if (!p.alive) {                                       // M14 end-state (the beat itself is choreo)
-          s.tile.setVisible(false); s.broken.setVisible(true);
-          s.face.setAlpha(0.35);                              // whole-object fade — pixels untouched
-          s.strike.setVisible(true);
-          s.stamp.setText("BURNED").setColor("#c8102e").setVisible(true);
-        } else {
-          s.tile.setVisible(true); s.broken.setVisible(false);
-          s.face.setAlpha(1); s.strike.setVisible(false);
-          if (s.stamp.text === "BURNED") s.stamp.setVisible(false);
-        }
-      });
+      view.players.forEach((p) => this.paintSeat(p, view, roster));
       if (view.winner == null) this.dialTo(view.current, false);
       this.setPeek(view.peek);
       this.setSawChip(!!view.saw_active);
       this.bandCode.setText(this._code || "");
+    }
+
+    paintSeat(p, view, roster, live) {                        // ONE seat's full state — choreo repaints
+      const s = this.seats.get(p.id); if (!s) return;         // per BEAT (live=true: never move the arrow)
+      const eq = !view.teams_active;                          // M27: agencies dissolved — equalize
+      const tm = THEME.TEAMS[p.team] || THEME.TEAMS.RED;
+      const tk = eq ? 3 : tm.tk, plate = eq ? 0x000000 : tm.plate, txt = eq ? "#ffffff" : tm.text;
+      s.tk = tk;
+      const nm = THEME.seatName(p.id, roster);
+      const nc = p.alive ? txt : "#666666";
+      s.nameT.setText(nm).setColor(nc)
+        .setStroke(nc === "#000000" ? "#ffffff" : "#000000", 6)   // stroke must FLIP with the color
+        .setFontSize(nm.length <= 4 ? 18 : 15);               // monogram initials read BIG (spy plate)
+      s.plate.setFillStyle(p.alive ? plate : 0x000000);
+      s.plate.setStrokeStyle(tk, WHITE, 0.95);
+      s.pips.forEach((pp, k) => {                             // row centered on the seat, 16px pitch
+        pp.setVisible(p.alive && k < p.lives);
+        pp.x = s.x + (k - (p.lives - 1) / 2) * 16;
+      });
+      const chips = [];                                       // short, stacked — never wider than the tile
+      if (p.alive) {                                          // a dead agent's chips are noise
+        (p.immune_from || []).forEach((c) => chips.push("DIRT·" + THEME.seatName(c, roster).slice(0, 6)));
+        if (p.handcuffed) chips.push("SEDATED");
+      }
+      s.chipT.setText(chips.join("\n"));
+      const active = p.alive && p.id === view.current && view.winner == null;
+      s.tile.setStrokeStyle(tk, WHITE, active ? 1 : 0.55);
+      s.face.setScale(2);                                     // uniform — turn is shown by the ARROW only
+      if (active && !live) this._arrowTo(p.id);
+      if (!p.alive) {                                         // M14 end-state (the beat itself is choreo)
+        s.tile.setVisible(false); s.broken.setVisible(true);
+        s.face.setAlpha(0.35);                                // whole-object fade — pixels untouched
+        s.strike.setVisible(true);
+        s.stamp.setText("BURNED").setColor("#c8102e").setVisible(true);
+      } else {
+        s.tile.setVisible(true); s.broken.setVisible(false);
+        s.face.setAlpha(1); s.strike.setVisible(false);
+        if (s.stamp.text === "BURNED") s.stamp.setVisible(false);
+      }
     }
 
     /* ================= band ================= */
@@ -742,6 +744,7 @@
           if (st.headT) st.headT.setAlpha(0.55).setScale(0.85);
           st.rows.forEach((r, k) => {                          // buttons with their own "▸" keep it
             r.t.setText((k === i && r.t.text.indexOf("▸") < 0 ? "▸ " : "") + r.t.text);
+            if (k === i) r.t._pick = th.steps;                 // pinned as a crumb when the trail slides
             this.tweens.add({ targets: r.t, y: base + k * 24, scale: 0.72,
               alpha: k === i ? 1 : (r.it.dim ? 0.15 : 0.25), duration: 220, ease: "Cubic.easeInOut" });
           });
@@ -769,8 +772,10 @@
           if (o._ba == null) o._ba = o.alpha;                  // remember the resting alpha
           if (o._oy == null) o._oy = o.y;                      // and the home position
           o._ty = (o._ty == null ? o.y : o._ty) + dy;          // settled target — overlapping slides
-          this.tweens.add({ targets: o, y: o._ty, alpha: o._ty < 134 ? 0 : o._ba,  // can't drift; fade
-            duration: 240, ease: "Cubic.easeInOut" });         // BEFORE the burn-circle zone
+          const ty = o._pick != null                           // a "▸ pick" NEVER slides under the
+            ? Math.max(o._ty, 134 + o._pick * 16) : o._ty;     // burn-circle — it pins as a crumb rail
+          this.tweens.add({ targets: o, y: ty, alpha: ty < 134 ? 0 : o._ba,  // ghosts fade BEFORE
+            duration: 240, ease: "Cubic.easeInOut" });         // the burn-circle zone
         });
         th._sections.forEach((s) => { s.baseY += dy; s.hy += dy; });
         th.cursorY += dy;
@@ -815,8 +820,9 @@
       th.pickSeat = (kind, ids, note) => new Promise((resolve) => {
         th._picking = true;                                    // the burn-circle sleeps — the big bar is back
         own.forEach((o) => { if (o !== dockCover && o.setVisible) o.setVisible(false); });  // duck — board is the menu
-        const ribbon = mk(this.add.text(W / 2, 116, "", style(13, "#ffffff", { align: "center" }))
-          .setOrigin(0.5).setResolution(2).setDepth(22));      // clear of the live band during the duck
+        const ribbon = mk(this.add.text(W / 2, 178, "", style(13, "#ffffff", { align: "center" }))
+          .setOrigin(0.5).setResolution(2).setDepth(22));      // below the band AND a 3-line note (M11),
+                                                               // above the top seat frames (~y205)
         this.decode(ribbon, note, 260);
         const cancel = mk(this.add.text(W / 2, 776, "", style(12, "#aaaaaa")).setOrigin(0.5)
           .setResolution(2).setDepth(22).setName("tcxl"));
