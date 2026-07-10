@@ -177,12 +177,14 @@ class Room:
         self._trade_result = None
         self._last_trade_items = None
         self.gen += 1
+        self.last_events = []          # a gen bump REBROADCASTS — stale beats must not replay
         self.pending_offer = {"from": seat, "to": to, "give": list(give), "want": list(want)}
 
     def trade_withdraw(self, seat):
         if self.pending_offer is None or self.pending_offer["from"] != seat:
             raise IllegalAction("no offer of yours is pending")
         self.gen += 1
+        self.last_events = []          # a gen bump REBROADCASTS — stale beats must not replay
         self.pending_offer = None
 
     def trade_respond(self, seat, accept):
@@ -190,6 +192,7 @@ class Room:
             raise IllegalAction("no offer for you is pending")
         off = self.pending_offer
         self.gen += 1
+        self.last_events = []          # settle re-sets it below; decline/cancel carry only the private note
         self.pending_offer = None
         if not accept:
             self._trade_result = {"kind": "declined", "parties": (off["from"], off["to"])}
