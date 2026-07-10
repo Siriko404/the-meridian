@@ -169,26 +169,31 @@ are RATIFIED by the user — do not re-litigate:
   burn-circle in-game. NOT live-verified: winner overlay after threads (games outlast the film
   cap; path is untouched choreo) · human↔human trade on the NEW builder (wire protocol identical
   to the pre-compaction verified round-trip).
-  **⟲ ACTIVE RIGHT NOW — WIRED-MENU DEFECT HUNT (user: "they have MANY visual defects" after
-  playing localhost:8016; I had only random monkey frames, never step-by-step films of the WIRED
-  main.js menus).** Built `wirelab.html` (committed, NOT YET RUN): loads the REAL index DOM +
-  REAL main.js over a fake `window.WebSocket` shim (main.js talks to scripted views; NET.connect
-  takes the shim transparently; countdown ticks via server_now/phase_ends_at = Date.now()/1000
-  + secs). 9 scripted flows drive every wired step via `TH().active.hits[i].emit("pointerdown")`
-  + `TH()._pickDone(id)` + named buttons (tabort/tback/tcxl): root / rootvar (no-item dim,
-  teammates-dead dim, WITHDRAW) / kit (sealed+passport-full-cover dims, MAGNET confirm, STAND
-  DOWN home) / sedative (pick-cancel-repick-execute) / offer (GIVE→count→×2→WANT→SEND) / respond
-  (auto-arrival, ACCEPT) / decide (SHOOT confirm+standdown, FLIP PAY 0→4/5→9/5→standdown) /
-  forcedself (M11 note) / info (ledger + off-turn kit). Films 3×2 sheets → sink as
-  wire_<flow>_sN + wire_errors. RUN IT: fresh user-data-dir headless chrome →
-  `wirelab.html?canvas=1&cb=` → poll sink for wire_errors.txt → READ EVERY SHEET yourself → list
-  defects → fix in scene.js/main.js → re-film → present to user. Boot takes ~11s (real M1-M5
-  ceremony). Known wirelab quirks to verify on first run: row() waits for armed hits (40×100ms);
-  the announce view carries legal so the boot settles armed; flows ABORT between states; view()
-  gen++ each push. USER'S OWN DEFECT LIST NOT YET COLLECTED — after my pass, ask him to replay
-  and compare. NOTE: threadlab `?auto=` headless smoke is broken for ALL flows
-  (pre-existing — Phaser clock dead under --screenshot; differential-tested vs untouched ledger);
-  interactive play + rig films are the verification. **Labs (dev pages, cache-busted):** `threadlab.html` (MOVE/MOVE·R/DECIDE/
+  **✔ WIRED-MENU DEFECT HUNT — DONE 2026-07-09 night (user: "MANY visual defects" + bot-offer
+  bug + delayed UI updates; ALL RESOLVED, film-verified, awaiting his replay).** Three user bugs
+  fixed this pass: ① `8228b5f` trade_offer/withdraw/respond bumped gen WITHOUT clearing
+  last_events → server rebroadcast the previous delta → clients replayed ghost announce/shot/
+  skip beats ("chamber loading on offer"); cleared in all three + pytest (239 green).
+  ② `e809604` per-beat UI: choreo.play keeps a work copy of prev.players, each beat mutates it
+  and repaints the hit seat via NEW scene.paintSeat(p,view,roster,live) (extracted from render;
+  live=true never moves the arrow) — shot pips drop AT impact, SEDATED/DIRT chips land with
+  their beat, PASSPORT +1 at flight, skip clears cuff, flip syncs work team, corpse drops chips
+  in deathBeat. ③ same commit, menu polish from films: "▸ pick" rows get `_pick=th.steps`; in
+  th._slide they PIN at y 134+step*16 as a crumb rail instead of sliding under the burn-circle
+  (ghosts still fade <134); pickSeat ribbon y116→178 (below bar+caption+3-line M11 note, above
+  seats ~y205). **wirelab v2 `5c15cd2` = THE menu verifier** (10 flows: +cascade films a mixed
+  9-event beat chain; 12-shot 4×3 sheets @3fps, one subject per sheet; filmTap=before(3)+TAP+
+  after(9); flows isolated via step() — a dead row posts wire_forensic_<flow> and the run
+  continues; wire_asserts checks every WS message: withdraw/action i=3/trade_offer give×2 want×1
+  /trade_respond/stand-downs-send-nothing = 6/6 PASS, 41 sheets, NO ERRORS ×3 consecutive runs).
+  Lab gotcha fixed: view() factory ignored top-level `legal:` (only o.over merged) → root rows
+  correctly dimmed = row() arm-timeouts; factory now takes o.legal. RUN RECIPE: kill headless
+  chromes (CIM CommandLine like '*--headless*'), fresh --user-data-dir,
+  `wirelab.html?canvas=1&cb=<ts>` → wait wire_errors.txt → READ EVERY SHEET. USER'S OWN DEFECT
+  LIST STILL NOT COLLECTED — ask him to replay localhost:8016 and compare. NOTE: threadlab
+  `?auto=` headless smoke broken for ALL flows (pre-existing; films are the verification).
+  SIDE NOTE: user ran a legal-risk agent → `docs/LEGAL_RISK_AUDIT.md` (uncommitted, HIS to
+  ratify — do not touch). **Labs (dev pages, cache-busted):** `threadlab.html` (MOVE/MOVE·R/DECIDE/
   TRADE/KIT/LEDGER/OFFER·IN buttons, live band ticker) · `tradelab.html` (beat-exact trade
   lifecycle vs scripted bot: SEND→accept/decline, WITHDRAW/PROCEED void silently, RECEIVE arrives
   like pending_offer; real center-hub entry). **Rig:** ~18 thread scenarios in capture.html
