@@ -1,0 +1,42 @@
+<!doctype html><html><head><meta charset="utf-8"><title>runner</title>
+<!-- DEV-ONLY sweep driver: runs capture.html scenarios sequentially in a fresh iframe each.
+     Usage: runner.html?list=setup,board,... (or omit list = full catalog). Poll document.title:
+     "RUNNING <name> i/n" then "ALLDONE <summary>". Each scenario's sheets/audits land in the sink. -->
+</head><body style="background:#000;color:#0f0;font:12px monospace">
+<div id="log"></div><iframe id="fr" style="width:400px;height:860px;border:1px solid #333"></iframe>
+<script>
+(async () => {
+  const ALL = ["board","setup","bands","fine","shot_live","shot_blank","bonus","death","extra",
+    "reload","draw_you","draw_pub","passport","spycam","poison","magnet","sedative","blackmail",
+    "caphit","flip","trade_pub","trade_party","trade_cxl","gift","dissolve","pressure","winner",
+    "brackets","glow","ants","seam","clock_final",
+    "thread_talk","thread_talkr","thread_decide","thread_flip","thread_item","thread_trade",
+    "thread_kitinfo","thread_ledger2","thread_respond","thread_back","thread_sedate","thread_shoot",
+    "thread_ants","tr_build","tr_hang","tr_settle","tr_declined","tr_recv","tr_recv_d","tr_race",
+    "k_use","k_target","k_home","k_dec","p_flip","p_home","ki_screen"];
+  const P = new URLSearchParams(location.search);
+  const list = P.get("list") ? P.get("list").split(",") : ALL;
+  const fr = document.getElementById("fr"), log = document.getElementById("log");
+  const results = [];
+  for (let i = 0; i < list.length; i++) {
+    const run = list[i];
+    document.title = "RUNNING " + run + " " + (i + 1) + "/" + list.length;
+    fr.src = "/static/game/capture.html?run=" + run + "&ms=800&cb=" + Date.now();
+    const r = await new Promise((res) => {
+      const t0 = Date.now();
+      const iv = setInterval(() => {
+        let t = "";
+        try { t = fr.contentDocument.title; } catch (e) {}
+        if (/^(DONE|ERR|TIMEOUT|POSTFAIL)/.test(t)) { clearInterval(iv); res(t); }
+        else if (Date.now() - t0 > 150000) { clearInterval(iv); res("HUNG " + run); }
+      }, 300);
+    });
+    results.push(r);
+    log.innerHTML += r + "<br>";
+  }
+  const bad = results.filter((r) => !/^DONE/.test(r)).length;
+  const viol = results.filter((r) => /^DONE/.test(r) && !/ V0$/.test(r)).length;
+  document.title = "ALLDONE runs=" + results.length + " bad=" + bad + " viol=" + viol;
+  window.__results = results;
+})();
+</script></body></html>

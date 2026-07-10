@@ -41,6 +41,26 @@ def test_bluffed_offer_cancels_with_no_movement():
     assert r.pending_offer is None
 
 
+def test_trade_ops_never_replay_stale_events():
+    """Every trade op bumps gen and REBROADCASTS — if last_events still holds the
+    previous delta (the opening announce, a shot, a skip), every client replays
+    those beats again (the 'chamber loading on offer' bug)."""
+    r, t = clockroom()
+    seat = r.current
+    mate = _teammate(r, seat)
+    player_by_id(r.state, seat).inventory = {Item.BEER: 1}
+    assert any(e["type"] == "announce" for e in r.last_events)   # opening announce pending
+    r.trade_offer(seat, mate, ["BEER"], [])
+    assert r.last_events == []                                   # must NOT rebroadcast it
+    assert r.events_for(mate) == []
+    r.trade_withdraw(seat)
+    assert r.last_events == []
+    r.trade_offer(seat, mate, ["BEER"], [])
+    r.trade_respond(mate, False)
+    assert r.last_events == []
+    assert r.events_for(seat) == [{"type": "trade_private", "kind": "declined"}]
+
+
 def test_offer_gates_and_lifecycle():
     r, t = clockroom()
     seat = r.current

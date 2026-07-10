@@ -111,11 +111,168 @@ are RATIFIED by the user — do not re-litigate:
   (join `code`, trade `give/want` lists) can still kill a socket · offer-lifecycle broadcasts leak
   traffic-level "something private happened" · `trade_offer` accepts bot targets (withdraw
   recovers) · post-winner chat muted (undecided) · `last_skipped` drain-contract comment.
-- **NEXT: Plan B (Phaser client) via writing-plans** against the landed protocol: TableScene,
-  choreographer + `moments.html` gallery (user ratifies every animation), trays, v1 retirement
-  (spec §6-§8, §11 steps 4-9). Run server: `./.venv/Scripts/python -m uvicorn
-  social_roulette.online.server:app --port 8016`.
-  Unverified: cylinder feel over a full game · KIT tray overlaps bottom seats when open.
+- **PLAN B NEAR-DONE — branch `uiv2-client` (now @ `b8bb840`), INLINE execution** (user: "no delegation";
+  "remove me from the loop, YOU handle 100%"). Plan doc `docs/superpowers/plans/2026-07-09-uiv2-client.md`
+  — **Tasks 1-8 DONE** (T6 live wiring, T7 interaction, T8 `/`=v2 `/v1`=old; 238 pytest + 8 node
+  green). LIVE-PLAY VERIFIED by in-page autopilot bots: multiple FULL games to the winner incl. a
+  **2-human game (two tabs, same team)** proving the offer→respond→settle round-trip on the wire;
+  0 JS errors across all runs. REMAINS: **Task 9 = USER GATE** (user plays on his phone, then merge
+  --no-ff to master) · icon picks (SPYCAM 8/MAGNET 5/SEDATIVE 2 drafts) · winner-face spritesheet
+  edge-bleed at scale 6 (asset nit).
+- **⟲ ACTIVE NOW (2026-07-09 eve): THREAD-MENU OVERHAUL — the dial idiom is SUPERSEDED.** User
+  played Task-9 style and killed the dial chains ("quite long and unpleasant"). New ratified system,
+  built SAMPLE-FIRST in dev labs (NOT yet wired into main.js — dials still run the live game):
+  `scene.openThread(opts)` in scene.js — Skyrim-style vertical list threads. **Ratified stack:**
+  fade layout (locked lists ghost-compress in place) + decode rows (in-loop swaps decode FAST
+  130ms) + **B design = whisper captions** under verbs (fs8, ITEM "OPEN YOUR KIT" / TRADE "PRIVATE
+  OFFER TO A TEAMMATE" / PROCEED "GO SILENT — DECIDE" / SHOOT "PICK A TARGET — OR YOURSELF" / FLIP
+  "BUY A CHANGE OF LOYALTY") + **always-centered active list** (trail slides up 240ms, fades before
+  y<134; per-object settled targets `_ty` stop drift; `_oy` restores on home) + **menu BURN-CIRCLE**
+  (24 chord segments R20 under the title at (W/2,100), digits = fmt(left) SAME as the big bar, white
+  talk / red decision, fed by setBand; band zone sleeps behind opaque topCover while a thread is
+  open; seat-pick ducks reveal the real bar). **Standing rules (user law):** dot divider row
+  `{dot:true}` (38px slot) before EVERY button row (CONTINUE/SEND/PAY/EXECUTE/ACCEPT) · ✕ STAND
+  DOWN collapses to the thread's MAIN menu everywhere (engine `th.home()`, driver `homeTo`) ·
+  ◂ BACK rewinds ONE step (engine `th.back()`, `th._pop` for swap sub-lists) · item confirms carry
+  the THEME blurb as an info row · seat-picks DUCK the thread and tap the real avatar (shoot/flip =
+  RED brackets `setTargets`, trade = marching ANTS, items = WHITE PULSE `setItemTargets`; ✕ CANCEL
+  = back to the open list, ribbon y116) · row types: dim/info/still/split(two stat columns)/dot/
+  sub/frame · hits named "trow", arm only after entrance, double-tap guard `th._act`.
+  **Menu ratification status:** YOUR MOVE(talk) ✅B · DECIDE ✅ (user waived) · TRADE builder ✅ +
+  count picker ✅ + OFFER-IN ✅ (user played tradelab post-fixes: "looks perfect") · LEDGER ✅
+  one-screen "n LIVE · k TO USE" split columns · WITHDRAW OFFER ✅ · burn-circle ✅ synced ·
+  **KIT-use ✅ · PAY ✅ · KIT-info ✅ (ratified 2026-07-09 night via AskUserQuestion; user caught
+  the fake demo flip cost — REAL cost 5, self flip-back 4, actions.py:85; POINT_VALUE ==
+  theme.js pts). ALL MENUS NOW RATIFIED.** Designs: KIT rows wear blurb whispers (sub = theme
+  blurb, "· SEALED" suffix; bright = usable per main.js:166 rule) header "YOUR KIT · 3/8" · PAY =
+  real pts (4/4/5/5/6/6), "PAY n/5 PTS" arms at ≥cost, whisper "OVERPAY IS SPENT — NO CHANGE"
+  (trays.pay truth), ✕ STAND DOWN row · KIT-info = ONE screen (same rows, still, no taps,
+  "✕ CLOSE"). threadlab kitUse/pay/kitInfo match (tap-inspect infoThread deleted).
+  **⟲ THE WIRING — DONE 2026-07-09 late (awaiting user check → Task-9 phone gate → merge):**
+  scene.js: openRadial/closeRadial DELETED; pick hits named tgt/tcxl/tabort/tback (for the bot).
+  main.js [ACT] rewritten to threads: openTh driver (show/_hist/onBack/homeTo + `alive()` guard —
+  EVERY await is followed by t.alive() before building more UI, else dead-thread leak),
+  moveThread (talk+decision roots, legality dims, M11 forced-self note), kitStep (kitUseThread =
+  briefcase on-turn, thread rooted at KIT; off-turn = kitInfoThread one-screen), offerStep
+  (GIVE⇄count→WANT→SEND), payStep (server a.cost), ledgerThread, respondThread (auto-opens on
+  po.to===you; the hub re-opens it if aborted), confirmStep; drain() closes any thread BEFORE
+  beats; onKit/onLedger/onAction gated on !busy (menus never open OVER beats — thread scrim is
+  .88, beats bleed; found on live film). trays.js DELETED (+ script lists, offer_in/dial_*
+  scenarios; runner catalog rebuilt = 59 scenarios). **devbot.js** (loaded ONLY with ?bot=1):
+  auto-join (?code&tag&start), rAF-dead loop pump (g.loop.step when loop.now stale — headless
+  tabs), semantic monkey (trow/tgt/tcxl/tabort/tback + hubs), 3×2 contact sheets + console-error
+  trap → sink; `?canvas=1` forces CANVAS renderer (headless WebGL toDataURL = black);
+  window.__scene/__game dev handles. **VERIFIED:** 59-scenario rig sweep (non-V0 = the known ×1
+  transients, unchanged) · 8 node + 238 pytest · TWO live monkey games (2 headless humans + 3
+  server bots), 60 frames each, ZERO console errors — films show live kit w/ blurbs,
+  BLACKMAIL→C.D. confirm, one-screen ledger, DECIDE root, SHOOT-YOURSELF confirm, slash clock +
+  burn-circle in-game. NOT live-verified: winner overlay after threads (games outlast the film
+  cap; path is untouched choreo) · human↔human trade on the NEW builder (wire protocol identical
+  to the pre-compaction verified round-trip).
+  **✔ WIRED-MENU DEFECT HUNT — DONE 2026-07-09 night (user: "MANY visual defects" + bot-offer
+  bug + delayed UI updates; ALL RESOLVED, film-verified, awaiting his replay).** Three user bugs
+  fixed this pass: ① `8228b5f` trade_offer/withdraw/respond bumped gen WITHOUT clearing
+  last_events → server rebroadcast the previous delta → clients replayed ghost announce/shot/
+  skip beats ("chamber loading on offer"); cleared in all three + pytest (239 green).
+  ② `e809604` per-beat UI: choreo.play keeps a work copy of prev.players, each beat mutates it
+  and repaints the hit seat via NEW scene.paintSeat(p,view,roster,live) (extracted from render;
+  live=true never moves the arrow) — shot pips drop AT impact, SEDATED/DIRT chips land with
+  their beat, PASSPORT +1 at flight, skip clears cuff, flip syncs work team, corpse drops chips
+  in deathBeat. ③ same commit, menu polish from films: "▸ pick" rows get `_pick=th.steps`; in
+  th._slide they PIN at y 134+step*16 as a crumb rail instead of sliding under the burn-circle
+  (ghosts still fade <134); pickSeat ribbon y116→178 (below bar+caption+3-line M11 note, above
+  seats ~y205). **wirelab v2 `5c15cd2` = THE menu verifier** (10 flows: +cascade films a mixed
+  9-event beat chain; 12-shot 4×3 sheets @3fps, one subject per sheet; filmTap=before(3)+TAP+
+  after(9); flows isolated via step() — a dead row posts wire_forensic_<flow> and the run
+  continues; wire_asserts checks every WS message: withdraw/action i=3/trade_offer give×2 want×1
+  /trade_respond/stand-downs-send-nothing = 6/6 PASS, 41 sheets, NO ERRORS ×3 consecutive runs).
+  Lab gotcha fixed: view() factory ignored top-level `legal:` (only o.over merged) → root rows
+  correctly dimmed = row() arm-timeouts; factory now takes o.legal. RUN RECIPE: kill headless
+  chromes (CIM CommandLine like '*--headless*'), fresh --user-data-dir,
+  `wirelab.html?canvas=1&cb=<ts>` → wait wire_errors.txt → READ EVERY SHEET. **USER RATIFIED
+  THE PASS 2026-07-09: "all is perfect."** NEXT = Task-9 phone gate (he plays localhost:8016 on
+  phone) → merge --no-ff to master.
+  **✔ DEPLOYED LIVE 2026-07-09 — https://meridian-ta39.onrender.com** (Render free, blueprint
+  `render.yaml` commit be825d2; private GitHub repo `Siriko404/the-meridian`, default branch
+  `uiv2-client`; deploy = git push, Render auto-builds). Verified over the wire: page 200 +
+  title, WS 101, join→joined+lobby round-trip. WHY cloud not tunnel: user's ISP SNI-blocks ALL
+  tunnel providers (cloudflare/ngrok/pinggy/localhost.run/tailscale TLS-FAIL; port 7844 blocked;
+  fly.dev + run.app also blocked; onrender.com/hf.space/koyeb.app pass). Free-tier quirk: spins
+  down after 15 min idle, ~50 s wake for first visitor; WS traffic keeps it awake during play.
+  **PHONE GATE PASSED 2026-07-09: user played the Render URL on his phone — "it works."**
+  Remaining before merge: nothing. Merge --no-ff to master = next, on his word. Still his call: bots can't answer/send offers (server gap) ·
+  optional WANT-screen give-summary row · legal audit item-divergence picks. NOTE: threadlab
+  `?auto=` headless smoke broken for ALL flows (pre-existing; films are the verification).
+  SIDE NOTE: user ran a legal-risk agent → `docs/LEGAL_RISK_AUDIT.md` (uncommitted, HIS to
+  ratify — do not touch). **Labs (dev pages, cache-busted):** `threadlab.html` (MOVE/MOVE·R/DECIDE/
+  TRADE/KIT/LEDGER/OFFER·IN buttons, live band ticker) · `tradelab.html` (beat-exact trade
+  lifecycle vs scripted bot: SEND→accept/decline, WITHDRAW/PROCEED void silently, RECEIVE arrives
+  like pending_offer; real center-hub entry). **Rig:** ~18 thread scenarios in capture.html
+  (thread_talk/talkr/decide/flip/item/trade/kitinfo/ledger2/respond/shoot/sedate/ants/back +
+  move_r1-3) all V0 (×1 mid-tween transients benign); bandLoop feeds the mini clock; decision
+  scenarios pass ("decision"). **Engine truths honored in samples:** sedative = any living
+  non-self non-sedated; shoot = SELF + living enemies; flip = any living affordable; legacy
+  MOVE_ROWS hybrid (SHOOT+TRADE) was fake and is dead. **TRADE-STEP SWEEP DONE (2026-07-09 night,
+  user: "a bunch of errors"):** 7 tr_* scenarios render the WHOLE lifecycle in capture.html
+  (tr_build/hang/settle/declined/recv/recv_d/race). 6 defects found+fixed: ① setBand re-showed the
+  burn-circle during the seat-pick duck (now `th._picking`; circle returns w/ fresh digits on done)
+  ② `_arrowTo` re-showed ▼ over an open thread (now `setVisible(!this._thread)`) ③ menu opened
+  clockless ≤1s (setBand caches `_bandO`; openThread re-applies) ④ lock "▸ " doubled arrows on
+  ▸-suffixed buttons ⑤ **id2=J.L., id4=W.N.** (CODENAMES theme.js:20) — tradelab band hardcoded
+  "C.W."; rig headers lied ("GIVE → C.W." etc.) — all copy fixed ⑥ bot answer while a menu is up
+  painted beats UNDER the scrim + leaked pick chrome — policy: closeThread FIRST (tradelab settle/
+  declined; closeThread now resolves a live pick null + own-registers ribbon/cancel). **WIRING
+  LAW:** main.js trade/choreo event handler must closeThread() before beats. offer_in (legacy
+  trays sheet) audits ×15 overlaps = dead UI, ignore. **OPEN:** ① TRADE builder verdict (also:
+  ghost trail after GIVE lock reads only "CONTINUE ▸" — no give-summary on the WANT screen;
+  surface w/ verdict) ② server gap: bots can't answer/send offers (room.py has no bot respond
+  path; offer to a bot hangs until withdraw/phase-end) — user decision pending ③ after all menus
+  ratified: wire threads into main.js (replace actionRadial/kitRadial/ledgerRadial/offerRadial/
+  countRadial/confirmAct/pickTarget/pickItemTargets/pickTrade + TRAYS.respond/pay), delete
+  openRadial+trays.js, update monkey bot to "trow" hits, full bot-play verify, THEN Task-9 user gate.
+  PowerShell gotcha: NEVER pipe file content through PS regex replaces (mojibake — use Edit tool or
+  [System.IO.File]::ReadAllLines/WriteAllLines).
+- **RULES FIXED IN PLAY:** bots may NOT pass items unilaterally — `room.py social_enabled=False`
+  (every transfer = turn-holder offers → counterparty ACCEPT/DECLINE; engine Trade backdoor was
+  RL legacy; user caught the gift toast) · self flip-back copy = "X SWITCHED SIDES" · every
+  item/flip/fine/trade beat dials the ARROW to its actor first (replay never looks off-turn) ·
+  token read at CONNECT not page-load (second same-browser tab used to hijack the seat).
+- **THE DIAL (SUPERSEDED by the thread system above — still wired in main.js until the swap):**
+  `scene.openRadial(cx,cy,items,opts)` —
+  GTA-style ring on an OPAQUE black stage; full circle mid-screen (195,430), auto half-arc at the
+  dock hub (195,776); slots = circle+icon/label+top-right ×badge, bright ring/dim states; hub =
+  wrapped title + confirm trigger; caption BELOW the ring; entrance stagger. Dashboard = 3 circular
+  hubs: ≣ LEDGER · center ACTION face ("YOUR MOVE"/"· · ·", opens verb dial, becomes armed confirm
+  [SHOOT C.W.]+✕) · briefcase KIT — NO text labels; phone icon dead, the ticker row IS the chat
+  button. OFFER dial: all items offerable (bluff free), owned counts = badge+bright ring, tap item
+  → count dial 0-3 with YOUR holding lit, GIVE→WANT→SEND on hub. Trade targets = MARCHING-ANTS
+  dotted frames. Bots + humans all wear MONOGRAM initials (join asks 2 letters "F.L."; bot
+  codenames V.K./C.W./J.L./N.D./W.N.). Pre-game = boarding-pass ticket (double-rule frame, serif
+  masthead, two big initial boxes auto-advance, dashed code field, manifest lobby).
+- **TEXT SYSTEM:** serif FS=1.5, **INVERSE outlines** (white text/black rim, black text/white rim,
+  NO gray, thickness 6; trays 4); every setColor site must ALSO setStroke (South-plate blob bug).
+  **THE CLOCK (RATIFIED 2026-07-09 "its perfect" + WIRED — the only band renderer):** ///// slash
+  field (2px, α.45) drains L→R between TWO single ticket rules (±20, no box, no frame); digits
+  fs20 white + black stroke 8, FIXED center, riding ON the field (no parted window — the burn edge
+  visibly crosses behind them); everything red at ≤30s; 5s loading shimmer = 3-slash comet
+  (`_drawPulse` 33ms loop reads `_hatchInfo`). Old solid-burn + masked twin-digit layers
+  (barFill/barSecsD/_mFillG/_mEmptyG/barFrame) DELETED; `_bandStyle` gone. Rig `clock_final`
+  films full→red→0:00; clocklab.html = live viewer (real 60→30 countdown). Game page index.html CACHE-BUSTS its scripts (?v=Date.now()) —
+  stale JS twice faked dead masks for the user.
+- **CAPTURE RIG v3 (Claude's eyes):** `capture.html?run=<scenario>[&canvas=1]` — virtual clock
+  (rAF+performance.now+Date.now via MessageChannel pump), FULL-RES 390x844 thumbs 3x2/sheet,
+  **DEFECT DETECTOR** (Text/Image overlap+offscreen+copy inventory /100ms; exemptions: fx, stamp,
+  masked twin layers, dim-aware cut ≥0.8 fillAlpha) → `<run>_audit.txt`. `runner.html` sweeps all
+  **~43 scenarios** incl. 11 dial states + ants + seam (title `ALLDONE runs bad viol`); ×1-count
+  hits at slide/stagger moments = benign transients. **LIVE-PLAY rig:** inject pump (steps
+  `game.loop.step()` when rAF dead) + 3fps recorder + random monkey (taps rslot/rhub circles,
+  brackets, ants, trays, ACTION hub when face says YOUR) — plays full games unattended; two-tab
+  variant for 2-human tests (clear meridian_token in BOTH tabs first or the seat is reclaimed).
+  Automated-tab facts: rAF 0x, window 0x0 (no real clicks; Phaser-layer emit only), CDP screenshots
+  STALE — `canvas.toDataURL` is truth; cache-bust everything.
+  Servers: game `./.venv/Scripts/python -m uvicorn social_roulette.online.server:app --port 8016`
+  (bg) · sink `./.venv/Scripts/python _devcap.py` (bg, threaded; beware SO_REUSEADDR double-bind).
+  Node tests: `node --test social_roulette/online/static/game/test/*.test.mjs`.
 
 ---
 

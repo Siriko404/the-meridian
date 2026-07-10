@@ -1,0 +1,59 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>THE MERIDIAN</title>
+<link rel="stylesheet" href="/static/game/game.css">
+</head><body>
+<div id="stage"></div>
+
+<section id="join" class="overlay on">
+  <div class="ticket">
+    <div class="rule"></div>
+    <div class="brand">THE MERIDIAN</div>
+    <div class="sub">NIGHT SERVICE · CAR 4 · 5 SEATS</div>
+    <div class="rule"></div>
+    <label class="lbl">AGENT MONOGRAM</label>
+    <div class="initials">
+      <input id="name" autocomplete="off" maxlength="1" inputmode="latin">
+      <span class="dot">.</span>
+      <input id="lastinit" autocomplete="off" maxlength="1" inputmode="latin">
+      <span class="dot">.</span>
+    </div>
+    <label class="lbl">INVITE CODE — LEAVE BLANK TO OPEN A NEW CAR</label>
+    <input id="code" class="codein" autocomplete="off" maxlength="8" placeholder="····">
+    <button id="enterbtn">BOARD</button>
+    <p class="hint">Share the car code. Empty seats become agents of the house.</p>
+    <div class="rule"></div>
+    <p class="credits">ART: JJ99 (PORTRAITS) · DARKMOONFIRE (ICONS)</p>
+  </div>
+</section>
+
+<section id="lobby" class="overlay">
+  <div class="ticket">
+    <div class="rule"></div>
+    <div class="sub">CAR</div>
+    <div id="lcode" class="code"></div>
+    <div class="rule"></div>
+    <label class="lbl">MANIFEST</label>
+    <div id="members"></div>
+    <button id="startbtn" style="display:none">DEPART</button>
+    <p class="hint">The conductor departs; empty seats fill with bots.</p>
+    <div class="rule"></div>
+  </div>
+</section>
+
+<div id="chatsheet">
+  <div id="chatlog"></div>
+  <div class="row"><input id="chatin" placeholder="say something…" autocomplete="off" maxlength="200"><button id="chatsend">SEND</button></div>
+</div>
+<div id="banner"></div>
+
+<script src="/static/vendor/phaser.min.js"></script>
+<script>
+  // dev cache-buster: game scripts always load fresh (stale JS burned real review rounds)
+  const FILES = ["theme", "dice", "net", "scene", "choreo", "main"];
+  if (new URLSearchParams(location.search).get("bot")) FILES.push("devbot");   // dev-only monkey
+  for (const f of FILES)
+    document.write('<script src="/static/game/js/' + f + '.js?v=' + Date.now() + '"><\/script>');
+</script>
+</body></html>

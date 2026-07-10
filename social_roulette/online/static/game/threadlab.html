@@ -1,0 +1,284 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>THREAD LAB</title>
+<!-- DEV-ONLY interactive sampler: EVERY menu of the thread overhaul, for one-by-one ratification.
+     Six entries cover all flows: TALK(->ITEM/TRADE/PROCEED), TALK·R(RECALL), DECIDE(->SHOOT/FLIP+PAY/ITEM),
+     KIT info, LEDGER info, OFFER·IN (respond). Not linked from the game. -->
+<style>
+  html,body{margin:0;height:100%;background:#000;font-family:Georgia,'Times New Roman',serif}
+  #bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:6px;background:#000}
+  #bar button{background:#000;color:#fff;border:2px solid #fff;font:bold 12px Georgia,serif;
+    letter-spacing:1px;padding:5px 8px;cursor:pointer}
+  #wrap{position:absolute;top:42px;bottom:0;left:0;right:0}
+</style>
+</head><body>
+<div id="bar">
+  <button data-f="move">MOVE</button><button data-f="mover">MOVE·R</button>
+  <button data-f="decide">DECIDE</button><button data-f="trade">TRADE</button>
+  <button data-f="kit">KIT</button><button data-f="ledger">LEDGER</button>
+  <button data-f="offerin">OFFER·IN</button>
+</div>
+<div id="wrap"><div id="stage" style="width:100%;height:100%"></div></div>
+<script src="/static/vendor/phaser.min.js"></script>
+<script>
+  for (const f of ["theme", "dice", "net", "scene", "choreo"])
+    document.write('<script src="/static/game/js/' + f + '.js?cb=' + Date.now() + '"><\/script>');
+</script>
+<script>
+(function () {
+  "use strict";
+  const BASE = {
+    you: 0, order: [0, 1, 2, 3, 4], current: 0, winner: null, gen: 1,
+    phase: "talk", phase_ends_at: null, server_now: 0, bonus: false, extra_turn: false,
+    saw_active: false, teams_active: true, flipback_discount: false,
+    use_counts: {}, use_limit: 6, feed: [],
+    players: [
+      { id: 0, team: "RED",  lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 1, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 2, team: "RED",  lives: 2, alive: true, handcuffed: true,  immune_from: [3] },
+      { id: 3, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 4, team: "RED",  lives: 1, alive: true, handcuffed: false, immune_from: [] },
+    ],
+    your_hand: { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1 }, item_counts: {}, peek: "unknown",
+  };
+  const ROSTER = { "0": "S.S." };
+  const ORDER = ["BEER", "HANDCUFFS", "MAGNIFIER", "SAW", "CIGARETTES", "IMMUNITY"];
+  let scene = null;
+  const name = (id) => THEME.seatName(id, ROSTER);
+  const iname = (en) => THEME.ITEMS[en].name;
+  const OWN = { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1, SAW: 0, CIGARETTES: 0, IMMUNITY: 0 };
+  const SEALED = { MAGNIFIER: true };                          // demo: SPYCAM used up table-wide
+  const FOES = [1, 3], MATES = [2, 4];
+
+  /* ---- shared thread driver (mirrors the future main.js wiring) ---- */
+  function openTh(title, abortLabel) {
+    const th = scene.openThread({ mode: "fade", anim: "decode", title, abortLabel });
+    th._hist = [];
+    th.show = (fn) => { th._hist.push(fn); fn(); };
+    th.onBack = () => {
+      if (th._pop) { const f = th._pop; th._pop = null; f(); return; }   // inside a swap sub-list
+      if (th._hist.length < 2) return;
+      th.back(); th._hist.pop(); th._hist[th._hist.length - 1]();
+    };
+    th.homeTo = () => {                                        // STAND DOWN → the thread's MAIN menu
+      th._pop = null; th.home();
+      th._hist.length = 1; th._hist[0]();
+    };
+    return th;
+  }
+  const closeSoon = () => scene.time.delayedCall(500, () => scene.closeThread());
+  function confirmStep(th, label, blurb) {
+    th.show(() => {
+      const rows = blurb ? [{ info: true, label: blurb }] : [];
+      rows.push({ dot: true },
+        { label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN", down: true });
+      th.list("GO", "CONFIRM — " + label, rows);
+      th.onRow = async (i) => {
+        if (rows[i].down) { th.homeTo(); return; }             // stand down — collapse to the root
+        await th.lock(i); closeSoon();
+      };
+    });
+  }
+
+  /* ---- KIT (use an item, on-turn) ---- */
+  function kitUse(th) {
+    th.show(() => {
+      const rows = ORDER.map((en) => {                         // every row wears its blurb
+        const n = OWN[en], sealed = !!SEALED[en];
+        return { en, label: iname(en), badge: "×" + n,
+          sub: THEME.ITEMS[en].blurb + (sealed ? " · SEALED" : ""),
+          dim: n === 0 || sealed, bright: n > 0 && !sealed };
+      });
+      th.list("KIT", "YOUR KIT · 3/8", rows);
+      th.onRow = async (i) => {
+        const en = rows[i].en;
+        if (en === "HANDCUFFS") {                              // targeted item → white pulse
+          const id = await th.pickSeat("item", [1, 3, 4], iname(en) + " — TAP A PLAYER");   // anyone but
+          // you; seat 2 already SEDATED (engine: non-self, no stacking)
+          if (id == null) return;
+          await th.lock(i); confirmStep(th, iname(en) + " → " + name(id), THEME.ITEMS[en].blurb);
+        } else { await th.lock(i); confirmStep(th, "USE " + iname(en), THEME.ITEMS[en].blurb); }
+      };
+    });
+  }
+
+  /* ---- FLIP payment (multi-pick, tap cycles the count) ---- */
+  function pay(th, target) {
+    const cost = 5, chosen = {};                               // REAL flip cost (actions.py:85; self=4)
+    const render = () => {
+      const total = ORDER.reduce((s, en) => s + (chosen[en] || 0) * THEME.ITEMS[en].pts, 0);
+      const rows = ORDER.map((en) => ({ en,
+        label: iname(en) + " · " + THEME.ITEMS[en].pts + " PTS",
+        badge: chosen[en] ? "PAY ×" + chosen[en] : "×" + OWN[en],
+        bright: !!chosen[en], dim: OWN[en] === 0 }));
+      rows.push({ dot: true },
+        { pay: true, label: "✓ PAY " + total + "/" + cost + " PTS",
+          bright: total >= cost, dim: total < cost, sub: "OVERPAY IS SPENT — NO CHANGE" },
+        { label: "✕ STAND DOWN", down: true });
+      th.swap("PAY", "FLIP " + name(target) + " — TAP ITEMS TO PAY", rows);
+      th.onRow = async (i) => {
+        if (rows[i].down) { th.homeTo(); return; }
+        if (rows[i].pay) { await th.lock(i); closeSoon(); return; }
+        const en = rows[i].en;
+        chosen[en] = ((chosen[en] || 0) + 1) % (OWN[en] + 1);
+        render();
+      };
+    };
+    th.show(render);
+  }
+
+  /* ---- TRADE offer builder: GIVE ⇄ COUNT → WANT → SEND ---- */
+  function offer(th, to) {
+    const bag = { GIVE: {}, WANT: {} };
+    const phaseStep = (phase) => th.show(() => renderPhase(phase));
+    function renderPhase(phase) {
+      const cur = bag[phase], last = phase === "WANT";
+      const rows = ORDER.map((en) => ({ en, label: iname(en),
+        badge: cur[en] ? "×" + cur[en] : "",
+        bright: phase === "GIVE" && OWN[en] > 0 }));       // your real holdings glow — bluff freely
+      rows.push({ dot: true },
+        { go: true, label: last ? "SEND OFFER ▸" : "CONTINUE ▸", bright: true,
+          sub: last ? "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" : "NEXT — WHAT YOU WANT BACK" });
+      th.swap(phase, (last ? "WANT ← " : "GIVE → ") + name(to), rows);
+      th.onRow = async (i) => {
+        if (rows[i].go) {
+          await th.lock(i);
+          if (last) closeSoon(); else phaseStep("WANT");
+          return;
+        }
+        const en = rows[i].en;
+        th._pop = () => renderPhase(phase);                    // BACK inside the count = back to the list
+        const cnt = [0, 1, 2, 3].map((k) => ({ label: String(k),
+          bright: phase === "GIVE" && k === OWN[en] }));
+        if (phase === "GIVE") cnt.push({ info: true, label: "YOU HOLD ×" + OWN[en] });
+        th.swap("N", iname(en) + " — HOW MANY?", cnt);
+        th.onRow = (k) => { bag[phase][en] = k; th._pop = null; renderPhase(phase); };
+      };
+    }
+    phaseStep("GIVE");
+  }
+
+  /* ---- roots (headerless — the list IS your move; no TALK wording, talk = the running timer) ---- */
+  async function tradeFlow(th, i) {
+    const id = await th.pickSeat("trade", MATES, "TRADE — TAP A TEAMMATE");
+    if (id == null) return;
+    if (i != null) await th.lock(i);
+    offer(th, id);
+  }
+  function move(offerOut) {                                    // B design — whisper captions (ratified)
+    const th = openTh("YOUR MOVE");
+    th.show(() => {
+      const rows = [{ label: "ITEM", sub: "OPEN YOUR KIT" },
+        offerOut ? { label: "WITHDRAW OFFER", recall: true, sub: "PULL YOUR OFFER BACK" }
+          : { label: "TRADE", trade: true, sub: "PRIVATE OFFER TO A TEAMMATE" },
+        { label: "PROCEED", bright: true, sub: "GO SILENT — DECIDE" }];
+      th.list("MOVE", "", rows);
+      th.onRow = async (i) => {
+        if (rows[i].trade) { await tradeFlow(th, i); }
+        else if (rows[i].recall) { await th.lock(i); closeSoon(); }   // real: immediate, no ceremony
+        else if (rows[i].label === "ITEM") { await th.lock(i); kitUse(th); }
+        else { await th.lock(i); closeSoon(); }                // PROCEED — no ceremony
+      };
+    });
+    return th;
+  }
+  function tradeDirect() {                                     // straight into the builder
+    const th = move(false);
+    scene.time.delayedCall(800, () => {                        // after the root decodes: auto-tap TRADE
+      if (scene._thread === th && th.onRow && !th._act) th.onRow(1);
+    });
+  }
+  function decide() {
+    const th = openTh("YOUR MOVE");
+    th.show(() => {
+      const rows = [
+        { label: "SHOOT", bright: true, sub: "PICK A TARGET — OR YOURSELF" },
+        { label: "FLIP", sub: "BUY A CHANGE OF LOYALTY" },
+        { label: "ITEM", sub: "OPEN YOUR KIT" }];
+      th.list("MOVE", "", rows);
+      th.onRow = async (i) => {
+        if (i === 0) {                                         // engine: self + living enemies (endgame.py)
+          const id = await th.pickSeat("shoot", [0, 1, 3], "SHOOT — TAP A TARGET");
+          if (id == null) return;
+          await th.lock(0); confirmStep(th, "SHOOT " + (id === 0 ? "YOURSELF" : name(id)));
+        } else if (i === 1) {                                  // engine: ANY living player you can afford
+          const id = await th.pickSeat("flip", [0, 1, 2, 3, 4], "FLIP — TAP A TARGET");
+          if (id == null) return;
+          await th.lock(1); pay(th, id);
+        } else { await th.lock(2); kitUse(th); }
+      };
+    });
+  }
+
+  /* ---- info threads (KIT off-turn / LEDGER) — both ONE screen, no taps ---- */
+  function kitInfo() {                                         // counts + blurbs at a glance
+    const th = openTh("KIT 3/8", "✕ CLOSE");
+    const rows = ORDER.map((en) => {
+      const n = OWN[en], sealed = !!SEALED[en];
+      return { label: iname(en), badge: "×" + n, still: true,
+        sub: THEME.ITEMS[en].blurb + (sealed ? " · SEALED" : ""),
+        dim: n === 0 || sealed, bright: n > 0 && !sealed };
+    });
+    th.show(() => { th.list("i", "", rows); th.onRow = null; });
+  }
+  function ledger() {                                          // ONE screen, no taps: LIVE · TO USE columns
+    const th = openTh("LEDGER", "✕ CLOSE");
+    const LIVE = { BEER: 3, HANDCUFFS: 2, MAGNIFIER: 2, SAW: 1, CIGARETTES: 3, IMMUNITY: 0 };
+    const USES = { BEER: 4, HANDCUFFS: 6, MAGNIFIER: 0, SAW: 6, CIGARETTES: 2, IMMUNITY: 6 };
+    const rows = [];
+    ORDER.forEach((en) => {
+      rows.push({ label: iname(en), still: true, bright: LIVE[en] > 0, dim: LIVE[en] === 0 });
+      rows.push({ split: [LIVE[en] + " LIVE", USES[en] + " TO USE"], tight: true });
+    });
+    th.show(() => { th.list("i", "", rows); th.onRow = null; });
+  }
+
+  /* ---- incoming offer (respond) ---- */
+  function offerIn() {
+    const th = openTh("INCOMING OFFER");
+    th.show(() => {
+      const rows = [
+        { info: true, label: "THEY GIVE: 2 MAGNET" },
+        { info: true, label: "THEY WANT: 1 SPYCAM" },
+        { info: true, label: "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" },
+        { dot: true },
+        { label: "✓ ACCEPT", bright: true }, { label: "✕ DECLINE" }];
+      th.list("OFFER", name(2) + " OFFERS · PRIVATE", rows);
+      th.onRow = async (i) => { await th.lock(i); closeSoon(); };
+    });
+  }
+
+  /* ---- live band: the mini burn-circle in menus feeds off setBand ---- */
+  const band = { phase: "talk", secs: 52 };
+  setInterval(() => {
+    if (!scene) return;
+    if (band.secs > 0) band.secs--;
+    else { band.phase = band.phase === "talk" ? "decision" : "talk"; band.secs = band.phase === "talk" ? 60 : 30; }
+    scene.setBand({ phase: band.phase, secs: band.secs, name: "YOUR TURN · S.S." });
+  }, 1000);
+  const setPhase = (p, s) => { band.phase = p; band.secs = s;
+    scene.setBand({ phase: p, secs: s, name: "YOUR TURN · S.S." }); };
+
+  const FLOWS = { move: () => { setPhase("talk", 52); move(false); },
+    mover: () => { setPhase("talk", 47); move(true); },
+    decide: () => { setPhase("decision", 24); decide(); },
+    trade: () => { setPhase("talk", 52); tradeDirect(); },
+    kit: kitInfo, ledger, offerin: offerIn };
+  document.querySelectorAll("#bar button").forEach((b) =>
+    b.onclick = () => scene && FLOWS[b.dataset.f]());
+
+  SCENE.ready = (s) => {
+    scene = s;
+    s.render(BASE, ROSTER); s.setAction("YOUR\nMOVE", true);
+    const auto = new URLSearchParams(location.search).get("auto");   // smoke-test hook
+    if (auto && FLOWS[auto]) s.time.delayedCall(400, FLOWS[auto]);
+  };
+  new Phaser.Game({
+    type: Phaser.AUTO, parent: "stage", width: SCENE.W, height: SCENE.H,
+    backgroundColor: "#000000", pixelArt: true,
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scene: SCENE.TableScene,
+  });
+})();
+</script></body></html>

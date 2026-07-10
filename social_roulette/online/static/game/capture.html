@@ -1,0 +1,778 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<title>capture rig</title>
+<!-- DEV-ONLY self-review rig (Claude's eyes). Not linked from the game.
+     Runs ONE moment per page load on an unthrottled virtual clock (MessageChannel
+     pump — RAF and setTimeout are dead in automated tabs), thumbnails the canvas
+     every INTERVAL ms of game time, composes ONE contact sheet, POSTs it to the
+     local _devcap.py sink (:8017). Usage: capture.html?run=setup[&ms=500][&full=3200] -->
+<style>html,body{margin:0;background:#000}#stage{width:390px;height:844px}</style>
+<script>
+  /* unthrottled virtual clock — MUST load before phaser.
+   * Virtualizes BOTH rAF and performance.now (like sinon/Playwright fake timers):
+   * Phaser's TimeStep/tweens read performance.now internally — without this,
+   * tweens advance by REAL delta (~0.2ms/frame) while Clock waits use the rAF
+   * timestamp, and the two clocks diverge 4-6x. */
+  (function () {
+    let vt = performance.now();
+    const q = [];
+    window.__vt = () => vt;
+    const realNow = performance.now.bind(performance);
+    window.__realNow = realNow;
+    performance.now = () => vt;
+    const dateBase = Date.now();                 // Phaser's tween clock reads Date.now (measured:
+    const vt0 = vt;                              // tween speed tracked REAL ms/frame, not loop delta)
+    Date.now = () => Math.round(dateBase + (vt - vt0));
+    window.requestAnimationFrame = (cb) => { q.push(cb); return q.length; };
+    window.cancelAnimationFrame = () => {};
+    const mc = new MessageChannel();
+    const pump = { on: false, tick: null };
+    mc.port1.onmessage = () => {
+      if (!pump.on) return;
+      vt += 16.67;
+      const cbs = q.splice(0);
+      for (const cb of cbs) { try { cb(vt); } catch (e) { console.error(e); } }
+      if (pump.tick) { try { pump.tick(vt); } catch (e) { console.error(e); } }
+      mc.port2.postMessage(0);
+    };
+    pump.start = () => { if (!pump.on) { pump.on = true; mc.port2.postMessage(0); } };
+    pump.stop = () => { pump.on = false; };
+    window.__pump = pump;
+  })();
+</script>
+</head><body>
+<div id="stage"></div>
+<script src="/static/vendor/phaser.min.js"></script>
+<script>
+  // cache-busted game scripts (stale JS burned a review round once)
+  for (const f of ["theme", "dice", "net", "scene", "choreo"])
+    document.write('<script src="/static/game/js/' + f + '.js?cb=' + Date.now() + '"><\/script>');
+</script>
+<script>
+(function () {
+  "use strict";
+  const P = new URLSearchParams(location.search);
+  const RUN = P.get("run") || "board";
+  const INTERVAL = +(P.get("ms") || 500);
+  const FULL_AT = P.get("full") != null ? +P.get("full") : null;
+  const MAX_THUMBS = 40, TIMEOUT_MS = 120000;
+
+  const BASE = () => ({
+    you: 0, order: [0, 1, 2, 3, 4], current: 0, winner: null, gen: 1,
+    phase: "talk", phase_ends_at: null, server_now: 0, bonus: false, extra_turn: false,
+    saw_active: false, teams_active: true, flipback_discount: false,
+    use_counts: {}, use_limit: 6, feed: [],
+    players: [
+      { id: 0, team: "RED",  lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 1, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 2, team: "RED",  lives: 2, alive: true, handcuffed: true,  immune_from: [3] },
+      { id: 3, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 4, team: "RED",  lives: 1, alive: true, handcuffed: false, immune_from: [] },
+    ],
+    your_hand: { BEER: 1, MAGNIFIER: 1, CIGARETTES: 1 },
+    item_counts: { BEER: 3, HANDCUFFS: 2, MAGNIFIER: 2, SAW: 1, CIGARETTES: 3, IMMUNITY: 2 },
+    peek: "unknown",
+  });
+  const ROSTER = { "0": "S.S." };          // human = monogram initials (spy plates)
+  const dead4 = () => { const v = BASE(); v.players[4].alive = false; v.players[4].lives = 0; return v; };
+
+  const SCENARIOS = {
+    board:      (s) => { s.render(BASE(), ROSTER); return s.w(1200); },
+    setup:      (s) => CHOREO.setup(s, BASE(), ROSTER, { total: 8, live: 4 }),
+    bands: async (s) => {
+      s.render(BASE(), ROSTER);
+      for (let t = 60; t >= 56; t--) { s.setBand({ phase: "talk", secs: t, name: "CROW" }); await s.w(160); }
+      for (let t = 30; t >= 0; t -= 3) { s.setBand({ phase: "decision", secs: t, name: "CROW" }); await s.w(160); }
+    },
+    fine:       (s) => CHOREO.play(s, [{ type: "fine", actor: 3 }], BASE(), BASE(), ROSTER),
+    shot_live:  (s) => CHOREO.play(s, [{ type: "shot", actor: 3, target: 4, shell: "LIVE", damage: 1, killed: false }], BASE(), BASE(), ROSTER),
+    shot_blank: (s) => CHOREO.play(s, [{ type: "shot", actor: 2, target: 0, shell: "BLANK", damage: 0, killed: false }], BASE(), BASE(), ROSTER),
+    bonus:      (s) => { const v = BASE(); v.bonus = true; v.current = 1;
+                  return CHOREO.play(s, [{ type: "shot", actor: 1, target: 1, shell: "BLANK", damage: 0, killed: false }], BASE(), v, ROSTER); },
+    death:      (s) => CHOREO.play(s, [{ type: "shot", actor: 0, target: 4, shell: "LIVE", damage: 1, killed: true },
+                  { type: "elimination", actor: 0, target: 4 }], BASE(), dead4(), ROSTER),
+    extra:      (s) => { const v = dead4(); v.extra_turn = true; return CHOREO.play(s, [], BASE(), v, ROSTER); },
+    reload:     (s) => CHOREO.play(s, [{ type: "elimination", actor: 0, target: 4 }, { type: "reload", total: 6, live: 3 }], BASE(), dead4(), ROSTER),
+    draw_you:   (s) => CHOREO.play(s, [{ type: "draw", you: { attempted: ["SAW", "BEER"], received: ["SAW"] } }], BASE(), BASE(), ROSTER),
+    draw_pub:   (s) => CHOREO.play(s, [{ type: "draw" }], BASE(), BASE(), ROSTER),
+    passport:   (s) => CHOREO.play(s, [{ type: "item", actor: 2, item: "CIGARETTES", target: 2 }], BASE(), BASE(), ROSTER),
+    spycam: async (s) => {
+      await CHOREO.play(s, [{ type: "item", actor: 0, item: "MAGNIFIER", target: null }], BASE(), BASE(), ROSTER);
+      s.setPeek("LIVE"); await s.w(1200); s.setPeek("BLANK"); await s.w(900);
+    },
+    poison:     (s) => { const v = BASE(); v.saw_active = true;
+                  return CHOREO.play(s, [{ type: "item", actor: 3, item: "SAW", target: null }], BASE(), v, ROSTER); },
+    magnet:     (s) => CHOREO.play(s, [{ type: "item", actor: 1, item: "BEER", target: null }], BASE(), BASE(), ROSTER),
+    sedative:   (s) => CHOREO.play(s, [{ type: "item", actor: 3, item: "HANDCUFFS", target: 2 }, { type: "skip", target: 2 }], BASE(), BASE(), ROSTER),
+    blackmail:  (s) => { const v = BASE(); v.players[1].immune_from = [0];
+                  return CHOREO.play(s, [{ type: "item", actor: 0, item: "IMMUNITY", target: 1 }], BASE(), v, ROSTER); },
+    caphit:     (s) => { const p = BASE(); p.use_counts = { BEER: 5 }; const v = BASE(); v.use_counts = { BEER: 6 };
+                  return CHOREO.play(s, [], p, v, ROSTER); },
+    flip:       (s) => { const v = BASE(); v.players[1].team = "RED";
+                  return CHOREO.play(s, [{ type: "flip", actor: 0, target: 1 }], BASE(), v, ROSTER); },
+    trade_pub:  (s) => CHOREO.play(s, [{ type: "trade", actor: 2, target: 4 }], BASE(), BASE(), ROSTER),
+    trade_party:(s) => CHOREO.play(s, [{ type: "trade", actor: 0, target: 2, items: { give: ["BEER"], want: ["CIGARETTES"] } }], BASE(), BASE(), ROSTER),
+    trade_cxl:  (s) => CHOREO.play(s, [{ type: "trade_private", kind: "cancelled" }], BASE(), BASE(), ROSTER),
+    gift:       (s) => CHOREO.play(s, [{ type: "gift", actor: 1, target: 3 }], BASE(), BASE(), ROSTER),
+    dissolve:   (s) => { const v = BASE(); v.teams_active = false; return CHOREO.play(s, [], BASE(), v, ROSTER); },
+    pressure: async (s) => {
+      s.render(BASE(), ROSTER);
+      s.setBand({ phase: "talk", secs: 44, name: "VESPER",
+        note: "ONE AGENCY HOLDS THE TRAIN — TURN SOMEONE, OR FACE THE GUN" });
+      await s.w(1500);
+    },
+    winner:     (s) => { const v = dead4(); v.winner = 0; return CHOREO.play(s, [], BASE(), v, ROSTER); },
+    brackets: async (s) => { s.render(BASE(), ROSTER); s.setTargets([1, 3], null); await s.w(1500); },
+    // ---- CLICK-THREAD samples (candidate dial replacement): full 4-step item chain each ----
+    thread_stack:  (s) => threadDemo(s, "stack", "stagger"),
+    thread_fade:   (s) => threadDemo(s, "fade", "stagger"),
+    thread_cols:   (s) => threadDemo(s, "cols", "stagger"),
+    thread_decode: (s) => threadDemo(s, "stack", "decode"),
+    // ---- RATIFIED combo (fade+decode) + seat-pick conventions ----
+    thread_shoot: async (s) => {                              // red target frame
+      const th = threadOpen(s, "decision");
+      await th.list("MOVE", "", DEC_ROWS()); await s.w(600);
+      const p = th.pickSeat("shoot", [0, 1, 3], "SHOOT — TAP A TARGET");
+      await s.w(1300); th._pickDone(3); await p;
+      await th.lock(0);
+      await th.list("GO", "CONFIRM — SHOOT N.D.", GO_ROWS()); await s.w(700);
+      await th.lock(1); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    thread_ants: async (s) => {                               // marching ants + CANCEL back to menu
+      const th = threadOpen(s);
+      await th.list("MOVE", "", MOVE_TALK()); await s.w(600);
+      const p1 = th.pickSeat("trade", [2, 4], "TRADE — TAP A TEAMMATE");
+      await s.w(1300); th._pickDone(null); await p1;         // CANCEL — the menu returns intact
+      await s.w(800);
+      const p2 = th.pickSeat("trade", [2, 4], "TRADE — TAP A TEAMMATE");
+      await s.w(900); th._pickDone(2); await p2;
+      await th.lock(1);
+      await th.list("GO", "CONFIRM — TRADE → J.L.", GO_ROWS()); await s.w(700);
+      await th.lock(1); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    // ---- YOUR MOVE redesign candidates ----
+    move_r1: async (s) => {                                   // A: ticket double-rules
+      s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
+      const th = s.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE", rules: true });
+      await th.list("MOVE", "", MOVE_TALK());
+      await s.w(1300); await th.lock(0); await s.w(700); s.closeThread(); await s.w(200);
+    },
+    move_r2: async (s) => {                                   // B: whisper captions
+      s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
+      const th = s.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE" });
+      await th.list("MOVE", "", MOVE_TALK());
+      await s.w(1500); await th.lock(0); await s.w(700); s.closeThread(); await s.w(200);
+    },
+    move_r3: async (s) => {                                   // C: rules + captions + ticks on default
+      s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
+      const th = s.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE", rules: true });
+      const rows = MOVE_TALK(); rows[2].frame = true;
+      await th.list("MOVE", "", rows);
+      await s.w(1500); await th.lock(0); await s.w(700); s.closeThread(); await s.w(200);
+    },
+    // ---- OVERHAUL samples: every menu, filmed for ratification ----
+    thread_talk: async (s) => {                               // talk root → PROCEED
+      const th = threadOpen(s);
+      await th.list("MOVE", "", MOVE_TALK());
+      await s.w(900); await th.lock(2); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    thread_talkr: async (s) => {                              // offer out → WITHDRAW (immediate, no ceremony)
+      const th = threadOpen(s);
+      await th.list("MOVE", "", [{ label: "ITEM", sub: "OPEN YOUR KIT" },
+        { label: "WITHDRAW OFFER", sub: "PULL YOUR OFFER BACK" },
+        { label: "PROCEED", bright: true, sub: "GO SILENT — DECIDE" }]);
+      await s.w(900); await th.lock(1); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    thread_decide: async (s) => {                             // decision root — B design
+      const th = threadOpen(s, "decision");
+      await th.list("MOVE", "", DEC_ROWS());
+      await s.w(1500); s.closeThread(); await s.w(200);
+    },
+    thread_flip: async (s) => {                               // flip: red pick → PAY builder
+      const th = threadOpen(s, "decision");
+      await th.list("MOVE", "", DEC_ROWS());
+      await s.w(600);
+      const p = th.pickSeat("flip", [0, 1, 2, 3, 4], "FLIP — TAP A TARGET");
+      await s.w(1200); th._pickDone(1); await p;
+      await th.lock(1);
+      const pays = (a, b, tot, ok) => [
+        { label: "MAGNET · 2 PTS", badge: a ? "PAY ×" + a : "×1" },
+        { label: "SEDATIVE · 3 PTS", badge: b ? "PAY ×" + b : "×1" },
+        { label: "SPYCAM · 2 PTS", badge: "×1" },
+        { label: "POISON · 4 PTS", badge: "×0", dim: true },
+        { label: "PASSPORT · 1 PTS", badge: "×0", dim: true },
+        { label: "BLACKMAIL · 5 PTS", badge: "×0", dim: true },
+        { dot: true },
+        { label: "✓ PAY " + tot + "/5 PTS", bright: ok, dim: !ok }];
+      await th.swap("PAY", "FLIP C.W. — TAP ITEMS TO PAY", pays(0, 0, 0, false));
+      await s.w(900);
+      await th.swap("PAY", "FLIP C.W. — TAP ITEMS TO PAY", pays(1, 0, 2, false));
+      await s.w(700);
+      await th.swap("PAY", "FLIP C.W. — TAP ITEMS TO PAY", pays(1, 1, 5, true));
+      await s.w(900); await th.lock(7); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    thread_item: async (s) => {                               // kit-use: sealed row + no-target item
+      const th = threadOpen(s);
+      await th.list("MOVE", "", MOVE_TALK());
+      await s.w(600); await th.lock(0);
+      await th.list("KIT", "YOUR KIT · 3 CARRIED", [
+        { label: "MAGNET", badge: "×1", bright: true },
+        { label: "SEDATIVE", badge: "×1" },
+        { label: "SPYCAM · SEALED", badge: "×1", dim: true },
+        { label: "POISON", badge: "×0", dim: true },
+        { label: "PASSPORT", badge: "×0", dim: true },
+        { label: "BLACKMAIL", badge: "×0", dim: true }]);
+      await s.w(1100); await th.lock(0);
+      await th.list("GO", "CONFIRM — USE MAGNET",
+        [{ info: true, label: "EJECT CURRENT SHELL" }].concat(GO_ROWS()));
+      await s.w(700); await th.lock(2); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    thread_trade: async (s) => {                              // the offer builder, redesigned ride
+      const th = threadOpen(s);
+      await th.list("MOVE", "", MOVE_TALK());
+      await s.w(600);
+      const p = th.pickSeat("trade", [2, 4], "TRADE — TAP A TEAMMATE");
+      await s.w(1100); th._pickDone(2); await p;
+      await th.lock(1);
+      const give = (mag) => [
+        { label: "MAGNET", badge: mag ? "×" + mag : "", bright: true },
+        { label: "SEDATIVE", bright: true }, { label: "SPYCAM", bright: true },
+        { label: "POISON" }, { label: "PASSPORT" }, { label: "BLACKMAIL" },
+        { dot: true },
+        { label: "CONTINUE ▸", bright: true, sub: "NEXT — WHAT YOU WANT BACK" }];
+      await th.swap("GIVE", "GIVE → J.L.", give(0));
+      await s.w(900);
+      await th.swap("N", "MAGNET — HOW MANY?", [                 // count sub-list
+        { label: "0" }, { label: "1", bright: true }, { label: "2" }, { label: "3" },
+        { info: true, label: "YOU HOLD ×1" }]);
+      await s.w(1000);
+      await th.swap("GIVE", "GIVE → J.L.", give(2));             // bluffed above holdings — allowed
+      await s.w(900); await th.lock(7);
+      await th.swap("WANT", "WANT ← J.L.", [
+        { label: "MAGNET" }, { label: "SEDATIVE" }, { label: "SPYCAM", badge: "×1" },
+        { label: "POISON" }, { label: "PASSPORT" }, { label: "BLACKMAIL" },
+        { dot: true },
+        { label: "SEND OFFER ▸", bright: true, sub: "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" }]);
+      await s.w(1000); await th.lock(7); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    thread_kitinfo: async (s) => {                            // off-turn kit: tap to inspect
+      const th = threadOpen2(s, "KIT 3/8", "✕ CLOSE");
+      const rows = (sel) => [
+        { label: "MAGNET", badge: "×1", bright: sel === 1 },
+        { label: "SEDATIVE", badge: "×1", bright: sel === 2 },
+        { label: "SPYCAM", badge: "×1", bright: sel === 3 },
+        { label: "POISON", badge: "×0", dim: true },
+        { label: "PASSPORT", badge: "×0", dim: true },
+        { label: "BLACKMAIL", badge: "×0", dim: true }];
+      await th.list("i", "TAP TO INSPECT", rows(0));
+      await s.w(900);
+      await th.swap("i", "MAGNET · 1/3 · 4 USES LEFT", rows(1));
+      await s.w(900);
+      await th.swap("i", "SPYCAM · 1/3 · SEALED", rows(3));
+      await s.w(900); s.closeThread(); await s.w(200);
+    },
+    thread_ledger2: async (s) => {                            // ledger: ONE screen, LIVE · TO USE columns
+      const th = threadOpen2(s, "LEDGER", "✕ CLOSE");
+      const D = [["MAGNET", 3, 4], ["SEDATIVE", 2, 6], ["SPYCAM", 2, 0],
+        ["POISON", 1, 6], ["PASSPORT", 3, 2], ["BLACKMAIL", 0, 6]];
+      const rows = [];
+      D.forEach(([n, live, use]) => {
+        rows.push({ label: n, still: true, bright: live > 0, dim: live === 0 });
+        rows.push({ split: [live + " LIVE", use + " TO USE"], tight: true });
+      });
+      await th.list("i", "", rows);
+      await s.w(1800); s.closeThread(); await s.w(200);
+    },
+    thread_respond: async (s) => {                            // incoming offer
+      const th = threadOpen2(s, "INCOMING OFFER");
+      await th.list("OFFER", "J.L. OFFERS · PRIVATE", [
+        { info: true, label: "THEY GIVE: 2 MAGNET" },
+        { info: true, label: "THEY WANT: 1 SPYCAM" },
+        { info: true, label: "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" },
+        { dot: true },
+        { label: "✓ ACCEPT", bright: true }, { label: "✕ DECLINE" }]);
+      await s.w(1300); await th.lock(4); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    thread_back: async (s) => {                               // ◂ BACK rewinds one step, list restored
+      const th = threadOpen(s);
+      await th.list("MOVE", "", MOVE_TALK()); await s.w(600);
+      await th.lock(0);
+      await th.list("KIT", "YOUR KIT · 3 CARRIED", KIT_ROWS()); await s.w(1100);
+      th.back();                                              // ◂ BACK
+      await th.list("MOVE", "", MOVE_TALK()); await s.w(1100);
+      s.closeThread(); await s.w(200);
+    },
+    thread_sedate: async (s) => {                             // white pulsing brackets (item)
+      const th = threadOpen(s);
+      await th.list("MOVE", "", MOVE_TALK()); await s.w(600);
+      await th.lock(0);
+      await th.list("KIT", "YOUR KIT · 3 CARRIED", KIT_ROWS()); await s.w(700);
+      const p = th.pickSeat("item", [1, 3, 4], "SEDATIVE — TAP A PLAYER");
+      await s.w(1300); th._pickDone(4); await p;
+      await th.lock(1);
+      await th.list("GO", "CONFIRM — SEDATIVE → W.N.",
+        [{ info: true, label: "TARGET SKIPS A TURN" }].concat(GO_ROWS()));
+      await s.w(700); await th.lock(2); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    /* ---- TRADE PROCESS CATALOG: every step of the lifecycle, beat-exact to
+       tradelab.html / room.py 163-207 / choreo tradeBeat. Data everywhere:
+       give 2 MAGNET (bluff — you hold 1), want 1 SPYCAM, partner C.W.(2). ---- */
+    tr_build: async (s) => {                                  // sender: root → ants → GIVE → count → bluff → WANT → SEND
+      const th = threadOpen(s);
+      await th.list("MOVE", "", TR_ROOT(false));
+      await s.w(700);
+      const p = th.pickSeat("trade", [2, 4], "TRADE — TAP A TEAMMATE");
+      await s.w(1100); th._pickDone(2); await p;
+      await th.lock(1);
+      await th.swap("GIVE", "GIVE → J.L.", TR_GIVE(0));
+      await s.w(1000);
+      await th.swap("N", "MAGNET — HOW MANY?", [               // count sub-list (BACK = _pop to GIVE)
+        { label: "0" }, { label: "1", bright: true }, { label: "2" }, { label: "3" },
+        { info: true, label: "YOU HOLD ×1" }]);
+      await s.w(900);
+      await th.swap("GIVE", "GIVE → J.L.", TR_GIVE(2));        // bluffed above holdings — allowed
+      await s.w(900); await th.lock(7);
+      await th.swap("WANT", "WANT ← J.L.", TR_WANT());
+      await s.w(1100); await th.lock(7);
+      await s.w(400); s.closeThread(); await s.w(300);
+    },
+    tr_hang: async (s) => {                                   // offer out: reopened root → WITHDRAW (silent)
+      const th = threadOpen(s);
+      await th.list("MOVE", "", TR_ROOT(true));
+      await s.w(1300); await th.lock(1);
+      await s.w(400); s.closeThread(); await s.w(300);
+    },
+    tr_settle: async (s) => {                                 // accept beats, sender side (choreo tradeBeat)
+      s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true); s.dialTo(0);
+      const band = bandLoop(s, "talk");
+      await s.w(900);
+      band.remove(); s.setBand({ phase: null });               // band stands down during beats (drain parity)
+      await s.dialTo(0);
+      const IT = THEME.ITEMS;
+      await s.iconFly(IT.BEER.icon, 0, 2, "MAGNET");
+      await s.iconFly(IT.BEER.icon, 0, 2, "MAGNET");
+      await s.iconFly(IT.MAGNIFIER.icon, 2, 0, "SPYCAM");
+      await s.toast("S.S. AND J.L. MADE AN EXCHANGE", 1500);
+      bandLoop(s, "talk");
+      await s.w(800);
+    },
+    tr_declined: async (s) => {                               // decline, sender side (private note)
+      s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true); s.dialTo(0);
+      const band = bandLoop(s, "talk");
+      await s.w(700);
+      band.remove(); s.setBand({ phase: null });
+      await s.toast("OFFER DECLINED", 1800);
+      bandLoop(s, "talk");
+      await s.w(800);
+    },
+    tr_recv: async (s) => {                                   // receiver: sheet ARRIVES on their turn → ACCEPT → beats
+      s.render(BASE(), ROSTER); s.setAction("· · ·", false); s.dialTo(2);
+      const band = bandLoop(s, "talk", "J.L.");
+      await s.w(1100);
+      const th = s.openThread({ mode: "fade", anim: "decode", title: "INCOMING OFFER" });
+      await th.list("OFFER", "J.L. OFFERS · PRIVATE", TR_IN());
+      await s.w(1500); await th.lock(4);
+      await s.w(350); s.closeThread();
+      band.remove(); s.setBand({ phase: null });
+      await s.dialTo(2);
+      const IT = THEME.ITEMS;
+      await s.iconFly(IT.BEER.icon, 2, 0, "MAGNET");
+      await s.iconFly(IT.BEER.icon, 2, 0, "MAGNET");
+      await s.iconFly(IT.MAGNIFIER.icon, 0, 2, "SPYCAM");
+      await s.toast("J.L. AND S.S. MADE AN EXCHANGE", 1500);
+      s.dialTo(0); s.setAction("YOUR\nMOVE", true);
+      bandLoop(s, "talk");
+      await s.w(800);
+    },
+    tr_recv_d: async (s) => {                                 // receiver declines
+      s.render(BASE(), ROSTER); s.setAction("· · ·", false); s.dialTo(2);
+      const band = bandLoop(s, "talk", "J.L.");
+      await s.w(800);
+      const th = s.openThread({ mode: "fade", anim: "decode", title: "INCOMING OFFER" });
+      await th.list("OFFER", "J.L. OFFERS · PRIVATE", TR_IN());
+      await s.w(1200); await th.lock(5);
+      await s.w(350); s.closeThread();
+      band.remove(); s.setBand({ phase: null });
+      await s.toast("OFFER DECLINED", 1800);
+      bandLoop(s, "talk", "J.L.");
+      await s.w(800);
+    },
+    tr_race: async (s) => {                                   // bot answers WHILE the menu is up:
+      const th = threadOpen(s);                                // policy — the menu closes, beats play clean
+      await th.list("MOVE", "", TR_ROOT(true));
+      await s.w(1000);
+      th._band.remove(); s.closeThread(); s.setBand({ phase: null });
+      await s.dialTo(0);
+      await s.iconFly(THEME.ITEMS.BEER.icon, 0, 2, "MAGNET");
+      await s.toast("S.S. AND J.L. MADE AN EXCHANGE", 1200);
+      const th2 = threadOpen(s);                               // answer lands MID-PICK: no leaked
+      await th2.list("MOVE", "", TR_ROOT(false));              // ribbon/ants/cancel on the board
+      await s.w(600);
+      th2.pickSeat("trade", [2, 4], "TRADE — TAP A TEAMMATE");
+      await s.w(900);
+      th2._band.remove(); s.closeThread(); s.setBand({ phase: null });
+      await s.toast("OFFER DECLINED", 1200);
+      await s.w(500);
+    },
+    /* ---- KIT-USE / PAY / KIT-INFO redesign catalog: every step of the last 3 menus ---- */
+    k_use: async (s) => {                                     // no-target item: KIT → confirm → EXECUTE
+      const th = threadOpen(s);
+      await th.list("MOVE", "", MOVE_TALK());
+      await s.w(600); await th.lock(0);
+      await th.list("KIT", "YOUR KIT · 3/8", KROWS());
+      await s.w(1600); await th.lock(0);
+      await th.list("GO", "CONFIRM — USE MAGNET",
+        [{ info: true, label: "EJECT CURRENT SHELL" }].concat(GO_ROWS()));
+      await s.w(800); await th.lock(2); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    k_target: async (s) => {                                  // targeted item: pick duck, cancel, re-pick
+      const th = threadOpen(s);
+      await th.list("MOVE", "", MOVE_TALK());
+      await s.w(600); await th.lock(0);
+      await th.list("KIT", "YOUR KIT · 3/8", KROWS());
+      await s.w(900);
+      const p1 = th.pickSeat("item", [1, 3, 4], "SEDATIVE — TAP A PLAYER");
+      await s.w(1100); th._pickDone(null); await p1;          // ✕ CANCEL — kit returns intact
+      await s.w(700);
+      const p2 = th.pickSeat("item", [1, 3, 4], "SEDATIVE — TAP A PLAYER");
+      await s.w(900); th._pickDone(4); await p2;
+      await th.lock(1);
+      await th.list("GO", "CONFIRM — SEDATIVE → W.N.",
+        [{ info: true, label: "TARGET SKIPS A TURN" }].concat(GO_ROWS()));
+      await s.w(800); await th.lock(2); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    k_home: async (s) => {                                    // ✕ STAND DOWN at confirm → back to the ROOT
+      const th = threadOpen(s);
+      await th.list("MOVE", "", MOVE_TALK());
+      await s.w(600); await th.lock(0);
+      await th.list("KIT", "YOUR KIT · 3/8", KROWS());
+      await s.w(800); await th.lock(0);
+      await th.list("GO", "CONFIRM — USE MAGNET",
+        [{ info: true, label: "EJECT CURRENT SHELL" }].concat(GO_ROWS()));
+      await s.w(900); await th.lock(3);                       // ✕ STAND DOWN
+      th.home();
+      await th.list("MOVE", "", MOVE_TALK());
+      await s.w(1200); s.closeThread(); await s.w(200);
+    },
+    k_dec: async (s) => {                                     // kit from the DECIDE root (red circle)
+      const th = threadOpen(s, "decision");
+      await th.list("MOVE", "", DEC_ROWS());
+      await s.w(600); await th.lock(2);
+      await th.list("KIT", "YOUR KIT · 3/8", KROWS());
+      await s.w(1600); s.closeThread(); await s.w(200);
+    },
+    p_flip: async (s) => {                                    // FLIP: red pick → tap items until 9/9 → PAY
+      const th = threadOpen(s, "decision");
+      await th.list("MOVE", "", DEC_ROWS());
+      await s.w(600);
+      const p = th.pickSeat("flip", [0, 1, 2, 3, 4], "FLIP — TAP A TARGET");
+      await s.w(1100); th._pickDone(1); await p;
+      await th.lock(1);
+      await th.swap("PAY", "FLIP C.W. — TAP ITEMS TO PAY", PROWS(0, 0));
+      await s.w(1100);
+      await th.swap("PAY", "FLIP C.W. — TAP ITEMS TO PAY", PROWS(0, 1));
+      await s.w(800);
+      await th.swap("PAY", "FLIP C.W. — TAP ITEMS TO PAY", PROWS(1, 1));
+      await s.w(1000); await th.lock(7); await s.w(400); s.closeThread(); await s.w(200);
+    },
+    p_home: async (s) => {                                    // PAY → ✕ STAND DOWN → DECIDE root
+      const th = threadOpen(s, "decision");
+      await th.list("MOVE", "", DEC_ROWS());
+      await s.w(600);
+      const p = th.pickSeat("flip", [0, 1, 2, 3, 4], "FLIP — TAP A TARGET");
+      await s.w(800); th._pickDone(1); await p;
+      await th.lock(1);
+      await th.swap("PAY", "FLIP C.W. — TAP ITEMS TO PAY", PROWS(1, 0));
+      await s.w(1000); await th.lock(8);                      // ✕ STAND DOWN
+      th.home();
+      await th.list("MOVE", "", DEC_ROWS());
+      await s.w(1200); s.closeThread(); await s.w(200);
+    },
+    ki_screen: async (s) => {                                 // off-turn KIT: ONE screen, blurbs as whispers
+      s.render(BASE(), ROSTER); s.setAction("· · ·", false); s.dialTo(2);
+      const th = s.openThread({ mode: "fade", anim: "decode", title: "KIT 3/8", abortLabel: "✕ CLOSE" });
+      bandLoop(s, "talk", "J.L.");
+      await th.list("i", "", KROWS().map((r) => Object.assign(r, { still: true })));
+      await s.w(2400); s.closeThread(); await s.w(200);
+    },
+    /* ---- BIG CLOCK (RATIFIED slash clock): full → red → empty ---- */
+    clock_final: (s) => clockDemo(s),
+    seam: async (s) => {                                      // burn edge crossing the digits
+      s.render(BASE(), ROSTER);
+      for (let t = 18; t >= 11; t--) { s.setBand({ phase: "talk", secs: t, name: "C.W." }); await s.w(240); }
+    },
+    ants: async (s) => {                                      // marching-ants trade highlight
+      s.render(BASE(), ROSTER); s.seatGlow([2, 4], true);
+      await s.w(1600);
+      s.seatGlow([], false);
+    },
+    glow:     async (s) => { s.render(BASE(), ROSTER); s.seatGlow([2, 4], true); await s.w(1500); },
+  };
+
+  /* FULL-RES filmstrip: native 390x844 thumbs, 3x2 grid = 1170x1688 sheet (max useful
+     vision res), pages POSTed as <run>_s1.jpg, _s2.jpg ... as they fill. */
+  const TW = 390, TH = 844, COLS = 3, ROWS = 2, PER = COLS * ROWS;
+  let thumbs = 0, page = 0, sheet = null, sctx = null, t0 = null, fullSent = FULL_AT == null;
+  const posts = [];
+
+  function flushSheet(rowsUsed) {
+    if (!sctx) return;
+    const out = document.createElement("canvas");
+    out.width = TW * COLS; out.height = TH * rowsUsed;
+    out.getContext("2d").drawImage(sheet, 0, 0);
+    page++;
+    posts.push(post(RUN + "_s" + page, out.toDataURL("image/jpeg", 0.85)));
+    sheet = null; sctx = null;
+  }
+  function thumb(gameCanvas, label) {
+    if (thumbs >= MAX_THUMBS) return;
+    if (!sctx) {
+      sheet = document.createElement("canvas");
+      sheet.width = TW * COLS; sheet.height = TH * ROWS;
+      sctx = sheet.getContext("2d");
+      sctx.fillStyle = "#222"; sctx.fillRect(0, 0, sheet.width, sheet.height);
+    }
+    const k = thumbs % PER, x = (k % COLS) * TW, y = Math.floor(k / COLS) * TH;
+    sctx.drawImage(gameCanvas, x, y, TW, TH);
+    sctx.fillStyle = "#00ff00"; sctx.font = "bold 22px monospace";
+    sctx.fillText(label, x + 6, y + 24);
+    sctx.strokeStyle = "#444"; sctx.strokeRect(x, y, TW, TH);
+    thumbs++;
+    if (thumbs % PER === 0) flushSheet(ROWS);
+  }
+  async function clockDemo(s) {                               // ride the burn across the red boundary
+    s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
+    const fire = (p, t) => s.setBand({ phase: p, secs: t, name: "YOUR TURN · S.S." });
+    fire("talk", 55); await s.w(6200);                        // near-full field — catches one shimmer sweep
+    fire("talk", 30); await s.w(800);                         // two-thirds
+    for (let t = 3; t >= 1; t--) { fire("talk", t); await s.w(420); }
+    for (let t = 30; t >= 24; t--) { fire("decision", t); await s.w(420); }  // RED zone
+    for (let t = 2; t >= 0; t--) { fire("decision", t); await s.w(420); }    // the field runs dry
+    await s.w(400);
+  }
+  function bandLoop(s, phase, name) {                         // live timer — feeds the menu burn-circle
+    let secs = phase === "decision" ? 24 : 47;
+    const fire = () => s.setBand({ phase, secs, name: name || "YOUR TURN · S.S." });
+    fire();
+    return s.time.addEvent({ delay: 1000, loop: true, callback: () => { if (secs > 0) secs--; fire(); } });
+  }
+  function threadOpen(s, phase) {                             // the ratified combo
+    s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
+    const th = s.openThread({ mode: "fade", anim: "decode", title: "YOUR MOVE" });
+    th._band = bandLoop(s, phase || "talk");
+    return th;
+  }
+  function threadOpen2(s, title, abortLabel) {                // info/respond threads
+    s.render(BASE(), ROSTER);
+    const th = s.openThread({ mode: "fade", anim: "decode", title, abortLabel });
+    bandLoop(s, "talk");
+    return th;
+  }
+  const MOVE_TALK = () => [                                   // talk root — B design (whispers)
+    { label: "ITEM", sub: "OPEN YOUR KIT" },
+    { label: "TRADE", sub: "PRIVATE OFFER TO A TEAMMATE" },
+    { label: "PROCEED", bright: true, sub: "GO SILENT — DECIDE" }];
+  const DEC_ROWS = () => [                                    // decision root — B design
+    { label: "SHOOT", bright: true, sub: "PICK A TARGET — OR YOURSELF" },
+    { label: "FLIP", sub: "BUY A CHANGE OF LOYALTY" },
+    { label: "ITEM", sub: "OPEN YOUR KIT" }];
+  const GO_ROWS = () => [{ dot: true },
+    { label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN" }];
+  const TR_ROOT = (out) => [                                  // talk root, tradelab-exact (ITEM out of scope)
+    { label: "ITEM", dim: true, sub: "OPEN YOUR KIT" },
+    out ? { label: "WITHDRAW OFFER", sub: "PULL YOUR OFFER BACK" }
+        : { label: "TRADE", sub: "PRIVATE OFFER TO A TEAMMATE" },
+    { label: "PROCEED", bright: true, sub: "GO SILENT — DECIDE" }];
+  const TR_GIVE = (mag) => [                                  // GIVE phase: owned rows glow
+    { label: "MAGNET", badge: mag ? "×" + mag : "", bright: true },
+    { label: "SEDATIVE", bright: true }, { label: "SPYCAM", bright: true },
+    { label: "POISON" }, { label: "PASSPORT" }, { label: "BLACKMAIL" },
+    { dot: true },
+    { label: "CONTINUE ▸", bright: true, sub: "NEXT — WHAT YOU WANT BACK" }];
+  const TR_WANT = () => [
+    { label: "MAGNET" }, { label: "SEDATIVE" }, { label: "SPYCAM", badge: "×1" },
+    { label: "POISON" }, { label: "PASSPORT" }, { label: "BLACKMAIL" },
+    { dot: true },
+    { label: "SEND OFFER ▸", bright: true, sub: "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" }];
+  const TR_IN = () => [                                       // the respond sheet (tradelab receive)
+    { info: true, label: "THEY GIVE: 2 MAGNET" },
+    { info: true, label: "THEY WANT: 1 SPYCAM" },
+    { info: true, label: "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" },
+    { dot: true },
+    { label: "✓ ACCEPT", bright: true }, { label: "✕ DECLINE" }];
+  /* ---- KIT/PAY redesign rows (engine truths: theme.js pts/blurbs; main.js kitRadial
+     usable rule; trays.pay overpay-allowed). Demo hand: MAGNET 1 · SEDATIVE 1 · SPYCAM 1(SEALED). */
+  const KROWS = () => [                                       // every row wears its blurb
+    { label: "MAGNET", badge: "×1", bright: true, sub: "EJECT CURRENT SHELL" },
+    { label: "SEDATIVE", badge: "×1", bright: true, sub: "TARGET SKIPS A TURN" },
+    { label: "SPYCAM", badge: "×1", dim: true, sub: "PEEK NEXT SHELL · SEALED" },
+    { label: "POISON", badge: "×0", dim: true, sub: "NEXT SHOT x2" },
+    { label: "PASSPORT", badge: "×0", dim: true, sub: "+1 COVER" },
+    { label: "BLACKMAIL", badge: "×0", dim: true, sub: "TARGET CAN'T SHOOT YOU" }];
+  const PROWS = (mag, spy) => {                               // FLIP payment: REAL cost 5 (actions.py:85)
+    const tot = (mag ? 4 : 0) + (spy ? 5 : 0), ok = tot >= 5;
+    return [
+      { label: "MAGNET · 4 PTS", badge: mag ? "PAY ×1" : "×1", bright: !!mag },
+      { label: "SEDATIVE · 4 PTS", badge: "×1" },
+      { label: "SPYCAM · 5 PTS", badge: spy ? "PAY ×1" : "×1", bright: !!spy },
+      { label: "POISON · 5 PTS", badge: "×0", dim: true },
+      { label: "PASSPORT · 6 PTS", badge: "×0", dim: true },
+      { label: "BLACKMAIL · 6 PTS", badge: "×0", dim: true },
+      { dot: true },
+      { label: "✓ PAY " + tot + "/5 PTS", bright: ok, dim: !ok, sub: "OVERPAY IS SPENT — NO CHANGE" },
+      { label: "✕ STAND DOWN" }];
+  };
+  const KIT_ROWS = () => [
+    { label: "MAGNET", badge: "×1" }, { label: "SEDATIVE", badge: "×1", bright: true },
+    { label: "SPYCAM", badge: "×1" }, { label: "POISON", badge: "×0", dim: true },
+    { label: "PASSPORT", badge: "×0", dim: true }, { label: "BLACKMAIL", badge: "×0", dim: true }];
+  async function threadDemo(s, mode, anim) {                  // the SEDATIVE chain, human tap cadence
+    s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
+    const th = s.openThread({ mode, anim, title: "YOUR MOVE" });
+    await th.list("MOVE", "TALK ACTIONS", [
+      { label: "ITEM", bright: true }, { label: "TRADE" }, { label: "PROCEED" }]);
+    await s.w(700); await th.lock(0);
+    await th.list("KIT", "YOUR KIT · 3 CARRIED", [
+      { label: "MAGNET", badge: "×1" }, { label: "SEDATIVE", badge: "×1", bright: true },
+      { label: "SPYCAM", badge: "×1" }, { label: "POISON", badge: "×0", dim: true },
+      { label: "PASSPORT", badge: "×0", dim: true }, { label: "BLACKMAIL", badge: "×0", dim: true }]);
+    await s.w(700); await th.lock(1);
+    await th.list("TARGET", "SEDATIVE — PICK A NEIGHBOR", [
+      { label: "C.W." }, { label: "N.D.", bright: true }]);
+    await s.w(700); await th.lock(1);
+    await th.list("GO", "CONFIRM", [
+      { label: "✓ EXECUTE", bright: true }, { label: "✕ STAND DOWN" }]);
+    await s.w(700); await th.lock(0);
+    await s.w(450);
+    th.close();
+    await s.w(300);
+  }
+  async function post(name, dataUrl) {
+    await fetch("http://localhost:8017/cap", { method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name, img: dataUrl }) });
+  }
+
+  /* ---- DEFECT DETECTOR: geometry audit (Text/Image overlap + offscreen) + copy inventory.
+     Shapes (Graphics/Rect) are design chrome — excluded on purpose; film review covers them. */
+  const AGG = new Map(), COPY = new Set();
+  function screenCut(s) {                    // full-screen opaque rect (dim / winner / flash) hides all below
+    let cut = -Infinity;
+    for (const o of s.children.list)
+      if (o.type === "Rectangle" && o.visible && o.width >= 380 && o.height >= 820
+          && (o.fillAlpha == null ? 1 : o.fillAlpha) * o.alpha >= 0.8 && o.depth > cut) cut = o.depth;
+    return cut;
+  }
+  function tagOf(o) {
+    return o.type === "Text" ? 'T"' + o.text.replace(/\n/g, "|").slice(0, 20) + '"'
+      : "I[" + (o.texture ? o.texture.key : "?") + ":" + (o.frame ? o.frame.name : "") + "]";
+  }
+  function audit(s, el) {
+    const cut = screenCut(s), out = [];
+    const covers = [];                          // opaque partial covers (e.g. the thread dock blackout)
+    for (const o of s.children.list)
+      if (o.type === "Rectangle" && o.visible && o.alpha * (o.fillAlpha == null ? 1 : o.fillAlpha) >= 0.8
+          && o.width >= 150 && o.height >= 80) covers.push({ b: o.getBounds(), d: o.depth });
+    const push = (o, d, pa) => {
+      const a = o.alpha * pa;
+      if (!o.visible || a < 0.05) return;
+      if (o.list) { o.list.forEach((c) => push(c, d, a)); return; }
+      if (o.type !== "Text" && o.type !== "Image") return;
+      if (o.type === "Text" && !o.text.trim()) return;
+      if (d < cut) return;
+      if (o.name === "fx") return;
+      const b = o.getBounds();
+      if (covers.some((c) => c.d > d && b.left >= c.b.left - 1 && b.right <= c.b.right + 1
+          && b.top >= c.b.top - 1 && b.bottom <= c.b.bottom + 1)) return;   // hidden under a cover
+      if (o.type === "Text") COPY.add(o.text.replace(/\n/g, " | "));
+      if (b.width > 0) out.push({ o, b });
+    };
+    s.children.list.forEach((o) => push(o, o.depth, 1));
+    const add = (k) => { const v = AGG.get(k) || { first: el, n: 0 }; v.n++; v.last = el; AGG.set(k, v); };
+    for (const A of out)
+      if (A.b.left < -2 || A.b.top < -2 || A.b.right > SCENE.W + 2 || A.b.bottom > SCENE.H + 2)
+        add("OFFSCREEN " + tagOf(A.o));
+    for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) {
+      const A = out[i], B = out[j];
+      if (A.o.name === "stamp" || B.o.name === "stamp") {      // rubber-stamp over seat imagery: by design
+        if (A.o.type === "Image" || B.o.type === "Image") continue;
+      }
+      if (A.o.type === "Text" && B.o.type === "Text" && A.o.text === B.o.text
+          && Math.abs(A.b.left - B.b.left) < 2 && Math.abs(A.b.top - B.b.top) < 2) continue;  // masked twin layers
+      const ix = Math.min(A.b.right, B.b.right) - Math.max(A.b.left, B.b.left);
+      const iy = Math.min(A.b.bottom, B.b.bottom) - Math.max(A.b.top, B.b.top);
+      if (ix <= 2 || iy <= 2) continue;
+      if (ix * iy < 0.12 * Math.min(A.b.width * A.b.height, B.b.width * B.b.height)) continue;
+      add("OVERLAP " + tagOf(A.o) + " × " + tagOf(B.o));
+    }
+  }
+  function auditReport() {
+    const lines = [];
+    [...AGG.entries()].sort().forEach(([k, v]) =>
+      lines.push(k + "   [" + (v.first / 1000).toFixed(1) + "s→" + (v.last / 1000).toFixed(1) + "s ×" + v.n + "]"));
+    lines.push("", "COPY INVENTORY (" + COPY.size + "):");
+    [...COPY].sort().forEach((t) => lines.push("  " + t));
+    return "VIOLATIONS: " + AGG.size + "\n" + lines.join("\n");
+  }
+
+  let scene = null, finished = false;
+  function frames(n) {                       // wait n PUMP frames so pending mutations get DRAWN
+    return new Promise((r) => {
+      const old = window.__pump.tick;
+      let k = 0;
+      window.__pump.tick = (vt) => { if (old) old(vt); if (++k >= n) { window.__pump.tick = old; r(); } };
+    });
+  }
+  async function finish(status) {
+    if (finished) return; finished = true;
+    await frames(3);                         // the scenario's final render() needs a drawn frame
+    window.__pump.tick = null;
+    if (scene) thumb(scene.sys.game.canvas, "END");
+    if (thumbs % PER !== 0) flushSheet(Math.min(ROWS, Math.ceil((thumbs % PER) / COLS)));
+    posts.push(fetch("http://localhost:8017/cap", { method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: RUN + "_audit", txt: auditReport() }) }));
+    try { await Promise.all(posts); } catch (e) { status = "POSTFAIL"; }
+    window.__pump.stop();
+    document.title = status + " " + RUN + " " + thumbs + " P" + page + " V" + AGG.size;
+  }
+
+  SCENE.ready = async (s) => {
+    scene = s;
+    t0 = s.time.now;                          // GAME clock — labels reflect what a real 60fps player sees
+    let nextGrab = 0, nextAudit = 0;
+    const g = s.sys.game;
+    const DS = window.__deltaStats = { n: 0, sum: 0, min: 1e9, max: 0, raw: [] };
+    window.__pump.tick = () => {
+      DS.n++; DS.sum += g.loop.delta;
+      DS.min = Math.min(DS.min, g.loop.delta); DS.max = Math.max(DS.max, g.loop.delta);
+      if (DS.raw.length < 2000 && DS.n % 10 === 0) DS.raw.push(+g.loop.delta.toFixed(2));
+      const el = s.time.now - t0;
+      if (el >= nextAudit && !finished) { audit(s, el); nextAudit += 100; }   // dense: catches transients
+      if (el >= nextGrab && !finished) { thumb(s.sys.game.canvas, (el / 1000).toFixed(1) + "s"); nextGrab += INTERVAL; }
+      if (FULL_AT != null && !fullSent && el >= FULL_AT) {
+        fullSent = true;
+        post(RUN + "_full_" + FULL_AT, s.sys.game.canvas.toDataURL("image/jpeg", 0.9));
+      }
+      if (el > TIMEOUT_MS) finish("TIMEOUT");
+    };
+    try {
+      if (RUN !== "setup") {                 // live client always has a rendered board before events
+        s.render(BASE(), ROSTER);
+        await frames(3);
+      }
+      await (SCENARIOS[RUN] || SCENARIOS.board)(s);
+      await finish("DONE");
+    } catch (e) {
+      console.error(e);
+      document.title = "ERR " + RUN + " " + e.message;
+      await finish("ERR");
+    }
+  };
+
+  new Phaser.Game({ type: P.get("canvas") ? Phaser.CANVAS : Phaser.AUTO, parent: "stage", width: SCENE.W, height: SCENE.H,
+    backgroundColor: "#000000", pixelArt: true,
+    scale: { mode: Phaser.Scale.NONE }, scene: SCENE.TableScene });
+  window.__pump.start();
+})();
+</script></body></html>

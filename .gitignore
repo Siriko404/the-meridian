@@ -6,3 +6,5 @@ records/
 records_demo/
 node_modules/
 package-lock.json
+_devcap.py
+_devcap/

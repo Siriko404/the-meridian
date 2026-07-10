@@ -1,0 +1,62 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>CLOCK LAB</title>
+<!-- DEV-ONLY: big-clock burn samples. The countdown loops talk 8s -> decision 30s so the
+     white -> red boundary and the 5s shimmer sweep keep coming around. Pick a style. -->
+<style>
+  html,body{margin:0;height:100%;background:#000;font-family:Georgia,'Times New Roman',serif}
+  #bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:6px;background:#000}
+  #bar button{background:#000;color:#fff;border:2px solid #fff;font:bold 12px Georgia,serif;
+    letter-spacing:1px;padding:5px 8px;cursor:pointer}
+  #bar button.on{background:#fff;color:#000}
+  #wrap{position:absolute;top:42px;bottom:0;left:0;right:0}
+</style>
+</head><body>
+<div id="bar">
+  <button class="on">THE CLOCK (RATIFIED)</button>
+</div>
+<div id="wrap"><div id="stage" style="width:100%;height:100%"></div></div>
+<script src="/static/vendor/phaser.min.js"></script>
+<script>
+  for (const f of ["theme", "dice", "net", "scene", "choreo"])
+    document.write('<script src="/static/game/js/' + f + '.js?cb=' + Date.now() + '"><\/script>');
+</script>
+<script>
+(function () {
+  "use strict";
+  const BASE = {
+    you: 0, order: [0, 1, 2, 3, 4], current: 0, winner: null, gen: 1,
+    phase: "talk", phase_ends_at: null, server_now: 0, bonus: false, extra_turn: false,
+    saw_active: false, teams_active: true, flipback_discount: false,
+    use_counts: {}, use_limit: 6, feed: [],
+    players: [
+      { id: 0, team: "RED",  lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 1, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 2, team: "RED",  lives: 2, alive: true, handcuffed: false, immune_from: [] },
+      { id: 3, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 4, team: "RED",  lives: 1, alive: true, handcuffed: false, immune_from: [] },
+    ],
+    your_hand: { BEER: 1, MAGNIFIER: 1, CIGARETTES: 1 }, item_counts: {}, peek: "unknown",
+  };
+  let scene = null;
+  const tick = { phase: "talk", secs: 60 };                   // the REAL ride: 1:30 total, red last 30
+  setInterval(() => {
+    if (!scene) return;
+    if (tick.secs > 0) tick.secs--;
+    else if (tick.phase === "talk") { tick.phase = "decision"; tick.secs = 30; }
+    else { tick.phase = "talk"; tick.secs = 60; }
+    scene.setBand({ phase: tick.phase, secs: tick.secs, name: "YOUR TURN · S.S." });
+  }, 1000);
+  SCENE.ready = (s) => {
+    scene = s; s.render(BASE, { "0": "S.S." }); s.setAction("YOUR\nMOVE", true);
+    s.setBand({ phase: tick.phase, secs: tick.secs, name: "YOUR TURN · S.S." });
+  };
+  new Phaser.Game({
+    type: Phaser.AUTO, parent: "stage", width: SCENE.W, height: SCENE.H,
+    backgroundColor: "#000000", pixelArt: true,
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scene: SCENE.TableScene,
+  });
+})();
+</script></body></html>

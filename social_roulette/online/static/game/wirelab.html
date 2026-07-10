@@ -1,0 +1,362 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>WIRE LAB</title>
+<!-- DEV-ONLY: films EVERY step of the WIRED menus — the REAL index DOM + the REAL main.js,
+     fed by a scripted fake WebSocket. Each flow pushes a crafted view, drives the real thread
+     code tap by tap, and posts contact sheets to the _devcap sink for review.
+     FILM SPEC (ratified): one SUBJECT = one 4x3 sheet of 12 shots at 3 shots/sec (4s of film);
+     filmTap() puts before(3) + TAP + after(9) of a transition in ONE sheet.
+     Flows are isolated: a dead row posts forensics and the run marches on. -->
+<link rel="stylesheet" href="/static/game/game.css">
+</head><body>
+<div id="stage"></div>
+<section id="join" class="overlay on"><div class="ticket">
+  <div class="initials"><input id="name"><input id="lastinit"></div>
+  <input id="code" class="codein"><button id="enterbtn">BOARD</button>
+</div></section>
+<section id="lobby" class="overlay"><div class="ticket">
+  <div id="lcode" class="code"></div><div id="members"></div>
+  <button id="startbtn" style="display:none">DEPART</button>
+</div></section>
+<div id="chatsheet"><div id="chatlog"></div>
+  <div class="row"><input id="chatin"><button id="chatsend">SEND</button></div></div>
+<div id="banner"></div>
+<script>
+  /* fake WS — main.js talks to the script below instead of a server */
+  window.__sent = [];
+  window.WebSocket = function () {
+    const ws = { readyState: 1,
+      send(s) { const m = JSON.parse(s); window.__sent.push(m); if (window.__onSend) window.__onSend(m); },
+      close() {} };
+    setTimeout(() => ws.onopen && ws.onopen(), 30);
+    window.__ws = ws;
+    return ws;
+  };
+</script>
+<script src="/static/vendor/phaser.min.js"></script>
+<script>
+  for (const f of ["theme", "dice", "net", "scene", "choreo", "main"])
+    document.write('<script src="/static/game/js/' + f + '.js?v=' + Date.now() + '"><\/script>');
+</script>
+<script>
+(function () {
+  "use strict";
+  const SINK = "http://localhost:8017/cap";
+  const errs = [];
+  window.addEventListener("error", (e) => errs.push(e.message + " @ " + e.filename + ":" + e.lineno));
+  window.addEventListener("unhandledrejection", (e) =>
+    errs.push("REJECTION: " + (e.reason && e.reason.stack || e.reason)));
+  const post = (b) => fetch(SINK, { method: "POST",
+    headers: { "content-type": "application/json" }, body: JSON.stringify(b) }).catch(() => {});
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const push = (m) => window.__ws.onmessage({ data: JSON.stringify(m) });
+
+  setInterval(() => {                                          // headless: rAF is dead — pump
+    const g = window.__game;
+    if (g && g.loop && performance.now() - g.loop.now > 100) g.loop.step(performance.now());
+  }, 33);
+
+  /* ---- view factory: full v2 contract, deadline ticking live ---- */
+  let gen = 0;
+  const ROSTER = { "0": "S.S." };
+  function view(o) {
+    o = o || {};
+    const now = Date.now() / 1000;
+    const players = o.players || [
+      { id: 0, team: "RED",  lives: o.myLives || 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 1, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 2, team: "RED",  lives: 2, alive: true, handcuffed: true,  immune_from: [3] },
+      { id: 3, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 4, team: "RED",  lives: 1, alive: true, handcuffed: false, immune_from: [] },
+    ];
+    return Object.assign({
+      type: "view", roster: ROSTER, events: o.events || [],
+      you: 0, order: [0, 1, 2, 3, 4], current: 0, winner: null, gen: ++gen,
+      phase: "talk", phase_ends_at: now + (o.secs != null ? o.secs : 47), server_now: now,
+      bonus: false, extra_turn: false, saw_active: false, teams_active: true,
+      flipback_discount: false, use_counts: {}, use_limit: 6, feed: [], players,
+      your_hand: { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1 },
+      item_counts: { BEER: 3, HANDCUFFS: 2, MAGNIFIER: 2, SAW: 1, CIGARETTES: 3, IMMUNITY: 2 },
+      peek: "unknown", legal: o.legal || [],
+    }, o.over || {});
+  }
+  const L_ITEMS = [                                            // legal entries (hand above)
+    { kind: "item", item: "BEER", target: null, i: 0 },
+    { kind: "item", item: "HANDCUFFS", target: 1, i: 1 },
+    { kind: "item", item: "HANDCUFFS", target: 3, i: 2 },
+    { kind: "item", item: "HANDCUFFS", target: 4, i: 3 },
+    { kind: "item", item: "MAGNIFIER", target: null, i: 4 },
+  ];
+  const L_DEC = [
+    { kind: "shoot", target: 0, i: 10 }, { kind: "shoot", target: 1, i: 11 },
+    { kind: "shoot", target: 3, i: 12 },
+    { kind: "flip", target: 1, cost: 5, i: 13 }, { kind: "flip", target: 2, cost: 5, i: 14 },
+    { kind: "flip", target: 3, cost: 5, i: 15 }, { kind: "flip", target: 4, cost: 5, i: 16 },
+  ].concat(L_ITEMS.map((a) => Object.assign({}, a, { i: a.i + 20 })));
+
+  /* ---- driving the REAL thread code ---- */
+  const S = () => window.__scene;
+  const TH = () => S() && S()._thread;
+  function armed(i) {
+    const st = TH() && TH().active;
+    return !!(st && st.hits[i] && st.hits[i].input && st.hits[i].input.enabled);
+  }
+  async function row(i) {                                      // tap an armed row — forensics if dead
+    for (let k = 0; k < 40 && !armed(i); k++) await sleep(100);
+    if (!armed(i)) {
+      const st = TH() && TH().active;
+      post({ name: "wire_forensic_" + flow, txt: "row(" + i + ") NEVER ARMED in flow " + flow + "\n"
+        + (st ? st.items.map((it, k) => k + ": " + JSON.stringify(it)
+            + "  hit=" + !!st.hits[k] + " int=" + !!(st.hits[k] && st.hits[k].input)
+            + " en=" + armed(k)).join("\n")
+          : "NO ACTIVE LIST (thread=" + !!TH() + ")") });
+      throw new Error("ROW " + i + " never armed in flow " + flow);
+    }
+    TH().active.hits[i].emit("pointerdown");
+  }
+  async function openHub(which) {                              // hub verbs no-op while beats play —
+    for (let k = 0; k < 20 && !TH(); k++) {                    // knock, then give it a real chance
+      const s = S(); if (s && typeof s[which] === "function") s[which]();
+      for (let j = 0; j < 6 && !TH(); j++) await sleep(250);
+    }
+    if (!TH()) throw new Error("HUB NEVER OPENED: " + which + " in flow " + flow);
+    await sleep(400);
+  }
+  const seat = async (id) => { await sleep(900); TH()._pickDone(id); };
+  const named = (n) => S().children.list.find((o) => o.name === n && o.input && o.input.enabled);
+  const abort = async () => { const a = named("tabort"); if (a) a.emit("pointerdown"); await sleep(700); };
+
+  /* ---- filming: one SUBJECT = one 4x3 sheet · 12 shots · 3 shots/sec ---- */
+  const TW = 390, THh = 844, COLS = 4, ROWS = 3, PER = COLS * ROWS, FPS_MS = 333;
+  let sheet = null, sctx = null, fill = 0, page = 0, flow = "boot";
+  const SENT = {};                                             // flow -> WS messages main.js sent
+  function snap(label) {
+    const c = document.querySelector("canvas");
+    if (!c) return;
+    if (!sctx) {
+      sheet = document.createElement("canvas");
+      sheet.width = TW * COLS; sheet.height = THh * ROWS;
+      sctx = sheet.getContext("2d");
+      sctx.fillStyle = "#222"; sctx.fillRect(0, 0, sheet.width, sheet.height);
+    }
+    const k = fill++, x = (k % COLS) * TW, y = ((k / COLS) | 0) * THh;
+    sctx.drawImage(c, 0, 0, c.width, c.height, x, y, TW, THh);
+    sctx.fillStyle = "#0f0"; sctx.font = "bold 20px monospace";
+    sctx.fillText(label || "", x + 6, y + 22);
+    if (fill === PER) flushSheet();
+  }
+  function flushSheet() {
+    if (!sctx) return;
+    post({ name: "wire_" + flow + "_s" + (++page), img: sheet.toDataURL("image/jpeg", 0.82) });
+    sheet = null; sctx = null; fill = 0;
+  }
+  function startFlow(name) {
+    flushSheet(); flow = name; page = 0; SENT[name] = [];
+    post({ name: "wire_progress", txt: "flow=" + name + " t=" + ((performance.now() / 1000) | 0)
+      + "s errs=" + errs.length + (errs.length ? "\n" + errs.join("\n") : "") });
+  }
+  async function film(label) {                                 // one full sheet: 12 shots, 4s
+    for (let i = 1; i <= PER; i++) { snap(label + "·" + i); await sleep(FPS_MS); }
+  }
+  async function filmTap(label, fn) {                          // before(3) + TAP + after(9), ONE sheet
+    for (let i = 1; i <= 3; i++) { snap(label + "·" + i); await sleep(FPS_MS); }
+    await fn();
+    for (let i = 4; i <= PER; i++) { snap(label + "·" + i); await sleep(FPS_MS); }
+  }
+
+  /* ---- functional asserts on what the menus SENT ---- */
+  const checks = [];
+  const chk = (ok, msg) => checks.push((ok ? "PASS  " : "FAIL  ") + msg);
+  async function step(name, fn) {                              // flows are ISOLATED — one dead row
+    startFlow(name);                                           // never kills the whole run
+    try { await fn(); } catch (e) {
+      errs.push("FLOW " + name + ": " + (e && e.stack || e));
+      try { if (TH()) S().closeThread(); } catch (_) {}
+      await sleep(400);
+    }
+  }
+
+  /* ---- the flows: EVERY wired menu step ---- */
+  async function run() {
+    post({ name: "wire_boot", txt: "run() entered t=" + ((performance.now() / 1000) | 0) + "s" });
+    setInterval(() => post({ name: "wire_heartbeat", txt: "flow=" + flow
+      + " t=" + ((performance.now() / 1000) | 0) + "s canvas=" + !!document.querySelector("canvas")
+      + " scene=" + !!window.__scene + " errs=" + errs.length
+      + (errs.length ? "\n" + errs.join("\n") : "") }), 10000);
+    document.getElementById("name").value = "S";
+    document.getElementById("lastinit").value = "S";
+    document.getElementById("code").value = "WIRE";
+    window.__onSend = (m) => {
+      (SENT[flow] = SENT[flow] || []).push(m);
+      if (m.type === "join") setTimeout(() => {
+        push({ type: "joined", token: "T", host: true });
+        push(view({ events: [{ type: "announce", total: 8, live: 4 }],
+          legal: L_ITEMS.concat([{ kind: "shoot", target: 3, i: 9 }]) }));
+      }, 60);
+    };
+    document.getElementById("enterbtn").click();
+    for (let k = 0; k < 200 &&                                 // M1-M5 boarding ceremony → settled
+      !(S() && typeof S().onAction === "function"); k++) await sleep(200);
+
+    /* 1 — talk root: open + abort, each transition on film */
+    await step("root", async () => {
+      push(view({ legal: L_ITEMS })); await sleep(1000);
+      await filmTap("open", () => openHub("onAction"));
+      await filmTap("abort", () => abort());
+    });
+
+    /* 2 — root variants: no items / teammates dead / offer out + withdraw */
+    await step("rootvar", async () => {
+      push(view({ legal: [] })); await sleep(800);
+      await filmTap("no-item", () => openHub("onAction"));
+      await abort();
+      push(view({ legal: L_ITEMS, players: [
+        { id: 0, team: "RED",  lives: 3, alive: true, handcuffed: false, immune_from: [] },
+        { id: 1, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+        { id: 2, team: "RED",  lives: 0, alive: false, handcuffed: false, immune_from: [] },
+        { id: 3, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+        { id: 4, team: "RED",  lives: 0, alive: false, handcuffed: false, immune_from: [] },
+      ] })); await sleep(800);
+      await filmTap("teammates-dead", () => openHub("onAction"));
+      await abort();
+      push(view({ legal: L_ITEMS,
+        over: { pending_offer: { from: 0, to: 2, give: ["BEER"], want: ["MAGNIFIER"] } } }));
+      await sleep(800);
+      await filmTap("withdraw-menu", () => openHub("onAction"));
+      await filmTap("withdraw-tap", () => row(1));             // sends trade_withdraw
+    });
+
+    /* 3 — kit: mixed states (sealed + full-cover dims), no-target confirm, STAND DOWN home */
+    await step("kit", async () => {
+      push(view({ legal: L_ITEMS, myLives: 5,
+        over: { your_hand: { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1, CIGARETTES: 1 },
+          use_counts: { MAGNIFIER: 6 } } }));
+      await sleep(800);
+      await openHub("onAction"); await sleep(800);
+      await filmTap("kit-open", () => row(0));
+      await filmTap("magnet-confirm", () => row(0));
+      await filmTap("stand-down-home", () => row(3));          // ✕ STAND DOWN → root
+      await abort();
+    });
+
+    /* 4 — kit targeted: pick duck, cancel, re-pick, confirm, EXECUTE */
+    await step("sedative", async () => {
+      push(view({ legal: L_ITEMS })); await sleep(800);
+      await openHub("onAction"); await sleep(800);
+      await row(0); await sleep(1200);
+      await filmTap("pick-duck", () => row(1));
+      await filmTap("pick-cancel", () => { TH()._pickDone(null); });
+      await row(1); await sleep(1000);
+      await filmTap("target-confirm", () => { TH()._pickDone(4); });
+      await filmTap("execute", () => row(2));                  // sends the action
+    });
+
+    /* 5 — the offer builder end-to-end */
+    await step("offer", async () => {
+      push(view({ legal: L_ITEMS })); await sleep(800);
+      await openHub("onAction"); await sleep(800);
+      await filmTap("trade-pick", async () => { await row(1); await seat(2); });   // ants → J.L.
+      await filmTap("count", () => row(0));                    // MAGNET → HOW MANY
+      await filmTap("give-x2", () => row(2));                  // bluff ×2
+      await filmTap("to-want", () => row(7));                  // CONTINUE → WANT
+      await filmTap("want-x1", async () => { await row(2); await row(1); });
+      await filmTap("send", () => row(7));                     // SEND OFFER
+      push(view({ legal: L_ITEMS,
+        over: { pending_offer: { from: 0, to: 2, give: ["BEER", "BEER"], want: ["MAGNIFIER"] } } }));
+      await film("after-send");                                // board settles clean, no ghost beats
+    });
+
+    /* 6 — incoming offer (auto-arrives) */
+    await step("respond", async () => {
+      push(view({ over: { current: 2,
+        pending_offer: { from: 2, to: 0, give: ["BEER", "BEER"], want: ["MAGNIFIER"] } } }));
+      await film("arrive");
+      await filmTap("accept", () => row(4));                   // sends trade_respond
+    });
+
+    /* 7 — decision: root, shoot pick+confirm+standdown, flip PAY ride */
+    await step("decide", async () => {
+      push(view({ legal: L_DEC, secs: 24, over: { phase: "decision" } }));
+      await sleep(800);
+      await filmTap("dec-root", () => openHub("onAction"));
+      await filmTap("shoot-pick", async () => { await row(0); await seat(3); });
+      await filmTap("shoot-standdown", () => row(2));          // STAND DOWN → root
+      await filmTap("pay-open", async () => { await row(1); await seat(1); });
+      await filmTap("pay-4of5", () => row(0));                 // MAGNET 4/5 — short
+      await filmTap("pay-9of5", () => row(2));                 // +SPYCAM — overpay armed
+      await filmTap("pay-standdown", () => row(8));            // ✕ STAND DOWN → DECIDE
+      await abort();
+    });
+
+    /* 8 — forced self-shot (M11 note) */
+    await step("forcedself", async () => {
+      push(view({ legal: [{ kind: "shoot", target: 0, i: 30 }].concat(
+        L_DEC.filter((a) => a.kind !== "shoot")), secs: 20, over: { phase: "decision" } }));
+      await sleep(800);
+      await openHub("onAction"); await sleep(800);
+      await filmTap("self-only-note", () => row(0));
+      await filmTap("shoot-yourself", () => { TH()._pickDone(0); });
+      await abort();
+    });
+
+    /* 9 — info screens: ledger + off-turn kit */
+    await step("info", async () => {
+      push(view({ legal: [], over: { current: 1 } })); await sleep(800);
+      await filmTap("ledger", () => openHub("onLedger"));
+      await abort();
+      await filmTap("kit-info", () => openHub("onKit"));
+      await abort();
+    });
+
+    /* 10 — LIVE CASCADE: every state change must land AT its beat (not after the settle).
+       shot −1 · SEDATED chip · DIRT chip · +1 life · team flip · cuff clears · kill · reload */
+    await step("cascade", async () => {
+      push(view({ secs: 40,
+        events: [
+          { type: "shot", actor: 0, target: 3, shell: "LIVE", damage: 1 },
+          { type: "item", actor: 1, target: 4, item: "HANDCUFFS" },
+          { type: "item", actor: 3, target: 0, item: "IMMUNITY" },
+          { type: "item", actor: 2, target: null, item: "CIGARETTES" },
+          { type: "flip", actor: 0, target: 1 },
+          { type: "skip", target: 2 },
+          { type: "shot", actor: 2, target: 4, shell: "LIVE", damage: 1 },
+          { type: "elimination", target: 4 },
+          { type: "reload", total: 6, live: 3 },
+        ],
+        players: [
+          { id: 0, team: "RED",  lives: 3, alive: true, handcuffed: false, immune_from: [3] },
+          { id: 1, team: "RED",  lives: 3, alive: true, handcuffed: false, immune_from: [] },
+          { id: 2, team: "RED",  lives: 3, alive: true, handcuffed: false, immune_from: [3] },
+          { id: 3, team: "BLUE", lives: 2, alive: true, handcuffed: false, immune_from: [] },
+          { id: 4, team: "RED",  lives: 0, alive: false, handcuffed: false, immune_from: [] },
+        ],
+        over: { current: 2 } }));
+      for (let k = 0; k < 8; k++) await film("beat" + (k + 1));
+    });
+    flushSheet();
+
+    /* ---- functional verdicts: did each flow SEND the right wire message? ---- */
+    const has = (f, p) => (SENT[f] || []).some(p);
+    chk(has("rootvar", (m) => m.type === "trade_withdraw"), "withdraw-tap sent trade_withdraw");
+    chk(has("sedative", (m) => m.type === "action" && m.i === 3),
+      "sedative EXECUTE sent action i=3 (HANDCUFFS → id4)");
+    chk(has("offer", (m) => m.type === "trade_offer" && m.to === 2
+      && (m.give || []).length === 2 && (m.want || []).length === 1),
+      "SEND OFFER sent trade_offer to=2 give×2 want×1");
+    chk(has("respond", (m) => m.type === "trade_respond" && m.accept === true),
+      "ACCEPT sent trade_respond accept=true");
+    chk(!has("decide", (m) => m.type === "action" || m.type === "flip"),
+      "decide flow (all stand-downs) sent NO action/flip");
+    chk(!has("forcedself", (m) => m.type === "action"),
+      "forcedself (aborted at confirm) sent NO action");
+    post({ name: "wire_asserts", txt: checks.join("\n") + "\n\nSENT BY FLOW:\n"
+      + JSON.stringify(SENT, null, 1) });
+    post({ name: "wire_errors", txt: errs.length ? errs.join("\n") : "NO ERRORS" });
+    document.title = "WIREDONE";
+  }
+  window.addEventListener("load", () => setTimeout(() =>
+    run().catch((e) => post({ name: "wire_errors",
+      txt: "RUN DIED: " + (e && e.stack || e) + "\n\nerrs:\n" + errs.join("\n") })), 400));
+})();
+</script></body></html>

@@ -58,7 +58,8 @@ class Room:
         self.human = set(human_seats)
         self.state = new_game(num_players, seed)
         self.state.comms_enabled = False
-        self.state.social_enabled = True     # bots may gift/trade during their cascade
+        self.state.social_enabled = False    # RULE: every transfer is offer->accept, turn-holder only.
+        # Engine-level Trade would let bots hand items UNILATERALLY (no consent) — forbidden in play.
         self.pending_offer = None
         self._trade_result = None
         self._last_trade_items = None
@@ -176,12 +177,14 @@ class Room:
         self._trade_result = None
         self._last_trade_items = None
         self.gen += 1
+        self.last_events = []          # a gen bump REBROADCASTS — stale beats must not replay
         self.pending_offer = {"from": seat, "to": to, "give": list(give), "want": list(want)}
 
     def trade_withdraw(self, seat):
         if self.pending_offer is None or self.pending_offer["from"] != seat:
             raise IllegalAction("no offer of yours is pending")
         self.gen += 1
+        self.last_events = []          # a gen bump REBROADCASTS — stale beats must not replay
         self.pending_offer = None
 
     def trade_respond(self, seat, accept):
@@ -189,6 +192,7 @@ class Room:
             raise IllegalAction("no offer for you is pending")
         off = self.pending_offer
         self.gen += 1
+        self.last_events = []          # settle re-sets it below; decline/cancel carry only the private note
         self.pending_offer = None
         if not accept:
             self._trade_result = {"kind": "declined", "parties": (off["from"], off["to"])}

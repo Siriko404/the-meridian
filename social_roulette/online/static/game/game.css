@@ -1,0 +1,41 @@
+/* v2 overlay chrome — 1-bit noir. RED IS FORBIDDEN here (red = danger only, in-game). */
+html,body{margin:0;padding:0;background:#000;height:100svh;overflow:hidden;position:fixed;inset:0;width:100%;
+  font-family:Consolas,Menlo,monospace;color:#fff}
+#stage{width:min(100vw,440px);height:100svh;margin:0 auto}
+canvas{image-rendering:pixelated}
+.overlay{position:fixed;inset:0;background:#000;display:none;flex-direction:column;align-items:center;
+  justify-content:center;z-index:10;text-align:center;padding:18px}
+.overlay.on{display:flex}
+.ticket{width:min(330px,88vw);border:3px double #fff;padding:26px 22px;display:flex;flex-direction:column;
+  align-items:center;gap:14px;background:#000}
+.rule{width:100%;border-top:1px solid #444;margin:2px 0}
+.brand{font-family:'Times New Roman',Times,Georgia,serif;font-size:32px;font-weight:bold;letter-spacing:6px}
+.sub{font-size:11px;color:#aaa;letter-spacing:5px}
+.lbl{font-size:10px;color:#777;letter-spacing:3px;margin-top:6px}
+.code{font-family:'Times New Roman',Times,Georgia,serif;font-size:30px;font-weight:bold;letter-spacing:8px;
+  padding:2px 14px}
+input{background:#000;color:#fff;border:2px solid #fff;padding:10px 12px;font:inherit;font-size:16px;
+  width:100%;text-transform:uppercase;letter-spacing:2px;text-align:center}
+input::placeholder{color:#555;text-transform:none;letter-spacing:4px}
+.initials{display:flex;gap:8px;align-items:flex-end;justify-content:center}
+.initials input{width:58px;height:58px;padding:0;text-align:center;
+  font-family:'Times New Roman',Times,Georgia,serif;font-size:32px;font-weight:bold}
+.initials .dot{font-family:'Times New Roman',Times,Georgia,serif;font-size:32px;font-weight:bold;
+  line-height:1;padding-bottom:6px}
+.codein{border-style:dashed;width:170px;letter-spacing:6px}
+button{background:#fff;color:#000;border:0;padding:12px 0;width:100%;font:inherit;font-weight:bold;
+  font-size:15px;letter-spacing:6px;cursor:pointer;margin-top:4px}
+.hint{font-size:11px;color:#777;max-width:280px;line-height:1.6}
+.credits{font-size:10px;color:#555;letter-spacing:1px}
+.member{font-size:15px;font-weight:bold;letter-spacing:3px;padding:5px 0;
+  font-family:'Times New Roman',Times,Georgia,serif}
+#banner{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:30;font-size:13px;font-weight:bold;
+  color:#000;background:#fff;padding:4px 12px;letter-spacing:1px;display:none;max-width:90vw}
+#chatsheet{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(100vw,440px);z-index:20;
+  background:#000;border-top:2px solid #fff;display:none;flex-direction:column;max-height:45svh}
+#chatsheet.on{display:flex}
+#chatlog{overflow-y:auto;padding:8px 10px;font-size:14px;line-height:1.6;flex:1}
+#chatlog b{letter-spacing:1px}
+#chatsheet .row{display:flex;gap:6px;padding:8px}
+#chatsheet input{flex:1;width:auto;font-size:16px}
+#chatsheet input:disabled{border-color:#555;color:#555}
