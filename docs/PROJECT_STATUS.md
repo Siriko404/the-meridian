@@ -11,6 +11,10 @@
 - LIVE today: timer-deadline fix · cap ×1.0 · sedative teammate ban · CANVAS renderer
   default (phone FPS fix) · READ=1.6 beat pacing · seat card v2 (`2d81a9c`).
 - Dev servers: game :8000 · devcap sink :8017 (film runner needs it).
+- **Everything BELOW this block is history** (07-09 and older). Where older text says
+  "ACTIVE NOW" or "REMAINS", the ledger overrides it. Old open items (bot trade-answers
+  server gap, give-summary row, icon drafts, winner-face edge-bleed) are still open but
+  queue BEHIND the ledger's work order.
 
 ## ═══ HANDOFF 2026-07-09 — previous session ═══
 - **GAME IS LIVE: https://meridian-ta39.onrender.com** — Render free tier, auto-deploys on
