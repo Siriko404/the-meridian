@@ -51,7 +51,9 @@
 <script src="/static/vendor/phaser.min.js"></script>
 <script>
   // dev cache-buster: game scripts always load fresh (stale JS burned real review rounds)
-  for (const f of ["theme", "dice", "net", "scene", "choreo", "trays", "main"])
+  const FILES = ["theme", "dice", "net", "scene", "choreo", "main"];
+  if (new URLSearchParams(location.search).get("bot")) FILES.push("devbot");   // dev-only monkey
+  for (const f of FILES)
     document.write('<script src="/static/game/js/' + f + '.js?v=' + Date.now() + '"><\/script>');
 </script>
 </body></html>

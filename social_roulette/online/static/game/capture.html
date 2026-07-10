@@ -45,7 +45,7 @@
 <script src="/static/vendor/phaser.min.js"></script>
 <script>
   // cache-busted game scripts (stale JS burned a review round once)
-  for (const f of ["theme", "dice", "net", "scene", "choreo", "trays"])
+  for (const f of ["theme", "dice", "net", "scene", "choreo"])
     document.write('<script src="/static/game/js/' + f + '.js?cb=' + Date.now() + '"><\/script>');
 </script>
 <script>
@@ -123,114 +123,6 @@
     },
     winner:     (s) => { const v = dead4(); v.winner = 0; return CHOREO.play(s, [], BASE(), v, ROSTER); },
     brackets: async (s) => { s.render(BASE(), ROSTER); s.setTargets([1, 3], null); await s.w(1500); },
-    offer_in: async (s) => {                                  // the respond tray (receiving side)
-      const v = BASE(); v.pending_offer = { from: 2, to: 0, give: ["BEER", "CIGARETTES"], want: ["SAW"] };
-      s.render(v, ROSTER);
-      TRAYS.respond(s, v, ROSTER, () => {}, () => {});
-      await s.w(1600);
-    },
-    // ---- the dial: EVERY state, one scenario each ----
-    dial_action: async (s) => {                               // decision verbs (half-circle)
-      s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
-      s.openRadial(195, 776, [{ label: "SHOOT", bright: true }, { label: "FLIP" }, { label: "ITEM" }],
-        { title: "DECIDE" });
-      await s.w(1500);
-    },
-    dial_talk: async (s) => {                                 // talk verbs
-      s.render(BASE(), ROSTER); s.setAction("YOUR\nMOVE", true);
-      s.openRadial(195, 776, [{ label: "ITEM" }, { label: "TRADE" }, { label: "PROCEED", bright: true }],
-        { title: "TALK" });
-      await s.w(1500);
-    },
-    dial_confirm: async (s) => {                              // armed confirm hub + stand-down slot
-      s.render(BASE(), ROSTER); s.setAction("SHOOT C.W.", true);
-      s.openRadial(195, 776, [{ label: "✕" }], { title: "SHOOT C.W.", hubBright: true });
-      await s.w(1500);
-    },
-    dial_kit: async (s) => {                                  // kit, nothing inspected
-      s.render(BASE(), ROSTER);
-      const IT = THEME.ITEMS;
-      s.openRadial(195, 430, [
-        { icon: IT.BEER.icon, label: "MAGNET", badge: "×1", bright: true },
-        { icon: IT.HANDCUFFS.icon, label: "SEDATIVE", badge: "×0", dim: true },
-        { icon: IT.MAGNIFIER.icon, label: "SPYCAM", badge: "×1", bright: true },
-        { icon: IT.SAW.icon, label: "POISON", badge: "×0", dim: true },
-        { icon: IT.CIGARETTES.icon, label: "PASSPORT", badge: "×1" },
-        { icon: IT.IMMUNITY.icon, label: "BLACKMAIL", badge: "×0", dim: true },
-      ], { title: "KIT 3/8" });
-      await s.w(1500);
-    },
-    dial_kit_sel: async (s) => {                              // kit, item inspected + usable
-      s.render(BASE(), ROSTER);
-      const IT = THEME.ITEMS;
-      s.openRadial(195, 430, [
-        { icon: IT.BEER.icon, label: "MAGNET", badge: "×1" },
-        { icon: IT.HANDCUFFS.icon, label: "SEDATIVE", badge: "×0", dim: true },
-        { icon: IT.MAGNIFIER.icon, label: "SPYCAM", badge: "×1", bright: true },
-        { icon: IT.SAW.icon, label: "POISON", badge: "×0", dim: true },
-        { icon: IT.CIGARETTES.icon, label: "PASSPORT", badge: "×1" },
-        { icon: IT.IMMUNITY.icon, label: "BLACKMAIL", badge: "×0", dim: true },
-      ], { title: "USE SPYCAM", sub: "1/3 · 4 USES LEFT", hubBright: true });
-      await s.w(1500);
-    },
-    dial_kit_sealed: async (s) => {                           // kit, inspected item SEALED
-      s.render(BASE(), ROSTER);
-      const IT = THEME.ITEMS;
-      s.openRadial(195, 430, [
-        { icon: IT.BEER.icon, label: "MAGNET", badge: "×1", bright: true },
-        { icon: IT.HANDCUFFS.icon, label: "SEDATIVE", badge: "×0", dim: true },
-        { icon: IT.MAGNIFIER.icon, label: "SPYCAM", badge: "×1" },
-        { icon: IT.SAW.icon, label: "POISON", badge: "×0", dim: true },
-        { icon: IT.CIGARETTES.icon, label: "PASSPORT", badge: "×1" },
-        { icon: IT.IMMUNITY.icon, label: "BLACKMAIL", badge: "×0", dim: true },
-      ], { title: "MAGNET", sub: "1/3 · SEALED" });
-      await s.w(1500);
-    },
-    dial_ledger: async (s) => {                               // ledger + one inspected
-      s.render(BASE(), ROSTER);
-      const IT = THEME.ITEMS;
-      s.openRadial(195, 430, [
-        { icon: IT.BEER.icon, label: "MAGNET", badge: "×3" },
-        { icon: IT.HANDCUFFS.icon, label: "SEDATIVE", badge: "×2", bright: true },
-        { icon: IT.MAGNIFIER.icon, label: "SPYCAM", badge: "×2" },
-        { icon: IT.SAW.icon, label: "POISON", badge: "×1" },
-        { icon: IT.CIGARETTES.icon, label: "PASSPORT", badge: "×3" },
-        { icon: IT.IMMUNITY.icon, label: "BLACKMAIL", badge: "×0", dim: true },
-      ], { title: "LEDGER", sub: "SEDATIVE · 6 USES LEFT" });
-      await s.w(1500);
-    },
-    dial_offer: async (s) => {                                // GIVE phase, two picks in
-      s.render(BASE(), ROSTER);
-      const IT = THEME.ITEMS;
-      s.openRadial(195, 430, [
-        { icon: IT.BEER.icon, label: "MAGNET", badge: "×2", bright: true },
-        { icon: IT.HANDCUFFS.icon, label: "SEDATIVE" },
-        { icon: IT.MAGNIFIER.icon, label: "SPYCAM", bright: true },
-        { icon: IT.SAW.icon, label: "POISON", badge: "×1" },
-        { icon: IT.CIGARETTES.icon, label: "PASSPORT", bright: true },
-        { icon: IT.IMMUNITY.icon, label: "BLACKMAIL" },
-      ], { title: "GIVE →", sub: "GIVE: 2 MAGNET · 1 POISON", hubBright: true });
-      await s.w(1500);
-    },
-    dial_offer_count: async (s) => {                          // count picker: your holding glows
-      s.render(BASE(), ROSTER);
-      s.openRadial(195, 430, [{ label: "0" }, { label: "1", bright: true }, { label: "2" }, { label: "3" }],
-        { title: "MAGNET", sub: "YOU HOLD ×1" });
-      await s.w(1500);
-    },
-    dial_offer_send: async (s) => {                           // WANT phase, send armed
-      s.render(BASE(), ROSTER);
-      const IT = THEME.ITEMS;
-      s.openRadial(195, 430, [
-        { icon: IT.BEER.icon, label: "MAGNET" },
-        { icon: IT.HANDCUFFS.icon, label: "SEDATIVE", badge: "×1" },
-        { icon: IT.MAGNIFIER.icon, label: "SPYCAM" },
-        { icon: IT.SAW.icon, label: "POISON" },
-        { icon: IT.CIGARETTES.icon, label: "PASSPORT", badge: "×2" },
-        { icon: IT.IMMUNITY.icon, label: "BLACKMAIL" },
-      ], { title: "SEND OFFER →", sub: "WANT: 1 SEDATIVE · 2 PASSPORT", hubBright: true });
-      await s.w(1500);
-    },
     // ---- CLICK-THREAD samples (candidate dial replacement): full 4-step item chain each ----
     thread_stack:  (s) => threadDemo(s, "stack", "stagger"),
     thread_fade:   (s) => threadDemo(s, "fade", "stagger"),

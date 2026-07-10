@@ -558,76 +558,12 @@
       if (this.bandNote.text === msg) this.bandNote.setText("");
     }
 
-    /* ---- RADIAL (the dial): GTA-style ring menu; auto half/quarter arc near edges.
-       items = [{icon, label, badge, bright, dim, onPick}] — icon = frame idx or null (label-only slot).
-       opts = {title, sub, hubBright, onHub, onClose, sticky} — hub tap fires onHub. ---- */
-    openRadial(cx, cy, items, opts) {
-      this.closeRadial();
-      opts = opts || {};
-      const scrim = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1).setDepth(21)
-        .setInteractive().on("pointerdown", () => {
-          if (!opts.sticky) { this.closeRadial(); if (opts.onClose) opts.onClose(); }
-        });
-      const cont = this.add.container(0, 0).setDepth(22);
-      const dx = cx < 150 ? 1 : (cx > W - 150 ? -1 : 0);      // arc opens INTO the screen
-      const dy = cy < 190 ? 1 : (cy > H - 190 ? -1 : 0);
-      const N = items.length;
-      let R, angles = [];
-      if (!dx && !dy) {                                       // full circle, first slot at 12 o'clock
-        R = Math.max(96, N * 62 / (Math.PI * 2));
-        for (let i = 0; i < N; i++) angles.push(-Math.PI / 2 + i * Math.PI * 2 / N);
-      } else {
-        const c = Math.atan2(dy, dx);
-        const span = (dx && dy) ? 1.85 : 3.3;                 // quarter-ish / half-ish
-        R = Math.max(100, N * 66 / span);
-        for (let i = 0; i < N; i++) angles.push(c - span / 2 + span * (i + 0.5) / N);
-      }
-      items.forEach((it, i) => {
-        const x = cx + R * Math.cos(angles[i]), y = cy + R * Math.sin(angles[i]);
-        const g = this.add.container(x, y);
-        const c = this.add.circle(0, 0, 26, 0x000000)
-          .setStrokeStyle(it.bright ? 3 : 2, WHITE, it.dim ? 0.3 : (it.bright ? 1 : 0.8))
-          .setName("rslot");
-        if (it.onPick && !it.dim) c.setInteractive().on("pointerdown", () => it.onPick(it, i));
-        g.add(c);
-        if (it.icon != null) {
-          g.add(this.add.image(0, 0, "icons", it.icon).setScale(1.8).setAlpha(it.dim ? 0.35 : 1));
-          if (it.label) g.add(this.add.text(0, 38, it.label, style(9, it.dim ? "#666666" : "#cccccc"))
-            .setOrigin(0.5).setResolution(2));
-        } else if (it.label) {
-          g.add(this.add.text(0, 0, it.label, style(it.label.length > 5 ? 8 : 11,
-            it.dim ? "#666666" : "#ffffff")).setOrigin(0.5).setResolution(2));
-        }
-        if (it.badge) g.add(this.add.text(24, -20, it.badge, style(10)).setOrigin(0.5)
-          .setResolution(2).setBackgroundColor("#000000"));
-        g.setScale(0);
-        this.tweens.add({ targets: g, scale: 1, duration: 150, delay: i * 28, ease: "Back.easeOut" });
-        cont.add(g);
-      });
-      const hubC = this.add.circle(cx, cy, 36, 0x000000)
-        .setStrokeStyle(2, WHITE, opts.hubBright ? 1 : 0.85).setName("rhub");
-      if (opts.onHub) hubC.setInteractive().on("pointerdown", () => opts.onHub());
-      cont.add(hubC);
-      if (opts.title) cont.add(this.add.text(cx, cy, opts.title,                 // wraps INSIDE the hub
-        style(10, "#ffffff", { align: "center", wordWrap: { width: 60 } }))
-        .setOrigin(0.5).setResolution(2));
-      if (opts.sub) cont.add(this.add.text(cx, Math.min(cy + R + 58, H - 26), opts.sub,
-        style(10, "#aaaaaa", { align: "center" })).setOrigin(0.5).setResolution(2)); // caption BELOW the ring
-      this._radial = { scrim, cont };
-      return this._radial;
-    }
-    closeRadial() {
-      if (!this._radial) return;
-      this._radial.scrim.destroy(); this._radial.cont.destroy();
-      this._radial = null;
-    }
-
-    /* ---- CLICK-THREAD MENU (prototype under review — Skyrim/CoD list threads to replace dial chains).
+    /* ---- CLICK-THREAD MENU (RATIFIED — replaced the radial dial system entirely).
      * mode: "stack" locked picks collapse to breadcrumb lines · "fade" lists stay, siblings fade
      *       · "cols" each step is a column. anim: "stagger" | "decode". All objects live at scene
      * root depth 22 (decode slots inherit txtObj.depth — containers would strand them behind the scrim). */
     openThread(opts) {
-      this.closeRadial(); this.closeThread();
+      this.closeThread();
       opts = opts || {};
       const mode = opts.mode || "stack", anim = opts.anim || "stagger";
       const own = [];                                          // everything the thread ever draws
@@ -640,12 +576,12 @@
       const topCover = mk(this.add.rectangle(W / 2, 62, W, 124, 0x000000, 1).setDepth(21));  // the bar
       // sleeps behind this while the menu's own burn-circle carries the time (ducks reveal it again)
       const abort = mk(this.add.text(W / 2 + 80, 776, "", style(12, "#aaaaaa")).setOrigin(0.5)
-        .setResolution(2).setDepth(22));
+        .setResolution(2).setDepth(22).setName("tabort"));
       this.decode(abort, opts.abortLabel || "✕ ABORT", 240).then(() => { if (abort.scene)
         abort.setInteractive()
           .on("pointerdown", () => { this.closeThread(); if (opts.onAbort) opts.onAbort(); }); });
       const backB = mk(this.add.text(W / 2 - 80, 776, "", style(12, "#aaaaaa")).setOrigin(0.5)
-        .setResolution(2).setDepth(22).setAlpha(0.3));
+        .setResolution(2).setDepth(22).setAlpha(0.3).setName("tback"));
       this.decode(backB, "◂ BACK", 240).then(() => { if (backB.scene)
         backB.setInteractive()
           .on("pointerdown", () => { if (!th._act && th.steps && th.onBack) th.onBack(); }); });
@@ -883,7 +819,7 @@
           .setOrigin(0.5).setResolution(2).setDepth(22));      // clear of the live band during the duck
         this.decode(ribbon, note, 260);
         const cancel = mk(this.add.text(W / 2, 776, "", style(12, "#aaaaaa")).setOrigin(0.5)
-          .setResolution(2).setDepth(22));
+          .setResolution(2).setDepth(22).setName("tcxl"));
         const arm = this.decode(cancel, "✕ CANCEL", 240);
         const done = (id) => {
           if (kind === "trade") this.seatGlow([], false); else this.clearTargets();
@@ -932,8 +868,8 @@
           g.lineBetween(s.x + dx, s.y + dy, s.x + dx + sx * 14, s.y + dy);
           g.lineBetween(s.x + dx, s.y + dy, s.x + dx, s.y + dy + sy * 14);
         });
-        const hit = this.add.rectangle(s.x, s.y, 88, 88, 0xffffff, 0.001).setDepth(12).setInteractive()
-          .on("pointerdown", () => onTap && onTap(id));
+        const hit = this.add.rectangle(s.x, s.y, 88, 88, 0xffffff, 0.001).setDepth(12).setName("tgt")
+          .setInteractive().on("pointerdown", () => onTap && onTap(id));
         this._brackets.push(g, hit);
       });
     }
@@ -949,8 +885,8 @@
           g.lineBetween(s.x + dx, s.y + dy, s.x + dx, s.y + dy + sy * 14);
         });
         const tw = this.tweens.add({ targets: g, alpha: 0.25, duration: 480, yoyo: true, repeat: -1 });
-        const hit = this.add.rectangle(s.x, s.y, 88, 88, 0xffffff, 0.001).setDepth(12).setInteractive()
-          .on("pointerdown", () => onTap && onTap(id));
+        const hit = this.add.rectangle(s.x, s.y, 88, 88, 0xffffff, 0.001).setDepth(12).setName("tgt")
+          .setInteractive().on("pointerdown", () => onTap && onTap(id));
         this._brackets.push({ destroy: () => { tw.remove(); g.destroy(); } }, hit);
       });
     }
@@ -984,7 +920,7 @@
         const ev = this.time.addEvent({ delay: 70, loop: true, callback: draw });
         let hit = null;
         if (onTap) hit = this.add.rectangle(s.x, s.y, 94, 94, 0xffffff, 0.001).setDepth(11)
-          .setInteractive().on("pointerdown", () => onTap(id));
+          .setName("tgt").setInteractive().on("pointerdown", () => onTap(id));
         this._glows.push({ g, ev, hit });
       });
     }

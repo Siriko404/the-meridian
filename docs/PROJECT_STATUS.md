@@ -147,8 +147,28 @@ are RATIFIED by the user — do not re-litigate:
   blurb, "· SEALED" suffix; bright = usable per main.js:166 rule) header "YOUR KIT · 3/8" · PAY =
   real pts (4/4/5/5/6/6), "PAY n/5 PTS" arms at ≥cost, whisper "OVERPAY IS SPENT — NO CHANGE"
   (trays.pay truth), ✕ STAND DOWN row · KIT-info = ONE screen (same rows, still, no taps,
-  "✕ CLOSE"). threadlab kitUse/pay/kitInfo match (tap-inspect infoThread deleted). **NEXT = THE
-  WIRING** (open item ③ below). NOTE: threadlab `?auto=` headless smoke is broken for ALL flows
+  "✕ CLOSE"). threadlab kitUse/pay/kitInfo match (tap-inspect infoThread deleted).
+  **⟲ THE WIRING — DONE 2026-07-09 late (awaiting user check → Task-9 phone gate → merge):**
+  scene.js: openRadial/closeRadial DELETED; pick hits named tgt/tcxl/tabort/tback (for the bot).
+  main.js [ACT] rewritten to threads: openTh driver (show/_hist/onBack/homeTo + `alive()` guard —
+  EVERY await is followed by t.alive() before building more UI, else dead-thread leak),
+  moveThread (talk+decision roots, legality dims, M11 forced-self note), kitStep (kitUseThread =
+  briefcase on-turn, thread rooted at KIT; off-turn = kitInfoThread one-screen), offerStep
+  (GIVE⇄count→WANT→SEND), payStep (server a.cost), ledgerThread, respondThread (auto-opens on
+  po.to===you; the hub re-opens it if aborted), confirmStep; drain() closes any thread BEFORE
+  beats; onKit/onLedger/onAction gated on !busy (menus never open OVER beats — thread scrim is
+  .88, beats bleed; found on live film). trays.js DELETED (+ script lists, offer_in/dial_*
+  scenarios; runner catalog rebuilt = 59 scenarios). **devbot.js** (loaded ONLY with ?bot=1):
+  auto-join (?code&tag&start), rAF-dead loop pump (g.loop.step when loop.now stale — headless
+  tabs), semantic monkey (trow/tgt/tcxl/tabort/tback + hubs), 3×2 contact sheets + console-error
+  trap → sink; `?canvas=1` forces CANVAS renderer (headless WebGL toDataURL = black);
+  window.__scene/__game dev handles. **VERIFIED:** 59-scenario rig sweep (non-V0 = the known ×1
+  transients, unchanged) · 8 node + 238 pytest · TWO live monkey games (2 headless humans + 3
+  server bots), 60 frames each, ZERO console errors — films show live kit w/ blurbs,
+  BLACKMAIL→C.D. confirm, one-screen ledger, DECIDE root, SHOOT-YOURSELF confirm, slash clock +
+  burn-circle in-game. NOT live-verified: winner overlay after threads (games outlast the film
+  cap; path is untouched choreo) · human↔human trade on the NEW builder (wire protocol identical
+  to the pre-compaction verified round-trip). NOTE: threadlab `?auto=` headless smoke is broken for ALL flows
   (pre-existing — Phaser clock dead under --screenshot; differential-tested vs untouched ledger);
   interactive play + rig films are the verification. **Labs (dev pages, cache-busted):** `threadlab.html` (MOVE/MOVE·R/DECIDE/
   TRADE/KIT/LEDGER/OFFER·IN buttons, live band ticker) · `tradelab.html` (beat-exact trade
