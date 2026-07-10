@@ -53,6 +53,7 @@
   // dev cache-buster: game scripts always load fresh (stale JS burned real review rounds)
   const FILES = ["theme", "dice", "net", "scene", "choreo", "main"];
   if (new URLSearchParams(location.search).get("bot")) FILES.push("devbot");   // dev-only monkey
+  if (new URLSearchParams(location.search).get("diag")) FILES.push("diag");    // dev-only FPS HUD
   for (const f of FILES)
     document.write('<script src="/static/game/js/' + f + '.js?v=' + Date.now() + '"><\/script>');
 </script>
