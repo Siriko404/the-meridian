@@ -1,6 +1,21 @@
 # Social Roulette — Project Status (resume anchor)
 
-**Updated:** 2026-07-03 · **Branch:** master · Read this first after any context reset.
+**Updated:** 2026-07-09 · **Branch:** master (uiv2-client MERGED, `7dbadfa`) · Read this first after any context reset.
+
+## ═══ HANDOFF 2026-07-09 — SESSION CONCLUDED, SAFE TO /clear ═══
+- **GAME IS LIVE: https://meridian-ta39.onrender.com** — Render free tier, auto-deploys on
+  `git push origin uiv2-client` (Render watches THAT branch, not master). GitHub: private repo
+  `Siriko404/the-meridian` (gh CLI authed as Siriko404). Sleeps 15 min idle → ~50 s wake.
+- **UI v2 arc COMPLETE + user-ratified**: Phaser client, thread menus, films-verified defect
+  hunt, trade stale-beat fix, per-beat repaints, phone gate passed ("it works"). Merged
+  --no-ff into master. 239 pytest + 8 node green at merge.
+- **Keep master and uiv2-client in sync**: new work → branch off master, merge back, then
+  `git checkout uiv2-client && git merge master && git push` to redeploy.
+- **Untracked user files — NEVER commit/touch**: `HowToRun.txt`, `docs/LEGAL_RISK_AUDIT.md`.
+- **Open items (HIS call, unstarted)**: ① bots can't answer/send trade offers (server gap)
+  ② optional WANT-screen give-summary row ③ legal-audit renames (item divergence, SHELLS→ROUNDS)
+  ④ old nits: icon drafts, winner-face spritesheet edge-bleed.
+- **User's ISP blocks all tunnel providers** (SNI-level) — never suggest tunnels; cloud only.
 
 ---
 
