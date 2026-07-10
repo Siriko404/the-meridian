@@ -1,173 +1,164 @@
-/* TALLY-STICK ANIMATION SAMPLES — three complete motion characters, auto-looping:
- * add sticks 1..4 → 5th CLOSES the gate → hold → remove back down to 1 → repeat.
- * Each row: the real-size seat + a 2.2x magnified stack. <=2 cover burns red.
- * Motion language: decode/stamp/click-step/shatter — the game's own, no cartoon. */
+/* LIFE = VERTICAL BAR of FAT LEANED SQUARES, right side of the avatar frame.
+ * Rows 1-3: bar variants, LOOPING +1/-1 cycle (real size + 2.2x zoom).
+ * Row 4: chip (SEDATED / DIRT) relocation candidates — pick one of each.
+ * <=2 cover red · full 5 pulses once (win-watch tell) · hairline frames. */
 "use strict";
 const W = 390, H = 844, WHITE = 0xffffff, RED = 0xc8102e;
-const PITCH = 9, SW = 6, HHT = 6;
+const SEGH = 12, SEGW = 9, GAP = 2, LEAN = 3;     // fat leaned square geometry
 
-function mkSticks() {                         // 0..3 = slashes, 4 = the gate cross
-  return [...Array(5)].map(() => ({ on: false, prog: 0, off: 0, dx: 0, alpha: 1, sc: 1, snap: 0, burn: 0 }));
-}
+function mkSegs() { return [...Array(5)].map(() => ({ on: false, fill: 0, dx: 0, dy: 0, alpha: 1 })); }
 
 class Lab extends Phaser.Scene {
   preload() {
     this.load.spritesheet("faces", "/static/game/assets/portraits/Noir-portraits/36x36-bw-portraits-no-background.png",
       { frameWidth: 36, frameHeight: 36 });
+    this.load.spritesheet("icons", "/static/game/assets/Mystery_Icons.png", { frameWidth: 16, frameHeight: 16 });
   }
 
-  seatChrome(x, y, faceIdx, name) {
+  chrome(x, y, faceIdx, name) {
     const g = this.add.graphics();
     g.fillStyle(0x000000).fillRect(x - 32, y - 32, 64, 64);
-    g.lineStyle(1, WHITE, 1).strokeRect(x - 32, y - 32, 64, 64);   // hairline frame (ratified thinner)
+    g.lineStyle(1, WHITE, 1).strokeRect(x - 32, y - 32, 64, 64);
     this.add.image(x, y + 2, "faces", faceIdx).setScale(1.7);
     g.fillStyle(0x000000).fillRect(x - 26, y + 36, 52, 18);
     g.lineStyle(1, WHITE, 0.95).strokeRect(x - 26, y + 36, 52, 18);
     this.add.text(x, y + 45, name, { fontFamily: "Consolas,monospace", fontSize: "12px",
       color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5).setResolution(2);
+    return g;
   }
 
-  paintStack(g, st, cx, by, s, flash) {
+  /* one leaned square: bottom-anchored parallelogram (game's / lean) */
+  seg(g, bx, by, q, col, s, capped) {
+    const a = Math.max(0, Math.min(1, q.alpha));
+    if (a <= 0.01 || q.fill <= 0) return;
+    const h = SEGH * q.fill * s;                   // fill wipes bottom -> top
+    const x = bx + q.dx * s, yb = by + q.dy * s;
+    g.fillStyle(col, a);
+    g.fillPoints([
+      { x: x,               y: yb },
+      { x: x + SEGW * s,    y: yb },
+      { x: x + (SEGW + LEAN) * s, y: yb - h },
+      { x: x + LEAN * s,          y: yb - h },
+    ], true);
+    if (capped) g.lineStyle(1, col, a).strokePoints([
+      { x: x, y: yb }, { x: x + SEGW * s, y: yb },
+      { x: x + (SEGW + LEAN) * s, y: yb - h }, { x: x + LEAN * s, y: yb - h }], true, true);
+  }
+
+  paintBar(g, st, bx, byBase, s, variant, flash) {
     const cover = st.filter(q => q.on).length;
     const col = cover <= 2 ? RED : WHITE;
-    const gw = 3 * PITCH + SW, x0 = cx - (gw * s) / 2;
     const dim = 1 - (flash || 0) * 0.45;
-    for (let k = 0; k < 4; k++) {
+    for (let k = 0; k < 5; k++) {
       const q = st[k];
-      if (!q.on && q.snap === 0) continue;
-      const sx = x0 + (k * PITCH + q.dx) * s, sy = by + q.off * s;
-      const a = Math.max(0, Math.min(1, q.alpha)) * dim;
-      if (a <= 0.01) continue;
-      if (q.snap > 0) {                        // SNAP: two halves part + drop
-        const mx = sx + (SW / 2) * s, myTop = sy - HHT * s, myBot = sy + HHT * s, my = sy;
-        g.lineStyle(3 * s, col, a);
-        g.lineBetween(sx, myBot + q.snap * 8 * s, mx - q.snap * 3 * s, my + q.snap * 10 * s);
-        g.lineBetween(mx + q.snap * 3 * s, my + q.snap * 10 * s, sx + SW * s, myTop + q.snap * 14 * s);
+      if (!q.on && q.fill <= 0) continue;
+      const isCap = variant === "cap" && k === 4;
+      const by = byBase - k * (SEGH + GAP) * s;
+      const qq = { ...q, alpha: q.alpha * dim };
+      if (isCap) {                                 // 5th = flat CAP slab across the bar top
+        const a = Math.max(0, Math.min(1, qq.alpha));
+        if (a > 0.01 && q.fill > 0) {
+          const x = bx - 3 * s + q.dx * s, yb = byBase - 4 * (SEGH + GAP) * s + q.dy * s;
+          g.fillStyle(col, a);
+          g.fillRect(x, yb - 5 * s, (SEGW + LEAN + 6) * s * q.fill, 5 * s);
+        }
         continue;
       }
-      const p = q.prog;                        // DRAW: partial stroke, tip to tail
-      g.lineStyle(3 * s * q.sc, col, a);
-      g.lineBetween(sx, sy + HHT * s, sx + SW * s * p, sy + HHT * s - 2 * HHT * s * p);
-    }
-    const c = st[4];                           // the gate cross
-    if (c.on || c.prog > 0) {
-      const a = Math.max(0, Math.min(1, c.alpha)) * dim;
-      if (a > 0.01) {
-        const len = gw + 5, lx = x0 - 3 * s;
-        const cxm = lx + (len * s) / 2, cym = by;
-        const half = (len * s * c.prog * c.sc) / 2;
-        g.lineStyle(3 * s * c.sc, col, a);
-        g.lineBetween(cxm - half, cym - (HHT * s * c.prog * c.sc), cxm + half, cym + (HHT * s * c.prog * c.sc));
-      }
+      this.seg(g, bx, by, qq, col, s, variant === "outline");
     }
   }
 
-  tw(obj, props, dur, ease) {
+  async tw(obj, props, dur, ease) {
     return new Promise((r) => this.tweens.add({ targets: obj, ...props, duration: dur,
       ease: ease || "Linear", onComplete: r }));
   }
 
-  shatter(cx, by, s) {                         // red fragments fall — the damage language
-    for (let i = 0; i < 4; i++) {
-      const d = this.add.rectangle(cx + (Math.random() - 0.5) * 14 * s, by, 2 * s, 2 * s, RED).setDepth(9);
-      this.tweens.add({ targets: d, y: by + (16 + Math.random() * 14) * s,
-        x: d.x + (Math.random() - 0.5) * 16 * s, alpha: 0, duration: 380,
-        onComplete: () => d.destroy() });
-    }
-  }
-
-  async animAdd(r, k) {
-    const q = r.st[k]; q.on = true;
-    if (r.kind === "pen") { q.prog = 0; q.alpha = 1; await this.tw(q, { prog: 1 }, 150); }
-    else if (r.kind === "stamp") { q.prog = 1; q.alpha = 0; q.sc = 1.7;
-      await this.tw(q, { alpha: 1, sc: 1 }, 190, "Back.easeOut"); }
-    else { q.prog = 1; q.alpha = 0; q.off = -10;
-      await this.tw(q, { alpha: 1, off: 1 }, 130, "Quad.easeIn"); await this.tw(q, { off: 0 }, 50); }
-  }
-
-  async animRemove(r, k) {
+  async add1(r, k) {
     const q = r.st[k];
-    if (r.kind === "pen") { await this.tw(q, { snap: 1, alpha: 0 }, 210, "Quad.easeIn");
-      q.on = false; q.snap = 0; }
-    else if (r.kind === "stamp") {
-      [r.zoom, r.real].forEach((c) => this.shatter(c.cx + (k * PITCH - (3 * PITCH + SW) / 2 + SW / 2) * c.s, c.by, c.s));
-      q.alpha = 0.9; await this.tw(q, { alpha: 0 }, 120); q.on = false; }
-    else { const fl = { t: 0 };
-      await new Promise((res) => this.tweens.add({ targets: fl, t: 1, duration: 260,
-        onUpdate: () => { q.alpha = Math.sin(fl.t * 22) > 0 ? 1 - fl.t : 0.15; },
-        onComplete: res }));
-      q.alpha = 0; q.on = false; }
-    q.alpha = 1; q.prog = r.kind === "pen" ? 0 : q.prog;
-    if (!q.on) { q.prog = 0; q.sc = 1; }
+    Object.assign(q, { on: true, fill: 0, dx: 0, dy: 0, alpha: 1 });
+    await this.tw(q, { fill: 1 }, 140, "Quad.easeOut");        // wipe up
+    if (k === 4) { await this.tw(r, { flash: 0.9 }, 90); await this.tw(r, { flash: 0 }, 150); }
   }
-
-  async animClose(r) {
-    const c = r.st[4]; c.on = true;
-    if (r.kind === "pen") { c.prog = 0; c.alpha = 1; c.sc = 1;
-      await this.tw(c, { prog: 1 }, 180, "Quad.easeOut");
-      await this.tw(r, { flash: 0.9 }, 90); await this.tw(r, { flash: 0 }, 140); }
-    else if (r.kind === "stamp") { c.prog = 1; c.alpha = 0; c.sc = 2;
-      const jolt = this.tw(c, { alpha: 1, sc: 1 }, 220, "Back.easeOut");
-      r.st.slice(0, 4).forEach((q) => { this.tweens.add({ targets: q, off: 1, duration: 70, yoyo: true }); });
-      await jolt; }
-    else { for (const q of r.st.slice(0, 4))
-        this.tweens.add({ targets: q, dx: 0.9, duration: 110, yoyo: true, ease: "Quad.easeInOut" });
-      await this.tw({ t: 0 }, { t: 1 }, 130);
-      c.prog = 0; c.alpha = 1; c.sc = 1;
-      await this.tw(c, { prog: 1 }, 200);
-      await this.tw(r, { flash: 0.7 }, 110); await this.tw(r, { flash: 0 }, 160); }
+  async rem1(r, k) {
+    const q = r.st[k];                                          // shear off: right + down + fade
+    await this.tw(q, { dx: 14, dy: 10, alpha: 0 }, 210, "Quad.easeIn");
+    Object.assign(q, { on: false, fill: 0, dx: 0, dy: 0, alpha: 1 });
   }
 
   async seq(r) {
     const w = (ms) => new Promise((res) => this.time.delayedCall(ms, res));
     for (;;) {
-      r.st.forEach((q) => Object.assign(q, { on: false, prog: 0, off: 0, dx: 0, alpha: 1, sc: 1, snap: 0 }));
+      r.st.forEach((q) => Object.assign(q, { on: false, fill: 0, dx: 0, dy: 0, alpha: 1 }));
       await w(500);
-      for (let k = 0; k < 4; k++) { r.label.setText("+1 COVER"); await this.animAdd(r, k); await w(420); }
-      r.label.setText("GATE CLOSES — FULL COVER");
-      await this.animClose(r); await w(1500);
-      r.label.setText("−1 COVER");
-      await this.animRemove(r, 4); await w(380);        // the cross opens first
-      for (let k = 3; k >= 1; k--) { await this.animRemove(r, k); await w(380); }
-      r.label.setText("1 COVER — MORTAL"); await w(1000);
+      for (let k = 0; k < 5; k++) { r.label.setText(k === 4 ? "FULL — WIN WATCH" : "+1"); await this.add1(r, k); await w(380); }
+      await w(1200);
+      r.label.setText("−1");
+      for (let k = 4; k >= 1; k--) { await this.rem1(r, k); await w(360); }
+      r.label.setText("1 — MORTAL"); await w(900);
+    }
+  }
+
+  chipSeat(x, y, faceIdx, mode) {                               // row 4: chip relocation
+    this.chrome(x, y, faceIdx, "N.D.");
+    if (mode === "icons") {                                     // LEFT edge icon stack (mirrors bar)
+      this.add.image(x - 40, y - 18, "icons", 14).setScale(1.4);          // DIRT (envelope)
+      this.add.text(x - 40, y - 5, "N.D", { fontFamily: "Consolas,monospace", fontSize: "8px",
+        color: "#ffffff" }).setOrigin(0.5).setResolution(2);
+      this.add.image(x - 40, y + 12, "icons", 2).setScale(1.4);           // SEDATED
+    } else if (mode === "corner") {                             // inside-tile top-left tags
+      this.add.text(x - 30, y - 30, "DIRT·N.D.\nSEDATED", { fontFamily: "Consolas,monospace",
+        fontSize: "8px", color: "#ffffff", backgroundColor: "#000000" }).setResolution(2);
+    } else {                                                    // tight under the plate
+      this.add.text(x, y + 58, "DIRT·N.D. · SEDATED", { fontFamily: "Consolas,monospace",
+        fontSize: "8px", color: "#ffffff", backgroundColor: "#000000" }).setOrigin(0.5, 0).setResolution(2);
     }
   }
 
   create() {
-    this.add.text(W / 2, 20, "STICK MOTION — PICK A ROW", { fontFamily: "Consolas,monospace",
-      fontSize: "15px", color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5).setResolution(2);
-    this.add.text(W / 2, 40, "loops: +1 ×4 · gate · −1 back to 1 · left real · right 2.2×", { fontFamily: "Consolas,monospace",
+    this.add.text(W / 2, 18, "V-BAR SEGMENTS + CHIP SPOT — PICK 1 OF EACH", { fontFamily: "Consolas,monospace",
+      fontSize: "13px", color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5).setResolution(2);
+    this.add.text(W / 2, 36, "bar right of frame, bottom-up · <=2 red · full pulses", { fontFamily: "Consolas,monospace",
       fontSize: "10px", color: "#9a9a9a" }).setOrigin(0.5).setResolution(2);
+
     const defs = [
-      { y: 165, kind: "pen",   name: "1 · PEN — draw in · snap out · slash close" },
-      { y: 420, kind: "stamp", name: "2 · STAMP — stamp in · shatter out · slam close" },
-      { y: 675, kind: "mech",  name: "3 · MECHANISM — drop-click in · burn out · lock close" },
+      { y: 140, variant: "plain",   name: "1 · LEANED SQUARES — 5 equal, gaps" },
+      { y: 330, variant: "outline", name: "2 · same + hairline outline each" },
+      { y: 520, variant: "cap",     name: "3 · 4 SQUARES + flat CAP slab as the 5th" },
     ];
     this.rows = defs.map((d) => {
-      this.add.text(16, d.y - 105, d.name, { fontFamily: "Consolas,monospace", fontSize: "12px",
+      this.add.text(16, d.y - 88, d.name, { fontFamily: "Consolas,monospace", fontSize: "12px",
         color: "#ffffff", fontStyle: "bold" }).setResolution(2);
-      this.seatChrome(80, d.y, 2, "K.V.");
-      const label = this.add.text(W / 2, d.y + 78, "", { fontFamily: "Consolas,monospace",
-        fontSize: "11px", color: "#9a9a9a" }).setOrigin(0.5).setResolution(2);
-      const r = { kind: d.kind, st: mkSticks(), flash: 0, label,
-        real: { cx: 80, by: d.y - 44, s: 1 },
-        zoom: { cx: 265, by: d.y - 10, s: 2.2 },
+      this.chrome(80, d.y, 2, "K.V.");
+      const label = this.add.text(120, d.y + 78, "", { fontFamily: "Consolas,monospace",
+        fontSize: "10px", color: "#9a9a9a" }).setOrigin(0.5).setResolution(2);
+      const r = { st: mkSegs(), flash: 0, variant: d.variant, label,
+        real: { bx: 80 + 32 + 4, by: d.y + 30, s: 1 },
+        zoom: { bx: 220, by: d.y + 60, s: 1.8 },
         g: this.add.graphics().setDepth(8) };
       this.seq(r);
       return r;
     });
+
+    this.add.text(16, 620, "4 · CHIP SPOT — A icons-left · B corner-tag · C tight-under", {
+      fontFamily: "Consolas,monospace", fontSize: "12px", color: "#ffffff", fontStyle: "bold" }).setResolution(2);
+    this.chipSeat(75, 720, 7, "icons");
+    this.chipSeat(195, 720, 7, "corner");
+    this.chipSeat(315, 720, 7, "under");
+    ["A", "B", "C"].forEach((t, i) => this.add.text(75 + i * 120, 795, t, {
+      fontFamily: "Consolas,monospace", fontSize: "12px", color: "#9a9a9a" }).setOrigin(0.5).setResolution(2));
+    console.log("LIFELAB vbar samples OK");
   }
 
   update() {
     for (const r of this.rows) {
       r.g.clear();
-      this.paintStack(r.g, r.st, r.real.cx, r.real.by, r.real.s, r.flash);
-      this.paintStack(r.g, r.st, r.zoom.cx, r.zoom.by, r.zoom.s, r.flash);
+      this.paintBar(r.g, r.st, r.real.bx, r.real.by, r.real.s, r.variant, r.flash);
+      this.paintBar(r.g, r.st, r.zoom.bx, r.zoom.by, r.zoom.s, r.variant, r.flash);
     }
   }
 }
 
-new Phaser.Game({
+window.__lab = new Phaser.Game({
   type: Phaser.CANVAS, parent: "stage", width: W, height: H, backgroundColor: "#000000",
   pixelArt: true, scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   scene: Lab,
