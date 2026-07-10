@@ -1,0 +1,258 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>WIRE LAB</title>
+<!-- DEV-ONLY: films EVERY step of the WIRED menus — the REAL index DOM + the REAL main.js,
+     fed by a scripted fake WebSocket. Each flow pushes a crafted view, drives the real thread
+     code tap by tap, and posts 3x2 contact sheets to the _devcap sink for review. -->
+<link rel="stylesheet" href="/static/game/game.css">
+</head><body>
+<div id="stage"></div>
+<section id="join" class="overlay on"><div class="ticket">
+  <div class="initials"><input id="name"><input id="lastinit"></div>
+  <input id="code" class="codein"><button id="enterbtn">BOARD</button>
+</div></section>
+<section id="lobby" class="overlay"><div class="ticket">
+  <div id="lcode" class="code"></div><div id="members"></div>
+  <button id="startbtn" style="display:none">DEPART</button>
+</div></section>
+<div id="chatsheet"><div id="chatlog"></div>
+  <div class="row"><input id="chatin"><button id="chatsend">SEND</button></div></div>
+<div id="banner"></div>
+<script>
+  /* fake WS — main.js talks to the script below instead of a server */
+  window.__sent = [];
+  window.WebSocket = function () {
+    const ws = { readyState: 1,
+      send(s) { const m = JSON.parse(s); window.__sent.push(m); if (window.__onSend) window.__onSend(m); },
+      close() {} };
+    setTimeout(() => ws.onopen && ws.onopen(), 30);
+    window.__ws = ws;
+    return ws;
+  };
+</script>
+<script src="/static/vendor/phaser.min.js"></script>
+<script>
+  for (const f of ["theme", "dice", "net", "scene", "choreo", "main"])
+    document.write('<script src="/static/game/js/' + f + '.js?v=' + Date.now() + '"><\/script>');
+</script>
+<script>
+(function () {
+  "use strict";
+  const SINK = "http://localhost:8017/cap";
+  const errs = [];
+  window.addEventListener("error", (e) => errs.push(e.message + " @ " + e.filename + ":" + e.lineno));
+  const post = (b) => fetch(SINK, { method: "POST",
+    headers: { "content-type": "application/json" }, body: JSON.stringify(b) }).catch(() => {});
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const push = (m) => window.__ws.onmessage({ data: JSON.stringify(m) });
+
+  setInterval(() => {                                          // headless: rAF is dead — pump
+    const g = window.__game;
+    if (g && g.loop && performance.now() - g.loop.now > 100) g.loop.step(performance.now());
+  }, 33);
+
+  /* ---- view factory: full v2 contract, deadline ticking live ---- */
+  let gen = 0;
+  const ROSTER = { "0": "S.S." };
+  function view(o) {
+    o = o || {};
+    const now = Date.now() / 1000;
+    const players = o.players || [
+      { id: 0, team: "RED",  lives: o.myLives || 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 1, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 2, team: "RED",  lives: 2, alive: true, handcuffed: true,  immune_from: [3] },
+      { id: 3, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 4, team: "RED",  lives: 1, alive: true, handcuffed: false, immune_from: [] },
+    ];
+    return Object.assign({
+      type: "view", roster: ROSTER, events: o.events || [],
+      you: 0, order: [0, 1, 2, 3, 4], current: 0, winner: null, gen: ++gen,
+      phase: "talk", phase_ends_at: now + (o.secs != null ? o.secs : 47), server_now: now,
+      bonus: false, extra_turn: false, saw_active: false, teams_active: true,
+      flipback_discount: false, use_counts: {}, use_limit: 6, feed: [], players,
+      your_hand: { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1 },
+      item_counts: { BEER: 3, HANDCUFFS: 2, MAGNIFIER: 2, SAW: 1, CIGARETTES: 3, IMMUNITY: 2 },
+      peek: "unknown", legal: [],
+    }, o.over || {});
+  }
+  const L_ITEMS = [                                            // legal entries (hand above)
+    { kind: "item", item: "BEER", target: null, i: 0 },
+    { kind: "item", item: "HANDCUFFS", target: 1, i: 1 },
+    { kind: "item", item: "HANDCUFFS", target: 3, i: 2 },
+    { kind: "item", item: "HANDCUFFS", target: 4, i: 3 },
+    { kind: "item", item: "MAGNIFIER", target: null, i: 4 },
+  ];
+  const L_DEC = [
+    { kind: "shoot", target: 0, i: 10 }, { kind: "shoot", target: 1, i: 11 },
+    { kind: "shoot", target: 3, i: 12 },
+    { kind: "flip", target: 1, cost: 5, i: 13 }, { kind: "flip", target: 2, cost: 5, i: 14 },
+    { kind: "flip", target: 3, cost: 5, i: 15 }, { kind: "flip", target: 4, cost: 5, i: 16 },
+  ].concat(L_ITEMS.map((a) => Object.assign({}, a, { i: a.i + 20 })));
+
+  /* ---- driving the REAL thread code ---- */
+  const S = () => window.__scene;
+  const TH = () => S() && S()._thread;
+  async function row(i) {                                      // tap an armed row
+    for (let k = 0; k < 40 && !(TH() && TH().active && TH().active.hits[i]
+      && TH().active.hits[i].input && TH().active.hits[i].input.enabled); k++) await sleep(100);
+    TH().active.hits[i].emit("pointerdown");
+  }
+  const seat = async (id) => { await sleep(900); TH()._pickDone(id); };
+  const named = (n) => S().children.list.find((o) => o.name === n && o.input && o.input.enabled);
+
+  /* ---- filming: 3x2 sheets per flow ---- */
+  const TW = 390, THh = 844, PER = 6;
+  let sheet = null, sctx = null, fill = 0, page = 0, flow = "boot", snapEv = null;
+  function snap(label) {
+    const c = document.querySelector("canvas");
+    if (!c) return;
+    if (!sctx) {
+      sheet = document.createElement("canvas");
+      sheet.width = TW * 3; sheet.height = THh * 2;
+      sctx = sheet.getContext("2d");
+      sctx.fillStyle = "#222"; sctx.fillRect(0, 0, sheet.width, sheet.height);
+    }
+    const k = fill++, x = (k % 3) * TW, y = ((k / 3) | 0) * THh;
+    sctx.drawImage(c, 0, 0, c.width, c.height, x, y, TW, THh);
+    sctx.fillStyle = "#0f0"; sctx.font = "bold 20px monospace";
+    sctx.fillText(label || "", x + 6, y + 22);
+    if (fill === PER) flushSheet();
+  }
+  function flushSheet() {
+    if (!sctx) return;
+    post({ name: "wire_" + flow + "_s" + (++page), img: sheet.toDataURL("image/jpeg", 0.82) });
+    sheet = null; sctx = null; fill = 0;
+  }
+  function startFlow(name) { flushSheet(); flow = name; page = 0; }
+  async function film(label, ms) { snap(label); await sleep(ms || 800); }
+
+  /* ---- the flows: EVERY wired menu step ---- */
+  async function run() {
+    document.getElementById("name").value = "S";
+    document.getElementById("lastinit").value = "S";
+    document.getElementById("code").value = "WIRE";
+    window.__onSend = (m) => {
+      if (m.type === "join") setTimeout(() => {
+        push({ type: "joined", token: "T", host: true });
+        push(view({ events: [{ type: "announce", total: 8, live: 4 }],
+          legal: L_ITEMS.concat([{ kind: "shoot", target: 3, i: 9 }]) }));
+      }, 60);
+    };
+    document.getElementById("enterbtn").click();
+    await sleep(11000);                                        // the M1-M5 boarding ceremony
+    snapEv = setInterval(() => {}, 99999);
+
+    /* 1 — talk root, all verbs live */
+    startFlow("root");
+    push(view({ legal: L_ITEMS })); await sleep(1200);
+    S().onAction(); await sleep(1400); await film("root");
+    named("tabort").emit("pointerdown"); await sleep(600);
+
+    /* 2 — root variants: no items / no teammates / offer out */
+    startFlow("rootvar");
+    push(view({ legal: [] })); await sleep(1000);
+    S().onAction(); await sleep(1400); await film("no-item+trade");
+    named("tabort").emit("pointerdown"); await sleep(500);
+    push(view({ legal: L_ITEMS, players: [
+      { id: 0, team: "RED",  lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 1, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 2, team: "RED",  lives: 0, alive: false, handcuffed: false, immune_from: [] },
+      { id: 3, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
+      { id: 4, team: "RED",  lives: 0, alive: false, handcuffed: false, immune_from: [] },
+    ] })); await sleep(1000);
+    S().onAction(); await sleep(1400); await film("teammates-dead");
+    named("tabort").emit("pointerdown"); await sleep(500);
+    push(view({ legal: L_ITEMS,
+      over: { pending_offer: { from: 0, to: 2, give: ["BEER"], want: ["MAGNIFIER"] } } }));
+    await sleep(1000);
+    S().onAction(); await sleep(1400); await film("withdraw");
+    await row(1); await sleep(700); await film("withdraw-lock");    // sends trade_withdraw
+    await sleep(600);
+
+    /* 3 — kit: mixed states, no-target confirm, STAND DOWN home */
+    startFlow("kit");
+    push(view({ legal: L_ITEMS, myLives: 5,
+      over: { your_hand: { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1, CIGARETTES: 1 },
+        use_counts: { MAGNIFIER: 6 } } }));
+    await sleep(1000);
+    S().onAction(); await sleep(1200);
+    await row(0); await sleep(1500); await film("kit-list");        // MAGNET ok · SPYCAM sealed ·
+    await film("kit-list2", 400);                                   // PASSPORT full-cover dim
+    await row(0); await sleep(1200); await film("confirm-magnet");
+    await row(3); await sleep(1400); await film("stand-down-home");  // ✕ STAND DOWN → root
+    named("tabort").emit("pointerdown"); await sleep(600);
+
+    /* 4 — kit targeted: pick, cancel, re-pick, confirm, EXECUTE */
+    startFlow("sedative");
+    push(view({ legal: L_ITEMS })); await sleep(1000);
+    S().onAction(); await sleep(1200);
+    await row(0); await sleep(1400);
+    await row(1); await sleep(1200); await film("pick-duck");
+    TH()._pickDone(null); await sleep(900); await film("cancel-back");
+    await row(1); await sleep(1100); await seat(4);
+    await sleep(700); await film("confirm-sedative");
+    await row(2); await sleep(700); await film("execute");          // sends action
+    await sleep(600);
+
+    /* 5 — the offer builder end-to-end */
+    startFlow("offer");
+    push(view({ legal: L_ITEMS })); await sleep(1000);
+    S().onAction(); await sleep(1200);
+    await row(1); await seat(2);                                    // TRADE → ants → J.L.
+    await sleep(1400); await film("give");
+    await row(0); await sleep(900); await film("count");            // MAGNET → HOW MANY
+    await row(2); await sleep(900); await film("give-x2");          // bluff ×2
+    await row(7); await sleep(1300); await film("want");            // CONTINUE → WANT
+    await row(2); await sleep(800);                                 // SPYCAM count
+    await row(1); await sleep(800); await film("want-x1");
+    await row(7); await sleep(800); await film("send-lock");        // SEND OFFER
+    await sleep(700);
+
+    /* 6 — incoming offer (auto-arrives) */
+    startFlow("respond");
+    push(view({ over: { current: 2,
+      pending_offer: { from: 2, to: 0, give: ["BEER", "BEER"], want: ["MAGNIFIER"] } } }));
+    await sleep(1800); await film("sheet");
+    await row(4); await sleep(800); await film("accept-lock");      // sends trade_respond
+    await sleep(600);
+
+    /* 7 — decision: root, shoot pick+confirm, flip PAY ride */
+    startFlow("decide");
+    push(view({ legal: L_DEC, secs: 24, over: { phase: "decision" } }));
+    await sleep(1000);
+    S().onAction(); await sleep(1400); await film("dec-root");
+    await row(0); await seat(3); await sleep(700); await film("shoot-confirm");
+    await row(2); await sleep(1200); await film("shoot-standdown"); // STAND DOWN → root
+    await row(1); await seat(1); await sleep(1300); await film("pay-0");
+    await row(0); await sleep(800); await film("pay-4of5");         // MAGNET 4/5 — short
+    await row(2); await sleep(800); await film("pay-9of5");         // +SPYCAM — overpay armed
+    await row(8); await sleep(1200); await film("pay-standdown");   // ✕ STAND DOWN → DECIDE
+    named("tabort").emit("pointerdown"); await sleep(600);
+
+    /* 8 — forced self-shot (M11 note) */
+    startFlow("forcedself");
+    push(view({ legal: [{ kind: "shoot", target: 0, i: 30 }].concat(
+      L_DEC.filter((a) => a.kind !== "shoot")), secs: 20, over: { phase: "decision" } }));
+    await sleep(1000);
+    S().onAction(); await sleep(1300);
+    await row(0); await sleep(1200); await film("self-only-note");
+    TH()._pickDone(0); await sleep(700); await film("shoot-yourself");
+    named("tabort").emit("pointerdown"); await sleep(600);
+
+    /* 9 — info screens: ledger + off-turn kit */
+    startFlow("info");
+    push(view({ legal: [], over: { current: 1 },
+      over2: null })); await sleep(1000);
+    S().onLedger(); await sleep(1600); await film("ledger");
+    named("tabort").emit("pointerdown"); await sleep(600);
+    S().onKit(); await sleep(1600); await film("kit-info");
+    named("tabort").emit("pointerdown"); await sleep(600);
+
+    flushSheet();
+    post({ name: "wire_errors", txt: errs.length ? errs.join("\n") : "NO ERRORS" });
+    document.title = "WIREDONE";
+  }
+  window.addEventListener("load", () => setTimeout(run, 400));
+})();
+</script></body></html>

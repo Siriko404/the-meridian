@@ -168,7 +168,25 @@ are RATIFIED by the user — do not re-litigate:
   BLACKMAIL→C.D. confirm, one-screen ledger, DECIDE root, SHOOT-YOURSELF confirm, slash clock +
   burn-circle in-game. NOT live-verified: winner overlay after threads (games outlast the film
   cap; path is untouched choreo) · human↔human trade on the NEW builder (wire protocol identical
-  to the pre-compaction verified round-trip). NOTE: threadlab `?auto=` headless smoke is broken for ALL flows
+  to the pre-compaction verified round-trip).
+  **⟲ ACTIVE RIGHT NOW — WIRED-MENU DEFECT HUNT (user: "they have MANY visual defects" after
+  playing localhost:8016; I had only random monkey frames, never step-by-step films of the WIRED
+  main.js menus).** Built `wirelab.html` (committed, NOT YET RUN): loads the REAL index DOM +
+  REAL main.js over a fake `window.WebSocket` shim (main.js talks to scripted views; NET.connect
+  takes the shim transparently; countdown ticks via server_now/phase_ends_at = Date.now()/1000
+  + secs). 9 scripted flows drive every wired step via `TH().active.hits[i].emit("pointerdown")`
+  + `TH()._pickDone(id)` + named buttons (tabort/tback/tcxl): root / rootvar (no-item dim,
+  teammates-dead dim, WITHDRAW) / kit (sealed+passport-full-cover dims, MAGNET confirm, STAND
+  DOWN home) / sedative (pick-cancel-repick-execute) / offer (GIVE→count→×2→WANT→SEND) / respond
+  (auto-arrival, ACCEPT) / decide (SHOOT confirm+standdown, FLIP PAY 0→4/5→9/5→standdown) /
+  forcedself (M11 note) / info (ledger + off-turn kit). Films 3×2 sheets → sink as
+  wire_<flow>_sN + wire_errors. RUN IT: fresh user-data-dir headless chrome →
+  `wirelab.html?canvas=1&cb=` → poll sink for wire_errors.txt → READ EVERY SHEET yourself → list
+  defects → fix in scene.js/main.js → re-film → present to user. Boot takes ~11s (real M1-M5
+  ceremony). Known wirelab quirks to verify on first run: row() waits for armed hits (40×100ms);
+  the announce view carries legal so the boot settles armed; flows ABORT between states; view()
+  gen++ each push. USER'S OWN DEFECT LIST NOT YET COLLECTED — after my pass, ask him to replay
+  and compare. NOTE: threadlab `?auto=` headless smoke is broken for ALL flows
   (pre-existing — Phaser clock dead under --screenshot; differential-tested vs untouched ledger);
   interactive play + rig films are the verification. **Labs (dev pages, cache-busted):** `threadlab.html` (MOVE/MOVE·R/DECIDE/
   TRADE/KIT/LEDGER/OFFER·IN buttons, live band ticker) · `tradelab.html` (beat-exact trade
