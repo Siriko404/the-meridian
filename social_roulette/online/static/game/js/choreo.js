@@ -193,7 +193,7 @@
     const s = scene.seats.get(id); if (!s) return;
     s.tile.setVisible(false); s.broken.setVisible(true);                         // frame breaks apart
     scene.tweens.add({ targets: s.face, alpha: 0.35, duration: 650 });           // faces SACRED: alpha only
-    s.pips.forEach((p) => p.setVisible(false));
+    scene.clearSticks(id);                                                       // the tally just stops (#5)
     s.plate.setFillStyle(0x000000);
     s.chipT.setText("");                                                          // a corpse wears no chips
     s.nameT.setColor("#666666").setStroke("#000000", 6); s.strike.setVisible(true);
@@ -238,7 +238,8 @@
       const tm = THEME.TEAMS[p.team] || THEME.TEAMS.RED;                         // endView team
       s.plate.setFillStyle(tm.plate);
       s.nameT.setColor(tm.text).setStroke(tm.text === "#000000" ? "#ffffff" : "#000000", 6);
-      s.plate.setStrokeStyle(tm.tk, 0xffffff, 0.95); s.tile.setStrokeStyle(tm.tk, 0xffffff, 1);
+      s.fa = tm.fa != null ? tm.fa : 1;                                          // hairline frames (#5)
+      s.plate.setStrokeStyle(1, 0xffffff, 0.95); s.tile.setStrokeStyle(1, 0xffffff, s.fa);
       scene.tweens.add({ targets: [s.plate, s.nameT], scaleX: { from: 0, to: 1 }, duration: 220 });
     }
     await scene.toast(e.actor === e.target

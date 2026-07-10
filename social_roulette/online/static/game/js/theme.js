@@ -12,10 +12,11 @@
     BEER:       { name: "MAGNET",    icon: 5,  pts: 4, blurb: "EJECT CURRENT SHELL" },
     HANDCUFFS:  { name: "SEDATIVE",  icon: 2,  pts: 4, blurb: "TARGET SKIPS A TURN" },
   };
-  // TEAM = POLARITY (locked): bloc A white plate/black text/4px, bloc B inverse/2px.
+  // TEAM = POLARITY (locked 2026-07-10): plates carry the team; frames are HAIRLINE
+  // 1px — bloc A full alpha, bloc B half alpha ("0.5px", framelab row 2).
   const TEAMS = {
-    RED:  { name: "AGENCY NORTH", plate: 0xffffff, text: "#000000", tk: 4 },
-    BLUE: { name: "AGENCY SOUTH", plate: 0x000000, text: "#ffffff", tk: 2 },
+    RED:  { name: "AGENCY NORTH", plate: 0xffffff, text: "#000000", tk: 1, fa: 1 },
+    BLUE: { name: "AGENCY SOUTH", plate: 0x000000, text: "#ffffff", tk: 1, fa: 0.5 },
   };
   const CODENAMES = ["V.K.", "C.W.", "J.L.", "N.D.", "W.N.", "H.Y.", "M.T.", "P.K."];  // bots wear monograms too
   const ICON = { revolver: 0, heart: 20, ledger: 37, briefcase: 40, envelope: 14,

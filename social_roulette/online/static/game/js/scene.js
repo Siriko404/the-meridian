@@ -1,5 +1,8 @@
 /* TableScene — the dining car (spec §6.2). Layout is PARAMETRIC in seat count (D15).
- * Team = polarity (locked): RED=bloc A white plate/black text/4px · BLUE=black/white/2px.
+ * Team = polarity (locked 2026-07-10): plates carry the team; frames are HAIRLINE 1px,
+ * bloc A full alpha / bloc B half alpha. COVER = tally sticks above the avatar: 1-4 fat
+ * slashes, the 5th CROSSES them (closed gate = the win-watch state); <=2 burns red.
+ * Stick motion = PEN (ratified): draw-stroke in · snap out · slash close + pulse.
  * Turn = stroke brightness, never weight. Red 0xc8102e = DANGER ONLY (spec §8 list).
  * The center dial is a SEAT dial — one bore per seat, never tracks shells (a11). */
 (function (global) {
@@ -9,6 +12,7 @@
                       // can read (user 2026-07-10). Menus keep their own fast timings.
   const SERIF = "'Times New Roman','Times',Georgia,serif";   // 1-bit-crisp serif (setResolution 2)
   const CX = 195, CY = 430, RX = 142, RY = 150;      // arc (spike-proven); drop CY if KIT collides
+  const SPITCH = 9, SSW = 6, SHH = 6;                // tally-stick geometry (#5, lab-ratified)
   const SCENE = { ready: null };
   const FS = 1.5;                                     // global size bump — mobile readability
   const style = (size, color, extra) => {             // INVERSE outline: white text/black rim, black text/white rim
@@ -96,15 +100,17 @@
         const plate = this.add.rectangle(x, y + 54, 82, 24, 0xffffff).setStrokeStyle(2, WHITE, 0.95);
         const nameT = this.add.text(x, y + 54, "", style(11, "#000000")).setOrigin(0.5).setResolution(2);
         const strike = this.add.line(0, 0, x - 26, y + 53, x + 26, y + 53, WHITE, 0.9).setOrigin(0).setVisible(false);
-        const pips = [];
-        for (let k = 0; k < THEME.MAX_LIVES; k++)
-          pips.push(this.add.image(x - 32 + k * 16, y + 78, "icons", THEME.ICON.heart).setVisible(false));
+        // COVER sticks (#5): borderless tally stack ABOVE the tile, painted per-frame
+        // by update() from these params; anims tween the params (PEN character).
+        const sticks = [...Array(5)].map(() => ({ on: false, prog: 0, off: 0, alpha: 1, sc: 1, snap: 0 }));
         const chipT = this.add.text(x, y + 88, "", style(13, "#ffffff", { align: "center" }))
-          .setOrigin(0.5, 0).setResolution(2).setBackgroundColor("#000000");   // grows DOWN, under the pips
+          .setOrigin(0.5, 0).setResolution(2).setBackgroundColor("#000000");   // grows DOWN, under the plate
         const stamp = this.add.text(x, y, "", style(16, "#ffffff")).setOrigin(0.5).setResolution(2)
           .setAngle(-12).setDepth(8).setVisible(false).setBackgroundColor("#000000").setName("stamp");
-        this.seats.set(id, { id, x, y, i, tile, broken, face, plate, nameT, strike, pips, chipT, stamp, tk: 2 });
+        this.seats.set(id, { id, x, y, i, tile, broken, face, plate, nameT, strike, chipT, stamp,
+          tk: 1, fa: 1, sticks, shown: 0, cover: 0, flash: 0, q: Promise.resolve() });
       });
+      if (!this.stickG) this.stickG = this.add.graphics().setDepth(7);
       this.buildDial(n);
       this.built = true;
     }
@@ -137,19 +143,16 @@
       const s = this.seats.get(p.id); if (!s) return;         // per BEAT (live=true: never move the arrow)
       const eq = !view.teams_active;                          // M27: agencies dissolved — equalize
       const tm = THEME.TEAMS[p.team] || THEME.TEAMS.RED;
-      const tk = eq ? 3 : tm.tk, plate = eq ? 0x000000 : tm.plate, txt = eq ? "#ffffff" : tm.text;
-      s.tk = tk;
+      const tk = 1, plate = eq ? 0x000000 : tm.plate, txt = eq ? "#ffffff" : tm.text;
+      s.tk = tk; s.fa = eq ? 1 : (tm.fa != null ? tm.fa : 1);  // hairline; B-team = half alpha
       const nm = THEME.seatName(p.id, roster);
       const nc = p.alive ? txt : "#666666";
       s.nameT.setText(nm).setColor(nc)
         .setStroke(nc === "#000000" ? "#ffffff" : "#000000", 6)   // stroke must FLIP with the color
         .setFontSize(nm.length <= 4 ? 18 : 15);               // monogram initials read BIG (spy plate)
       s.plate.setFillStyle(p.alive ? plate : 0x000000);
-      s.plate.setStrokeStyle(tk, WHITE, 0.95);
-      s.pips.forEach((pp, k) => {                             // row centered on the seat, 16px pitch
-        pp.setVisible(p.alive && k < p.lives);
-        pp.x = s.x + (k - (p.lives - 1) / 2) * 16;
-      });
+      s.plate.setStrokeStyle(1, WHITE, 0.95);
+      this.syncCover(s, p.alive ? p.lives : 0, !!live);       // sticks animate on live beats only
       const chips = [];                                       // short, stacked — never wider than the tile
       if (p.alive) {                                          // a dead agent's chips are noise
         (p.immune_from || []).forEach((c) => chips.push("DIRT·" + THEME.seatName(c, roster).slice(0, 6)));
@@ -157,7 +160,7 @@
       }
       s.chipT.setText(chips.join("\n"));
       const active = p.alive && p.id === view.current && view.winner == null;
-      s.tile.setStrokeStyle(tk, WHITE, active ? 1 : 0.55);
+      s.tile.setStrokeStyle(tk, WHITE, (active ? 1 : 0.55) * s.fa);
       s.face.setScale(2);                                     // uniform — turn is shown by the ARROW only
       if (active && !live) this._arrowTo(p.id);
       if (!p.alive) {                                         // M14 end-state (the beat itself is choreo)
@@ -170,6 +173,87 @@
         s.face.setAlpha(1); s.strike.setVisible(false);
         if (s.stamp.text === "BURNED") s.stamp.setVisible(false);
       }
+    }
+
+    /* ================= cover sticks (#5 — PEN motion, lab-ratified) ================= */
+    _tw(obj, props, dur, ease) {
+      return new Promise((r) => this.tweens.add({ targets: obj, ...props, duration: dur,
+        ease: ease || "Linear", onComplete: r }));
+    }
+    syncCover(s, n, animate) {
+      if (!animate || !this.sys.isActive()) {                 // settle/reconnect: no theater
+        s.cover = n; s.shown = n;
+        s.sticks.forEach((q, k) => {
+          const on = k < 4 ? k < Math.min(n, 4) : n >= 5;
+          Object.assign(q, { on, prog: on ? 1 : 0, off: 0, alpha: 1, sc: 1, snap: 0 });
+        });
+        return;
+      }
+      if (n === s.cover) return;
+      s.cover = n;
+      s.q = s.q.then(() => this._walkCover(s)).catch(() => {});
+    }
+    async _walkCover(s) {                                     // one stick at a time toward target
+      while (s.shown !== s.cover) {
+        if (s.shown < s.cover) { s.shown++; await this._stickAdd(s, s.shown); }
+        else { await this._stickRemove(s, s.shown); s.shown--; }
+      }
+    }
+    async _stickAdd(s, count) {
+      const q = s.sticks[count === 5 ? 4 : count - 1];
+      Object.assign(q, { on: true, prog: 0, off: 0, alpha: 1, sc: 1, snap: 0 });
+      if (count === 5) {                                      // the 5th CLOSES the gate
+        await this._tw(q, { prog: 1 }, 180, "Quad.easeOut");
+        await this._tw(s, { flash: 0.9 }, 90); await this._tw(s, { flash: 0 }, 140);
+      } else {
+        await this._tw(q, { prog: 1 }, 150);                  // pen draw-stroke
+      }
+    }
+    async _stickRemove(s, count) {
+      const q = s.sticks[count === 5 ? 4 : count - 1];
+      if (count === 5) await this._tw(q, { off: 8, alpha: 0 }, 210, "Quad.easeIn");  // the cross falls away
+      else await this._tw(q, { snap: 1, alpha: 0 }, 210, "Quad.easeIn");             // stick SNAPS
+      Object.assign(q, { on: false, prog: 0, off: 0, alpha: 1, snap: 0 });
+    }
+    clearSticks(id) {                                         // death: the tally just stops (M14)
+      const s = this.seats.get(id); if (!s) return;
+      this.syncCover(s, 0, false);
+    }
+    _paintStack(g, s) {
+      const gw = 3 * SPITCH + SSW, x0 = s.x - gw / 2, by = s.y - 47;
+      const col = s.shown <= 2 ? RED : WHITE;
+      const dim = 1 - (s.flash || 0) * 0.45;
+      for (let k = 0; k < 4; k++) {
+        const q = s.sticks[k];
+        if (!q.on && q.snap === 0) continue;
+        const a = Math.max(0, Math.min(1, q.alpha)) * dim;
+        if (a <= 0.01) continue;
+        const sx = x0 + k * SPITCH, sy = by + q.off;
+        if (q.snap > 0) {                                     // halves part + drop
+          const mx = sx + SSW / 2;
+          g.lineStyle(3, col, a);
+          g.lineBetween(sx, sy + SHH + q.snap * 8, mx - q.snap * 3, sy + q.snap * 10);
+          g.lineBetween(mx + q.snap * 3, sy + q.snap * 10, sx + SSW, sy - SHH + q.snap * 14);
+          continue;
+        }
+        g.lineStyle(3, col, a);                               // partial pen stroke, tip to tail
+        g.lineBetween(sx, sy + SHH, sx + SSW * q.prog, sy + SHH - 2 * SHH * q.prog);
+      }
+      const c = s.sticks[4];                                  // the gate cross
+      if (c.on || c.prog > 0) {
+        const a = Math.max(0, Math.min(1, c.alpha)) * dim;
+        if (a > 0.01) {
+          const len = gw + 5, lx = x0 - 3, cy = by + c.off;
+          const half = (len * c.prog) / 2, cxm = lx + len / 2;
+          g.lineStyle(3, col, a);
+          g.lineBetween(cxm - half, cy - SHH * c.prog, cxm + half, cy + SHH * c.prog);
+        }
+      }
+    }
+    update() {                                                // stick layer repaint (cheap: <=25 strokes)
+      const g = this.stickG; if (!g) return;
+      g.clear();
+      this.seats.forEach((s) => this._paintStack(g, s));
     }
 
     /* ================= band ================= */
@@ -363,9 +447,9 @@
       this.tweens.add({ targets: parts, x: "+=7", yoyo: true, repeat: 2, duration: 45 });
     }
     pipShatter(id, nDamage) {                                 // M12 — red particles (danger)
-      const s = this.seats.get(id); if (!s) return;
+      const s = this.seats.get(id); if (!s) return;           // burst at the STICK row (#5)
       for (let k = 0; k < 10 * (nDamage || 1); k++) {
-        const px = s.x - 32 + Math.random() * 64, py = s.y + 74;
+        const px = s.x - 18 + Math.random() * 36, py = s.y - 47;
         const dot = this.add.rectangle(px, py, 3, 3, RED).setDepth(15);
         this.tweens.add({ targets: dot, x: px + (Math.random() - 0.5) * 90, y: py + 30 + Math.random() * 60,
           alpha: 0, duration: 550 + Math.random() * 250, onComplete: () => dot.destroy() });
@@ -462,7 +546,7 @@
     }
     dialTo(id) {                                              // turn indicator = the arrow moves
       const s = this.seats.get(id); if (!s) return Promise.resolve();
-      this.seats.forEach((q) => q.tile.setStrokeStyle(q.tk, WHITE, q.id === id ? 1 : 0.55));
+      this.seats.forEach((q) => q.tile.setStrokeStyle(q.tk, WHITE, (q.id === id ? 1 : 0.55) * (q.fa || 1)));
       this._arrowTo(id);
       return this.w(280);
     }
@@ -485,7 +569,8 @@
     equalizePlates() {                                        // M27 — team semantics visibly end
       this.seats.forEach((s) => { s.plate.setFillStyle(0x000000);
         s.nameT.setColor("#ffffff").setStroke("#000000", 6);
-        s.plate.setStrokeStyle(3, WHITE, 0.95); s.tile.setStrokeStyle(3, WHITE, 0.55); s.tk = 3; });
+        s.plate.setStrokeStyle(1, WHITE, 0.95); s.tile.setStrokeStyle(1, WHITE, 0.55);
+        s.tk = 1; s.fa = 1; });
     }
 
     /* ---- dice ceremony (M2 full / M16 fast) — counters + transient loading cylinder ---- */
