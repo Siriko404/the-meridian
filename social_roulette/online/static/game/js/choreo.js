@@ -18,7 +18,7 @@
     bind(scene);
     scene.render(view, roster);
     view.order.forEach((id) => { const s = scene.seats.get(id);
-      [s.plate, s.nameT].forEach((o) => o.setScale(0)); });
+      s.nameT.setScale(0); s.plateG.setAlpha(0); });
     // M1 — coin flip lands on the extra-seat agency (odd split is derivable from the view)
     const counts = {};
     view.players.forEach((p) => { counts[p.team] = (counts[p.team] || 0) + 1; });
@@ -26,7 +26,8 @@
     await coinFlip(scene, odd);
     for (const id of view.order) {                            // plates stamp in, 120ms stagger
       const s = scene.seats.get(id);
-      scene.tweens.add({ targets: [s.plate, s.nameT], scaleX: 1, scaleY: 1, duration: 160, ease: "Back.easeOut" });
+      scene.tweens.add({ targets: s.nameT, scaleX: 1, scaleY: 1, duration: 160, ease: "Back.easeOut" });
+      scene.tweens.add({ targets: s.plateG, alpha: 1, duration: 200 });
       await scene.w(120);
     }
     if (announce) {                                           // M2 dice ceremony + M3 announce
@@ -137,6 +138,7 @@
         Object.values(work).forEach((w) => {                  // their DIRT dissolves with them
           w.immune_from = w.immune_from.filter((c) => c !== e.target); });
         await deathBeat(scene, e.target, roster);             // M14
+        Object.values(work).forEach((w) => { if (w.alive) paint(w.id); });   // ! chips refresh
       } else if (e.type === "item") {
         if (e.item === "BEER") lastBeer = e.actor;
         await scene.dialTo(e.actor);                          // the arrow OWNS every beat's actor
@@ -193,16 +195,13 @@
     const s = scene.seats.get(id); if (!s) return;
     s.tile.setVisible(false); s.broken.setVisible(true);                         // frame breaks apart
     scene.tweens.add({ targets: s.face, alpha: 0.35, duration: 650 });           // faces SACRED: alpha only
-    scene.clearSticks(id);                                                       // the tally just stops (#5)
-    s.plate.setFillStyle(0x000000);
-    s.chipT.setText("");                                                          // a corpse wears no chips
-    s.nameT.setColor("#666666").setStroke("#000000", 6); s.strike.setVisible(true);
+    scene.clearSticks(id);                                                       // the card is void (#5)
+    scene.repaintPlate(s, s.nameT.text, "dead");                                 // gray + strike
+    scene.setChips(s, { alive: false }, roster);                                 // a corpse wears no chips
     await scene.stampSeat(id, "BURNED", true);                                   // red — danger list
-    const dead = "DIRT·" + nm(id, roster).slice(0, 6);                           // a12: only THEIR placed
-    scene.seats.forEach((t) => {                                                 // BLACKMAIL dissolves;
-      t.chipT.setText(t.chipT.text.split("\n").filter((c) => c !== dead).join("\n"));
-    });                                                                          // SEDATED chips stay
     await scene.w(400);
+    // their placed DIRT (! chips on others) dissolves via the work-copy repaint
+    // in play()'s elimination branch — immune_from is already filtered there.
   }
 
   async function itemBeat(scene, e, view, roster) {
@@ -236,11 +235,10 @@
     const p = view.players.find((q) => q.id === e.target);
     if (s && p && view.teams_active) {
       const tm = THEME.TEAMS[p.team] || THEME.TEAMS.RED;                         // endView team
-      s.plate.setFillStyle(tm.plate);
-      s.nameT.setColor(tm.text).setStroke(tm.text === "#000000" ? "#ffffff" : "#000000", 6);
+      scene.repaintPlate(s, s.nameT.text, tm.plate === 0xffffff ? "box" : "rules");
       s.fa = tm.fa != null ? tm.fa : 1;                                          // hairline frames (#5)
-      s.plate.setStrokeStyle(1, 0xffffff, 0.95); s.tile.setStrokeStyle(1, 0xffffff, s.fa);
-      scene.tweens.add({ targets: [s.plate, s.nameT], scaleX: { from: 0, to: 1 }, duration: 220 });
+      s.tile.setStrokeStyle(1, 0xffffff, s.fa);
+      scene.tweens.add({ targets: s.nameT, scaleX: { from: 0, to: 1 }, duration: 220 });
     }
     await scene.toast(e.actor === e.target
       ? nm(e.actor, roster) + " SWITCHED SIDES"                                  // flip-back (self)

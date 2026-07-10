@@ -12,7 +12,6 @@
                       // can read (user 2026-07-10). Menus keep their own fast timings.
   const SERIF = "'Times New Roman','Times',Georgia,serif";   // 1-bit-crisp serif (setResolution 2)
   const CX = 195, CY = 430, RX = 142, RY = 150;      // arc (spike-proven); drop CY if KIT collides
-  const SPITCH = 9, SSW = 6, SHH = 6;                // tally-stick geometry (#5, lab-ratified)
   const SCENE = { ready: null };
   const FS = 1.5;                                     // global size bump — mobile readability
   const style = (size, color, extra) => {             // INVERSE outline: white text/black rim, black text/white rim
@@ -97,20 +96,21 @@
           broken.lineBetween(x + dx + sx * 4, y + dy + sy * 4, x + dx + sx * 4, y + dy + sy * 16);
         });
         const face = this.add.image(x, y, "faces", id % 12).setScale(2); // faces SACRED — no tint ever
-        const plate = this.add.rectangle(x, y + 54, 82, 24, 0xffffff).setStrokeStyle(2, WHITE, 0.95);
-        const nameT = this.add.text(x, y + 54, "", style(11, "#000000")).setOrigin(0.5).setResolution(2);
-        const strike = this.add.line(0, 0, x - 26, y + 53, x + 26, y + 53, WHITE, 0.9).setOrigin(0).setVisible(false);
-        // COVER sticks (#5): borderless tally stack ABOVE the tile, painted per-frame
-        // by update() from these params; anims tween the params (PEN character).
-        const sticks = [...Array(5)].map(() => ({ on: false, prog: 0, off: 0, alpha: 1, sc: 1, snap: 0 }));
-        const chipT = this.add.text(x, y + 88, "", style(13, "#ffffff", { align: "center" }))
-          .setOrigin(0.5, 0).setResolution(2).setBackgroundColor("#000000");   // grows DOWN, under the plate
+        // PLATE (ratified M2): A = black serif in a slim white box · B = white serif
+        // between two thin rules · dead = bare gray + strike. Art lives in plateG.
+        const plateG = this.add.graphics().setDepth(2);
+        const nameT = this.add.text(x, y + 61, "", style(12, "#ffffff")).setOrigin(0.5)
+          .setResolution(2).setLetterSpacing(2).setDepth(3);
+        // COVER dots (#5, punch card): 5 dots right of the frame, painted per-frame
+        // by update(); a hit punches a dot into a lasting ring; full 5 pulses (win-watch).
+        const dots = [...Array(5)].map(() => ({ on: false, t: 0, alpha: 1 }));
+        const chipG = this.add.graphics().setDepth(7);        // ⊘ / ! boxes, LEFT of the frame
         const stamp = this.add.text(x, y, "", style(16, "#ffffff")).setOrigin(0.5).setResolution(2)
           .setAngle(-12).setDepth(8).setVisible(false).setBackgroundColor("#000000").setName("stamp");
-        this.seats.set(id, { id, x, y, i, tile, broken, face, plate, nameT, strike, chipT, stamp,
-          tk: 1, fa: 1, sticks, shown: 0, cover: 0, flash: 0, q: Promise.resolve() });
+        this.seats.set(id, { id, x, y, i, tile, broken, face, plateG, nameT, chipG, chipObjs: [], stamp,
+          tk: 1, fa: 1, dots, shown: 0, cover: 0, dead: false, q: Promise.resolve() });
       });
-      if (!this.stickG) this.stickG = this.add.graphics().setDepth(7);
+      if (!this.dotG) this.dotG = this.add.graphics().setDepth(7);
       this.buildDial(n);
       this.built = true;
     }
@@ -143,39 +143,88 @@
       const s = this.seats.get(p.id); if (!s) return;         // per BEAT (live=true: never move the arrow)
       const eq = !view.teams_active;                          // M27: agencies dissolved — equalize
       const tm = THEME.TEAMS[p.team] || THEME.TEAMS.RED;
-      const tk = 1, plate = eq ? 0x000000 : tm.plate, txt = eq ? "#ffffff" : tm.text;
-      s.tk = tk; s.fa = eq ? 1 : (tm.fa != null ? tm.fa : 1);  // hairline; B-team = half alpha
-      const nm = THEME.seatName(p.id, roster);
-      const nc = p.alive ? txt : "#666666";
-      s.nameT.setText(nm).setColor(nc)
-        .setStroke(nc === "#000000" ? "#ffffff" : "#000000", 6)   // stroke must FLIP with the color
-        .setFontSize(nm.length <= 4 ? 18 : 15);               // monogram initials read BIG (spy plate)
-      s.plate.setFillStyle(p.alive ? plate : 0x000000);
-      s.plate.setStrokeStyle(1, WHITE, 0.95);
-      this.syncCover(s, p.alive ? p.lives : 0, !!live);       // sticks animate on live beats only
-      const chips = [];                                       // short, stacked — never wider than the tile
-      if (p.alive) {                                          // a dead agent's chips are noise
-        (p.immune_from || []).forEach((c) => chips.push("DIRT·" + THEME.seatName(c, roster).slice(0, 6)));
-        if (p.handcuffed) chips.push("SEDATED");
-      }
-      s.chipT.setText(chips.join("\n"));
+      s.tk = 1; s.fa = eq ? 1 : (tm.fa != null ? tm.fa : 1);  // hairline; B-team = half alpha
+      this.repaintPlate(s, THEME.seatName(p.id, roster),
+        !p.alive ? "dead" : (eq ? "bare" : (tm.plate === 0xffffff ? "box" : "rules")));
+      s.dead = !p.alive;
+      this.syncCover(s, p.alive ? p.lives : 0, !!live);       // dots animate on live beats only
+      this.setChips(s, p, roster);
       const active = p.alive && p.id === view.current && view.winner == null;
-      s.tile.setStrokeStyle(tk, WHITE, (active ? 1 : 0.55) * s.fa);
+      s.tile.setStrokeStyle(1, WHITE, (active ? 1 : 0.55) * s.fa);
       s.face.setScale(2);                                     // uniform — turn is shown by the ARROW only
       if (active && !live) this._arrowTo(p.id);
       if (!p.alive) {                                         // M14 end-state (the beat itself is choreo)
         s.tile.setVisible(false); s.broken.setVisible(true);
         s.face.setAlpha(0.35);                                // whole-object fade — pixels untouched
-        s.strike.setVisible(true);
         s.stamp.setText("BURNED").setColor("#c8102e").setVisible(true);
       } else {
         s.tile.setVisible(true); s.broken.setVisible(false);
-        s.face.setAlpha(1); s.strike.setVisible(false);
+        s.face.setAlpha(1);
         if (s.stamp.text === "BURNED") s.stamp.setVisible(false);
       }
     }
 
-    /* ================= cover sticks (#5 — PEN motion, lab-ratified) ================= */
+    /* PLATE art (ratified M2: gap 22, pad 5): box (team A) · rules (team B) ·
+     * bare (FFA — team semantics ended) · dead (gray + strike). */
+    repaintPlate(s, nm, mode) {
+      const g = s.plateG, ny = s.y + 61;
+      g.clear();
+      s.nameT.setText(nm).setY(ny);
+      if (mode === "dead") {
+        s.nameT.setColor("#666666").setStroke("#000000", 5);
+        g.lineStyle(1, WHITE, 0.7);
+        g.lineBetween(s.x - s.nameT.width / 2, ny, s.x + s.nameT.width / 2, ny);
+        return;
+      }
+      const w2 = 39, h2 = 13;                                 // plate spans the avatar frame width
+      if (mode === "box") {                                   // A: black serif in a slim white box
+        s.nameT.setColor("#000000").setStroke("#ffffff", 0);
+        g.fillStyle(0xffffff, 1).fillRect(s.x - w2, ny - h2, w2 * 2, h2 * 2);
+      } else {
+        s.nameT.setColor("#ffffff").setStroke("#000000", 5);
+        if (mode === "rules") {                               // B: white serif between two thin rules
+          g.lineStyle(1, WHITE, 0.9);
+          g.lineBetween(s.x - w2, ny - h2, s.x + w2, ny - h2);
+          g.lineBetween(s.x - w2, ny + h2, s.x + w2, ny + h2);
+        }                                                     // bare: nothing — name alone
+      }
+    }
+
+    /* CHIPS (ratified): boxed glyphs LEFT of the frame — ⊘ (sedated) above ! (dirt);
+     * every dirt-placer's monogram stacks under the !. 16px boxes: the leftmost ring
+     * seat sits at x≈53, so the column must stay inside the screen. */
+    setChips(s, p, roster) {
+      const g = s.chipG;
+      g.clear();
+      s.chipObjs.forEach((o) => o.destroy());
+      s.chipObjs = [];
+      if (!p.alive) return;
+      const dirt = (p.immune_from || []).map((c) => THEME.seatName(c, roster));
+      const bx = s.x - 39 - 5 - 8;                            // 5px gap — the leftmost ring seat
+                                                              // (x≈60) stays on-screen
+      let cy = s.y - 22;
+      if (p.handcuffed) {                                     // bare glyphs, no boxes (ratified)
+        g.lineStyle(2, WHITE, 1).strokeCircle(bx, cy, 7);
+        g.lineBetween(bx - 5, cy + 5, bx + 5, cy - 5);
+        cy += 25;                                             // air between the chips
+      }
+      if (dirt.length) {
+        s.chipObjs.push(this.add.text(bx, cy - 1, "!", style(15, "#ffffff"))
+          .setOrigin(0.5).setResolution(2).setDepth(8));
+        cy += 17;
+        dirt.forEach((n) => {
+          const t = this.add.text(bx, cy, n, style(9.6, "#ffffff"))   // 80% of the plate name
+            .setOrigin(0.5, 0).setResolution(2).setDepth(8);
+          s.chipObjs.push(t);
+          cy += t.height + 3;
+        });
+      }
+    }
+
+    /* ============ cover dots (#5 — punch card, lab-ratified) ============
+     * +1 stamps a dot in · a hit punches it into a lasting faint ring ·
+     * <=2 red · full 5 = pulse A: dots dip to a lighter shade one by one,
+     * bottom→top, continuous (the win-watch tell). */
     _tw(obj, props, dur, ease) {
       return new Promise((r) => this.tweens.add({ targets: obj, ...props, duration: dur,
         ease: ease || "Linear", onComplete: r }));
@@ -183,77 +232,60 @@
     syncCover(s, n, animate) {
       if (!animate || !this.sys.isActive()) {                 // settle/reconnect: no theater
         s.cover = n; s.shown = n;
-        s.sticks.forEach((q, k) => {
-          const on = k < 4 ? k < Math.min(n, 4) : n >= 5;
-          Object.assign(q, { on, prog: on ? 1 : 0, off: 0, alpha: 1, sc: 1, snap: 0 });
-        });
+        s.dots.forEach((q, k) => Object.assign(q, { on: k < n, t: k < n ? 1 : 0, alpha: 1 }));
         return;
       }
       if (n === s.cover) return;
       s.cover = n;
       s.q = s.q.then(() => this._walkCover(s)).catch(() => {});
     }
-    async _walkCover(s) {                                     // one stick at a time toward target
+    async _walkCover(s) {                                     // one dot at a time toward target
       while (s.shown !== s.cover) {
-        if (s.shown < s.cover) { s.shown++; await this._stickAdd(s, s.shown); }
-        else { await this._stickRemove(s, s.shown); s.shown--; }
+        if (s.shown < s.cover) {
+          s.shown++;
+          const q = s.dots[s.shown - 1];
+          Object.assign(q, { on: true, t: 0, alpha: 1 });
+          await this._tw(q, { t: 1 }, 170, "Back.easeOut");   // the stamp
+        } else {
+          const q = s.dots[s.shown - 1];
+          await this._tw(q, { alpha: 0.25 }, 60);             // the punch…
+          Object.assign(q, { on: false, t: 0, alpha: 1 });    // …the hole remains
+          s.shown--;
+        }
       }
     }
-    async _stickAdd(s, count) {
-      const q = s.sticks[count === 5 ? 4 : count - 1];
-      Object.assign(q, { on: true, prog: 0, off: 0, alpha: 1, sc: 1, snap: 0 });
-      if (count === 5) {                                      // the 5th CLOSES the gate
-        await this._tw(q, { prog: 1 }, 180, "Quad.easeOut");
-        await this._tw(s, { flash: 0.9 }, 90); await this._tw(s, { flash: 0 }, 140);
-      } else {
-        await this._tw(q, { prog: 1 }, 150);                  // pen draw-stroke
-      }
-    }
-    async _stickRemove(s, count) {
-      const q = s.sticks[count === 5 ? 4 : count - 1];
-      if (count === 5) await this._tw(q, { off: 8, alpha: 0 }, 210, "Quad.easeIn");  // the cross falls away
-      else await this._tw(q, { snap: 1, alpha: 0 }, 210, "Quad.easeIn");             // stick SNAPS
-      Object.assign(q, { on: false, prog: 0, off: 0, alpha: 1, snap: 0 });
-    }
-    clearSticks(id) {                                         // death: the tally just stops (M14)
+    clearSticks(id) {                                         // death: the card is void (M14)
       const s = this.seats.get(id); if (!s) return;
+      s.dead = true;
       this.syncCover(s, 0, false);
     }
-    _paintStack(g, s) {
-      const gw = 3 * SPITCH + SSW, x0 = s.x - gw / 2, by = s.y - 47;
+    _paintDots(g, s, pulseT) {
+      const px = s.x + 39 + 6 + 3;                            // 6px gap + dot radius
+      const yBot = s.y + 24;
       const col = s.shown <= 2 ? RED : WHITE;
-      const dim = 1 - (s.flash || 0) * 0.45;
-      for (let k = 0; k < 4; k++) {
-        const q = s.sticks[k];
-        if (!q.on && q.snap === 0) continue;
-        const a = Math.max(0, Math.min(1, q.alpha)) * dim;
-        if (a <= 0.01) continue;
-        const sx = x0 + k * SPITCH, sy = by + q.off;
-        if (q.snap > 0) {                                     // halves part + drop
-          const mx = sx + SSW / 2;
-          g.lineStyle(3, col, a);
-          g.lineBetween(sx, sy + SHH + q.snap * 8, mx - q.snap * 3, sy + q.snap * 10);
-          g.lineBetween(mx + q.snap * 3, sy + q.snap * 10, sx + SSW, sy - SHH + q.snap * 14);
-          continue;
-        }
-        g.lineStyle(3, col, a);                               // partial pen stroke, tip to tail
-        g.lineBetween(sx, sy + SHH, sx + SSW * q.prog, sy + SHH - 2 * SHH * q.prog);
-      }
-      const c = s.sticks[4];                                  // the gate cross
-      if (c.on || c.prog > 0) {
-        const a = Math.max(0, Math.min(1, c.alpha)) * dim;
-        if (a > 0.01) {
-          const len = gw + 5, lx = x0 - 3, cy = by + c.off;
-          const half = (len * c.prog) / 2, cxm = lx + len / 2;
-          g.lineStyle(3, col, a);
-          g.lineBetween(cxm - half, cy - SHH * c.prog, cxm + half, cy + SHH * c.prog);
+      for (let k = 0; k < 5; k++) {
+        const q = s.dots[k], cy = yBot - k * 12;
+        if (q.on) {
+          const grow = Math.min(1, q.t * 1.6);
+          const sc = q.t < 1 ? (1.5 - 0.5 * q.t) : 1;
+          let a = q.alpha;
+          if (s.shown === 5) {                                // pulse A: the climbing dip
+            const t = pulseT % 1;
+            const d = Math.abs(t * 6 - 0.5 - k);
+            a *= 1 - Math.max(0, 1 - d * 1.4) * 0.75;
+          }
+          g.fillStyle(col, a).fillCircle(px, cy, 3 * sc * grow);
+        } else {
+          g.lineStyle(1, WHITE, 0.30);                        // the punched hole
+          g.strokeCircle(px, cy, 3);
         }
       }
     }
-    update() {                                                // stick layer repaint (cheap: <=25 strokes)
-      const g = this.stickG; if (!g) return;
+    update(_, dt) {                                           // dot layer repaint (cheap: <=25 marks)
+      const g = this.dotG; if (!g) return;
+      this._pulseT = (this._pulseT || 0) + (dt || 16) / 1800;
       g.clear();
-      this.seats.forEach((s) => this._paintStack(g, s));
+      this.seats.forEach((s) => { if (!s.dead) this._paintDots(g, s, this._pulseT); });
     }
 
     /* ================= band ================= */
@@ -443,7 +475,7 @@
     shake() { this.cameras.main.shake(140, 0.012); }
     seatRecoil(id) {
       const s = this.seats.get(id); if (!s) return;
-      const parts = [s.tile, s.face, s.plate, s.nameT];
+      const parts = [s.tile, s.face, s.nameT];
       this.tweens.add({ targets: parts, x: "+=7", yoyo: true, repeat: 2, duration: 45 });
     }
     pipShatter(id, nDamage) {                                 // M12 — red particles (danger)
@@ -466,6 +498,9 @@
     }
     async stampSeat(id, str, red) {
       const s = this.seats.get(id); if (!s) return;
+      const chips = [s.chipG, ...s.chipObjs];                 // the stamp owns the seat for its beat —
+      chips.forEach((o) => o.setVisible(false));              // chips duck out (they return after)
+      s.stamp.setY(s.y);
       s.stamp.setText(str).setColor(red ? "#c8102e" : "#ffffff").setVisible(true).setScale(1.6).setAlpha(0);
       const hw = s.stamp.width * 0.9 + 6;                     // clamp at peak entrance scale (1.6 + overshoot)
       s.stamp.x = Math.min(Math.max(s.x, hw), W - hw);
@@ -473,6 +508,7 @@
       await this.w(900 * READ);
       if (str !== "BURNED") { this.tweens.add({ targets: s.stamp, alpha: 0, duration: 400 }); await this.w(400);
         s.stamp.setVisible(false).setAlpha(1); }
+      if (!s.dead) chips.forEach((o) => o.setVisible(true));  // dead seats keep no chips
     }
     _pt(p) { return typeof p === "object" ? p : this.seatXY(p); }
     _short(a, b0) {                                           // stop 70px before the seat — clear of the tile
@@ -567,9 +603,9 @@
     }
     setSawChip(on) { if (this.sawChip) this.sawChip.setVisible(!!on); }
     equalizePlates() {                                        // M27 — team semantics visibly end
-      this.seats.forEach((s) => { s.plate.setFillStyle(0x000000);
-        s.nameT.setColor("#ffffff").setStroke("#000000", 6);
-        s.plate.setStrokeStyle(1, WHITE, 0.95); s.tile.setStrokeStyle(1, WHITE, 0.55);
+      this.seats.forEach((s) => {
+        if (!s.dead) this.repaintPlate(s, s.nameT.text, "bare");   // carriers vanish with the teams
+        s.tile.setStrokeStyle(1, WHITE, 0.55);
         s.tk = 1; s.fa = 1; });
     }
 
@@ -1020,9 +1056,7 @@
     async skipBeat(id, roster) {                               // M23 — the invisible skip becomes a beat
       await this.dialTo(id, false);
       await this.stampSeat(id, "SKIPPED", false);
-      const s = this.seats.get(id);
-      if (s && s.chipT.text.includes("SEDATED"))
-        s.chipT.setText(s.chipT.text.replace("SEDATED", "").trim());
+      // the ⊘ chip clears via choreo's work-copy repaint right after this beat
     }
     async winnerScene(id, roster) {                            // M28
       this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1).setDepth(24);
