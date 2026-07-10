@@ -66,6 +66,12 @@ async def _deadline(lb, gen):
             for m in lb.members:
                 if m["ws"] is not None:
                     await _send(m["ws"], {"type": "end", "winner": lb.room.winner})
+    else:
+        # Early wake: asyncio.sleep ran on the loop's MONOTONIC clock but the deadline
+        # is WALL clock — skew (or a backward step) can land us here a hair before
+        # phase_ends_at. on_deadline() no-oped, gen is unchanged, and nothing else will
+        # broadcast — re-arm or the phase timer is dead forever (nobody fined/auto-shot).
+        _schedule_deadline(lb)
 
 
 def _schedule_deadline(lb):
