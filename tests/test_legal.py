@@ -62,6 +62,26 @@ def test_legal_actions_includes_items_and_shoot():
     assert any(isinstance(a, UseItem) and a.item == Item.SAW for a in acts)
 
 
+def test_handcuffs_never_offered_on_teammates():
+    # 2026-07-10: the sleep item may not target teammates while teams are active;
+    # the can't-shoot-me token (IMMUNITY) stays legal on them.
+    s = mkstate([Team.RED, Team.RED, Team.BLUE, Team.BLUE, Team.BLUE])
+    s.players[0].inventory = {Item.HANDCUFFS: 1, Item.IMMUNITY: 1}
+    acts = legal_actions(s, 0)
+    cuff = {a.target_id for a in acts if isinstance(a, UseItem) and a.item == Item.HANDCUFFS}
+    imm = {a.target_id for a in acts if isinstance(a, UseItem) and a.item == Item.IMMUNITY}
+    assert 1 not in cuff and cuff == {2, 3, 4}
+    assert 1 in imm
+
+
+def test_handcuffs_free_for_all_when_teams_off():
+    s = mkstate([Team.RED, Team.RED])                # < 3 living: teams dissolved
+    s.players[0].inventory = {Item.HANDCUFFS: 1}
+    acts = legal_actions(s, 0)
+    cuff = {a.target_id for a in acts if isinstance(a, UseItem) and a.item == Item.HANDCUFFS}
+    assert cuff == {1}
+
+
 def test_second_same_caster_immunity_not_offered():
     from social_roulette.engine.engine import new_game
     from social_roulette.engine.actions import legal_actions, UseItem

@@ -43,6 +43,8 @@ def test_full_action_episode_terminates():
 
 
 def test_learner_wins_are_possible_and_losses_too():
+    # 150 seeds: engine-rule changes shift bot RNG consumption and move which
+    # seeds win (2026-07-10 handcuff teammate-ban pushed the first win to seed 64).
     env = SocialRouletteSingleEnv(shoot_only=True)
-    results = [_play_episode(env, s) for s in range(60)]
+    results = [_play_episode(env, s) for s in range(150)]
     assert any(r == 1.0 for r in results) and any(r == -1.0 for r in results)

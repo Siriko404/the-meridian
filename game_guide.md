@@ -85,7 +85,7 @@ Each item is used on your own turn and has both an **effect** and a **point valu
 | **Magnifier** | Peek at the **next 1 shell**. A second peek at an already-revealed shell does nothing. |
 | **Saw** | Your next shot deals **double damage** (2 lives), including a self-shot (2 self-damage). **If that shot is a blank, the Saw is wasted.** **Max one Saw per turn** (no stacking to 4). |
 | **Beer** | Discard the current shell and draw the next. **The discarded shell is removed for good** (the chamber shrinks). Beer the last shell → chamber empties → reload → you still take your shot from the new chamber. |
-| **Handcuffs** | Place on one player — they **skip their next turn.** Only **one Handcuff at a time** per target (a second while one is active does nothing). |
+| **Handcuffs** | Place on one player — they **skip their next turn.** Only **one Handcuff at a time** per target (a second while one is active does nothing). **Never on a teammate** while teams are active (2026-07-10). |
 
 ### Item-Use Rules
 - Items are used **only on your own turn** (talk or decision phase, and bonus turns). **No reactive use.**

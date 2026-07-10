@@ -78,9 +78,14 @@ def legal_actions(state, player_id):
                 if player_id not in player_by_id(state, o).immunity_against:
                     acts.append(UseItem(it, o))
         elif it == Item.HANDCUFFS:
+            from .endgame import teams_active
             for o in others:
-                if not player_by_id(state, o).handcuffed:
-                    acts.append(UseItem(it, o))
+                q = player_by_id(state, o)
+                if q.handcuffed:
+                    continue
+                if teams_active(state) and q.team == p.team:   # no sedating teammates (2026-07-10)
+                    continue
+                acts.append(UseItem(it, o))
     for q in living_players(state):
         pay = cheapest_payment(p, 4 if (q.id == player_id and p.flipback_discount) else 5)
         if pay is not None:
