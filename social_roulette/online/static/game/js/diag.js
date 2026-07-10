@@ -21,8 +21,8 @@
     "background:rgba(0,0,0,.75);padding:4px 6px";
   const mk = (label, params) => '<a style="color:#ff0;margin-right:10px" href="?' + params + '">' + label + "</a>";
   bar.innerHTML = mk("BASE", "diag=1") + mk("RES1", "diag=1&res1=1") +
-    mk("NOPULSE", "diag=1&nopulse=1") + mk("CANVAS", "diag=1&canvas=1") +
-    mk("ALL", "diag=1&res1=1&nopulse=1&canvas=1");
+    mk("NOPULSE", "diag=1&nopulse=1") + mk("WEBGL", "diag=1&webgl=1") +
+    mk("ALL", "diag=1&res1=1&nopulse=1&webgl=1");
   document.body.appendChild(bar);
 
   /* ---- rAF meter: rolling 2s window ---- */
@@ -43,7 +43,7 @@
     const r = g && g.renderer ? (g.renderer.gl ? "WEBGL" : "CANVAS") : "no game yet";
     const cv = g && g.canvas ? g.canvas.width + "x" + g.canvas.height : "";
     const objs = sc && sc.children ? sc.children.list.length : 0;
-    const flags = ["res1", "nopulse", "canvas"].filter((k) => q.get(k)).join("+") || "none";
+    const flags = ["res1", "nopulse", "webgl"].filter((k) => q.get(k)).join("+") || "none";
     hud.textContent =
       "FPS " + (1000 / avg).toFixed(0) + " · avg " + avg.toFixed(1) + "ms · worst " + worst.toFixed(0) + "ms\n" +
       r + " · DPR " + (window.devicePixelRatio || 1) + " · " + cv + " · objs " + objs + "\n" +

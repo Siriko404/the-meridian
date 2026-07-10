@@ -63,7 +63,9 @@
     show(null);
     SCENE.ready = (s) => { scene = s; window.__scene = s; s.setCode(sceneCode); drain(); };
     game = new Phaser.Game({
-      type: new URLSearchParams(location.search).get("canvas") ? Phaser.CANVAS : Phaser.AUTO,
+      // CANVAS by default: phone-verified smooth where the WebGL path stuttered hard
+      // (2026-07-10 live ?diag bisect). ?webgl=1 restores AUTO for A/B.
+      type: new URLSearchParams(location.search).get("webgl") ? Phaser.AUTO : Phaser.CANVAS,
       parent: "stage", width: SCENE.W, height: SCENE.H,
       backgroundColor: "#000000", pixelArt: true,
       scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
