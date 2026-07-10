@@ -9,5 +9,8 @@
 </style></head><body>
 <div id="stage"></div>
 <script src="/static/vendor/phaser.min.js"></script>
-<script src="/static/game/lifelab.js"></script>
+<script>
+  // cache-buster: lab iterations must always load fresh (same as index.html)
+  document.write('<script src="/static/game/lifelab.js?v=' + Date.now() + '"><\/script>');
+</script>
 </body></html>
