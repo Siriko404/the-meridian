@@ -12,8 +12,8 @@ def mkstate(n=5, shells=None):
                      chamber=Chamber(shells or [Shell.LIVE, Shell.BLANK], 0), rng=SeededRng(0))
 
 
-def test_limit_floor_1_3():
-    assert I.consumption_limit(mkstate(5)) == 6 and I.consumption_limit(mkstate(8)) == 10
+def test_limit_equals_living_players():
+    assert I.consumption_limit(mkstate(5)) == 5 and I.consumption_limit(mkstate(8)) == 8
 
 
 def test_cig_heals_and_blocks_at_max():

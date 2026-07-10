@@ -16,7 +16,7 @@ def test_view_carries_v2_fields():
               "saw_active", "use_counts", "use_limit", "teams_active"):
         assert k in v, k
     assert v["phase"] == "talk" and v["teams_active"] is True
-    assert v["use_limit"] == 6                       # floor(5 * 1.3)
+    assert v["use_limit"] == 5                       # cap = living players (×1.0, 2026-07-10)
     me = r.view(r.current)
     assert "flipback_discount" in me
 

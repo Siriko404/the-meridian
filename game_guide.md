@@ -93,11 +93,10 @@ Each item is used on your own turn and has both an **effect** and a **point valu
 - You **may use multiple of the same item in one turn** — e.g. 2 Cigarettes heal 2, 2 Beers remove 2 shells — **except Saw (one per turn)**, and you may never place two of the same item on the same target.
 
 ### Consumption Limits
-- **Limit = (living players) × 1.3**, rounded **down** (e.g. 8 alive → 10 uses).
+- **Limit = the number of living players** (e.g. 8 alive → 8 uses). *(Was ×1.3 — tightened 2026-07-10.)*
 - When a cap is hit, **no one** can use that item until a player is eliminated. **A death resets all caps.**
 - A "use" is counted the **moment you commit the item** (Saw activated, Immunity placed) — even if it later whiffs (Saw on a blank, an untriggered Immunity).
 - **Sacrificing an item as currency does NOT count** toward its cap.
-- *(At ×1.3 this cap rarely binds — kept by design choice; see Design Notes.)*
 
 ---
 
@@ -208,7 +207,7 @@ Silence. Decide your target: **yourself** or **another player**. **Item use and 
 - **Inventory:** ≤ 3 per type, ≤ 8 total; over-cap items not received
 - **Chamber load:** accumulate two dice until **live > living players**; 30–70% live; shuffled, hidden order
 - **Reload triggers:** chamber empties (→ +2 items each, rolled on the 1–6 table) OR any elimination (→ killer's full extra turn, caps reset; items only if the chamber also emptied)
-- **Item caps:** (living players) × 1.3, rounded down; resets on any elimination; counted on commit; sacrificing is cap-free
+- **Item caps:** = living players; resets on any elimination; counted on commit; sacrificing is cap-free
 - **Multi-use:** same item multiple times/turn OK — except Saw (1/turn) and no double-placing on one target
 - **Currency:** items themselves; no change on overpay
 - **Flip:** 5 pts, any player, unlimited, your turn; not permanent; 4 pts to flip back (next actionable turn only)
@@ -221,7 +220,7 @@ Silence. Decide your target: **yourself** or **another player**. **Item use and 
 
 ## Design Notes (playtest-tuning, not open holes)
 
-- **Scarcity:** at ×1.3 the use-cap rarely binds, so the "items lock → someone must die" loop is mostly dormant. **Kept at 1.3 by choice**; retune lower at playtest if the loop should bite.
-- **Tuning dials:** reload refill amount (2), inventory total cap (8), and the ×1.3 multiplier — all adjustable after playtest.
+- **Scarcity:** at ×1.0 (tightened 2026-07-10 from ×1.3) the use-cap binds sooner — the "items lock → someone must die" loop is meant to bite.
+- **Tuning dials:** reload refill amount (2), inventory total cap (8), and the cap multiplier — all adjustable after playtest.
 - **Self-shoot viability:** ~57% live makes self-shooting (for a bonus turn) a risky bet; watch whether it goes unused.
 - **Two engine defaults I set (change freely):** after a kill, play resumes from the seat *after the killer*; and there is *no hard maximum* player count.
