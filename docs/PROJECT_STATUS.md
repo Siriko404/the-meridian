@@ -199,7 +199,8 @@ are RATIFIED by the user — do not re-litigate:
   tunnel providers (cloudflare/ngrok/pinggy/localhost.run/tailscale TLS-FAIL; port 7844 blocked;
   fly.dev + run.app also blocked; onrender.com/hf.space/koyeb.app pass). Free-tier quirk: spins
   down after 15 min idle, ~50 s wake for first visitor; WS traffic keeps it awake during play.
-  Phone gate can run against the Render URL now. Still his call: bots can't answer/send offers (server gap) ·
+  **PHONE GATE PASSED 2026-07-09: user played the Render URL on his phone — "it works."**
+  Remaining before merge: nothing. Merge --no-ff to master = next, on his word. Still his call: bots can't answer/send offers (server gap) ·
   optional WANT-screen give-summary row · legal audit item-divergence picks. NOTE: threadlab
   `?auto=` headless smoke broken for ALL flows (pre-existing; films are the verification).
   SIDE NOTE: user ran a legal-risk agent → `docs/LEGAL_RISK_AUDIT.md` (uncommitted, HIS to
