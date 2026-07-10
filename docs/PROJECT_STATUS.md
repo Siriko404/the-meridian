@@ -189,8 +189,10 @@ are RATIFIED by the user — do not re-litigate:
   Lab gotcha fixed: view() factory ignored top-level `legal:` (only o.over merged) → root rows
   correctly dimmed = row() arm-timeouts; factory now takes o.legal. RUN RECIPE: kill headless
   chromes (CIM CommandLine like '*--headless*'), fresh --user-data-dir,
-  `wirelab.html?canvas=1&cb=<ts>` → wait wire_errors.txt → READ EVERY SHEET. USER'S OWN DEFECT
-  LIST STILL NOT COLLECTED — ask him to replay localhost:8016 and compare. NOTE: threadlab
+  `wirelab.html?canvas=1&cb=<ts>` → wait wire_errors.txt → READ EVERY SHEET. **USER RATIFIED
+  THE PASS 2026-07-09: "all is perfect."** NEXT = Task-9 phone gate (he plays localhost:8016 on
+  phone) → merge --no-ff to master. Still his call: bots can't answer/send offers (server gap) ·
+  optional WANT-screen give-summary row · legal audit item-divergence picks. NOTE: threadlab
   `?auto=` headless smoke broken for ALL flows (pre-existing; films are the verification).
   SIDE NOTE: user ran a legal-risk agent → `docs/LEGAL_RISK_AUDIT.md` (uncommitted, HIS to
   ratify — do not touch). **Labs (dev pages, cache-busted):** `threadlab.html` (MOVE/MOVE·R/DECIDE/
