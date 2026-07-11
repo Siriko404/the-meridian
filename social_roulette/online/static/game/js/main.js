@@ -7,6 +7,7 @@
   let pid = localStorage.meridian_pid || null, profile = null;
   try { profile = JSON.parse(localStorage.meridian_profile || "null"); } catch (e) { /* stale */ }
   let pendingCode = null, joining = false;      // the code we asked to board (join-phase errors only)
+  let myReady = false, lobbySeats = 5, lobbyAllReady = false;   // platform state (spec §3)
   let game = null, scene = null, sceneCode = "";
   let queue = [], busy = false, ended = false, endWinner = null;
   let curView = null, roster = null, portraits = null;
@@ -79,9 +80,21 @@
     } else if (m.type === "lobby") {
       sceneCode = m.code;
       localStorage.meridian_car = m.code;                   // a fresh car mints its code here
+      host = m.host; lobbySeats = m.seats; lobbyAllReady = m.all_ready;
       $("lcode").textContent = m.code;
+      $("lsub").textContent = "NIGHT SERVICE · " + m.seats + " SEATS";
+      $("seatsn").textContent = m.seats + " SEATS";
       $("members").innerHTML = m.members.map((x) =>
-        `<div class="member">${esc(x.name)}${x.host ? " · CONDUCTOR" : ""}</div>`).join("");
+        `<div class="mrow"><span class="mface" style="background-position:${-(x.portrait % 4) * 36}px ${-Math.floor(x.portrait / 4) * 36}px"></span>` +
+        `<span class="member">${esc(x.name)}${x.host ? " · CONDUCTOR" : ""}</span>` +
+        `<span class="mready${x.ready ? " on" : ""}">${x.ready ? "✓" : "·"}</span></div>`).join("");
+      const me = m.members[m.you] || {};
+      myReady = !!me.ready;
+      $("readybtn").textContent = myReady ? "READY ✓" : "I AM READY";
+      $("readybtn").classList.toggle("ghost", !myReady);
+      $("dial").style.display = m.host ? "flex" : "none";
+      $("startbtn").style.display = m.host ? "" : "none";
+      $("startbtn").classList.toggle("locked", !m.all_ready);   // DEPART sleeps until the
     } else if (m.type === "view") {
       roster = m.roster || roster;
       portraits = m.portraits || portraits;
@@ -744,7 +757,13 @@
   $("newcarbtn").addEventListener("click", () => connect(""));
   $("enterbtn").addEventListener("click", () => connect());
   $("code").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
-  $("startbtn").addEventListener("click", () => net.send({ type: "start" }));
+  $("readybtn").addEventListener("click", () => net.send({ type: "ready", on: !myReady }));
+  $("seatminus").addEventListener("click", () => net.send({ type: "seats", n: lobbySeats - 1 }));
+  $("seatplus").addEventListener("click", () => net.send({ type: "seats", n: lobbySeats + 1 }));
+  $("startbtn").addEventListener("click", () => {
+    if (!lobbyAllReady) { banner("THE MANIFEST IS NOT READY"); return; }
+    net.send({ type: "start" });
+  });
   // land: an unfinished journey re-boards itself; otherwise the terminus
   if (pid && localStorage.meridian_car) connect(localStorage.meridian_car);
   else gotoTerminus();

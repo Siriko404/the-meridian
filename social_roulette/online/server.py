@@ -167,11 +167,13 @@ async def _lobby_state(lb):
     members = [{"name": m["name"], "portrait": m["portrait"], "seat": m["seat"],
                 "host": m["host"], "ready": m.get("ready", False)} for m in lb.members]
     all_ready = all(m.get("ready") for m in lb.members)
-    for m in lb.members:
+    for i, m in enumerate(lb.members):
         if m["ws"] is not None:
-            # per-recipient "host": conductor inheritance must reach the heir's DEPART button
+            # per-recipient "host"/"you": conductor inheritance must reach the heir's DEPART
+            # button, and rows carry NO pids (a pid is a credential — never broadcast)
             await _send(m["ws"], {"type": "lobby", "code": lb.code, "seats": lb.seats,
-                                  "members": members, "host": m["host"], "all_ready": all_ready})
+                                  "members": members, "host": m["host"], "you": i,
+                                  "all_ready": all_ready})
 
 
 @app.get("/")

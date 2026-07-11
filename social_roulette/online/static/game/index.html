@@ -111,13 +111,19 @@ document.write('<link rel="stylesheet" href="/static/game/game.css?v=' + Date.no
 <section id="lobby" class="overlay">
   <div class="ticket">
     <div class="rule"></div>
-    <div class="sub">CAR</div>
+    <div id="lsub" class="sub">NIGHT SERVICE</div>
     <div id="lcode" class="code"></div>
     <div class="rule"></div>
     <label class="lbl">MANIFEST</label>
     <div id="members"></div>
+    <div id="dial" class="dialrow" style="display:none">
+      <button id="seatminus" class="step">−</button>
+      <span id="seatsn" class="member"></span>
+      <button id="seatplus" class="step">+</button>
+    </div>
+    <button id="readybtn" class="ghost">I AM READY</button>
     <button id="startbtn" style="display:none">DEPART</button>
-    <p class="hint">The conductor departs; empty seats fill with bots.</p>
+    <p class="hint">The conductor departs; empty seats become agents of the house.</p>
     <div class="rule"></div>
   </div>
 </section>
