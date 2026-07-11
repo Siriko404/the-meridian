@@ -67,10 +67,10 @@
     if (game) return;
     show(null);
     // DPR 3 backing store, camera-zoomed: layout coordinates untouched, text crisp on
-    // phones (reslab lock, user 2026-07-11). Default 1 until the user's one-go phone
-    // check of ?dpr=3 passes (tap transform unproven on the rig) — then flip to 3.
+    // phones (reslab lock 2026-07-11; his one-go phone check of ?dpr=3: "its perfect" —
+    // sharpness AND taps). ?dpr=1 is the no-redeploy escape hatch.
     const q = new URLSearchParams(location.search);
-    const DPR = Math.max(1, parseInt(q.get("dpr") || "1", 10) || 1);
+    const DPR = Math.max(1, parseInt(q.get("dpr") || "3", 10) || 3);
     const origRes = Phaser.GameObjects.Text.prototype.setResolution;
     Phaser.GameObjects.Text.prototype.setResolution = function (r) {
       return origRes.call(this, Math.max(r || 1, DPR));     // texts match the backing store
