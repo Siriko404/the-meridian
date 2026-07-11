@@ -68,13 +68,13 @@ def record_check(code):
 class Lobby:
     def __init__(self, code):
         self.code = code
-        self.members = []          # list of {"name","token","seat","ws","host"}
+        self.members = []          # list of {"pid","name","portrait","seat","ws","host","ready"}
         self.room = None           # Room once started
         self.lock = asyncio.Lock()
         self.deadline_task = None   # pending asyncio task that fires the phase deadline
 
-    def by_token(self, token):
-        return next((m for m in self.members if m["token"] == token), None)
+    def by_pid(self, pid):
+        return next((m for m in self.members if m.get("pid") == pid), None)
 
 
 LOBBIES = {}
@@ -136,20 +136,36 @@ def _capture_payloads(lb):
             for m in lb.members if m["seat"] is not None}
 
 
+def _portraits(lb):
+    # Every seat wears a face: humans their chosen frame, bots the UNUSED frames
+    # first (collision-free at any fill — spec §5). Pure + deterministic per
+    # broadcast: seating and members' picks are fixed once the car departs.
+    used = {m["portrait"] for m in lb.members if m["seat"] is not None}
+    pool = [f for f in range(12) if f not in used]
+    out = {m["seat"]: m["portrait"] for m in lb.members if m["seat"] is not None}
+    if lb.room is not None:
+        for s in lb.room.seating:
+            if s not in out:
+                out[s] = pool.pop(0) if pool else s % 12
+    return out
+
+
 async def _broadcast_views(lb, payloads=None):
     roster = {m["seat"]: m["name"] for m in lb.members if m["seat"] is not None}
+    portraits = _portraits(lb)
     for m in lb.members:
         if m["ws"] is not None and m["seat"] is not None:
             # Mutating paths pass a lock-captured snapshot; the no-mutation join rebroadcast
             # (payloads is None) computes fresh — the room is not changing under it.
             p = payloads[m["seat"]] if payloads is not None else {
                 "events": lb.room.events_for(m["seat"]), **lb.room.view(m["seat"])}
-            await _send(m["ws"], {"type": "view", "roster": roster, **p})
+            await _send(m["ws"], {"type": "view", "roster": roster, "portraits": portraits, **p})
     _schedule_deadline(lb)
 
 
 async def _lobby_state(lb):
-    members = [{"name": m["name"], "seat": m["seat"], "host": m["host"]} for m in lb.members]
+    members = [{"name": m["name"], "portrait": m["portrait"], "seat": m["seat"],
+                "host": m["host"], "ready": m.get("ready", False)} for m in lb.members]
     for m in lb.members:
         if m["ws"] is not None:
             await _send(m["ws"], {"type": "lobby", "code": lb.code, "members": members})
@@ -210,19 +226,22 @@ async def ws(ws: WebSocket):
 
             if t == "join":
                 code = (msg.get("code") or "").strip().upper() or secrets.token_hex(2).upper()
+                prof = PROFILES.get(str(msg.get("pid") or "").strip().upper())
+                if not prof:                             # papers ARE the identity (spec §2)
+                    await _send(ws, {"type": "error", "msg": "papers not in order"})
+                    continue
                 lb = LOBBIES.setdefault(code, Lobby(code))
-                token = msg.get("token")
-                me = lb.by_token(token) if token else None
+                me = lb.by_pid(prof["pid"])
                 if me:                                   # reconnect: reclaim seat
                     me["ws"] = ws
                 else:
                     if lb.room is not None and len(lb.members) >= NUM:
                         await _send(ws, {"type": "error", "msg": "room full / already started"})
                         continue
-                    me = {"name": msg.get("name") or "Player", "token": secrets.token_hex(8),
-                          "seat": None, "ws": ws, "host": len(lb.members) == 0}
+                    me = {"pid": prof["pid"], "name": prof["initials"], "portrait": prof["portrait"],
+                          "seat": None, "ws": ws, "host": len(lb.members) == 0, "ready": False}
                     lb.members.append(me)
-                await _send(ws, {"type": "joined", "seat": me["seat"], "token": me["token"], "host": me["host"]})
+                await _send(ws, {"type": "joined", "seat": me["seat"], "pid": me["pid"], "host": me["host"]})
                 if lb.room is None:
                     await _lobby_state(lb)
                 else:

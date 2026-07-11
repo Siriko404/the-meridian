@@ -1,6 +1,22 @@
-import json
+﻿import json
+
+import pytest
 from starlette.testclient import TestClient
+
+from social_roulette.online import server, storage
 from social_roulette.online.server import app
+
+
+@pytest.fixture(autouse=True)
+def data_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr(storage, "DATA_DIR", tmp_path)
+    server.PROFILES.clear()
+    server.LOBBIES.clear()
+    return tmp_path
+
+
+def _pid(fi="a", li="b", portrait=0):
+    return server.papers_create(fi, li, portrait)[1]["pid"]
 
 
 def test_full_game_over_ws_no_leak():
@@ -10,7 +26,7 @@ def test_full_game_over_ws_no_leak():
     public per game_guide 'Information & Visibility' and rides the event stream.)"""
     c = TestClient(app)
     with c.websocket_connect("/ws") as ws:
-        ws.send_json({"type": "join", "code": "TESTROOM", "name": "A"})
+        ws.send_json({"type": "join", "code": "TESTROOM", "pid": _pid()})
         winner = None
         saw_shot_event = False
         for _ in range(1000):
@@ -44,7 +60,7 @@ def test_full_game_over_ws_no_leak():
 def test_illegal_action_rejected_over_ws():
     c = TestClient(app)
     with c.websocket_connect("/ws") as ws:
-        ws.send_json({"type": "join", "code": "TESTROOM2", "name": "A"})
+        ws.send_json({"type": "join", "code": "TESTROOM2", "pid": _pid()})
         got_error = False
         for _ in range(50):
             m = ws.receive_json()
@@ -63,14 +79,17 @@ def test_proceed_trade_messages_and_chat_gate():
     rejected outside talk; roster rides every view."""
     c = TestClient(app)
     with c.websocket_connect("/ws") as ws:
-        ws.send_json({"type": "join", "code": "TESTROOM3", "name": "A"})
+        ws.send_json({"type": "join", "code": "TESTROOM3", "pid": _pid()})
         saw_decision = False
         for _ in range(200):
             m = ws.receive_json()
             if m["type"] == "joined":
                 ws.send_json({"type": "start"})
             elif m["type"] == "view":
-                assert m["roster"].get("0") == "A" or m["roster"].get(0) == "A"
+                assert m["roster"].get("0") == "A.B." or m["roster"].get(0) == "A.B."
+                # every seat wears a face; the human keeps their chosen frame (0)
+                assert len(m["portraits"]) == 5
+                assert m["portraits"].get("0") == 0 or m["portraits"].get(0) == 0
                 if m["current"] == m["you"] and m.get("phase") == "talk":
                     ws.send_json({"type": "proceed"})
                 elif m.get("phase") == "decision":
@@ -87,7 +106,7 @@ def test_malformed_payload_does_not_kill_socket():
     answers 'bad payload' and the socket still services a subsequent ping."""
     c = TestClient(app)
     with c.websocket_connect("/ws") as ws:
-        ws.send_json({"type": "join", "code": "TESTROOM5", "name": "A"})
+        ws.send_json({"type": "join", "code": "TESTROOM5", "pid": _pid()})
         started = False
         for _ in range(50):
             m = ws.receive_json()
@@ -95,7 +114,7 @@ def test_malformed_payload_does_not_kill_socket():
                 ws.send_json({"type": "start"})
             elif m["type"] == "view" and not started:
                 started = True
-                ws.send_json({"type": "action", "i": "garbage"})   # non-int → bad payload
+                ws.send_json({"type": "action", "i": "garbage"})   # non-int -> bad payload
             elif m["type"] == "error":
                 assert m["msg"] == "bad payload"
                 ws.send_json({"type": "ping"})                     # socket must still be alive
@@ -108,7 +127,7 @@ def test_malformed_payload_does_not_kill_socket():
 def test_trade_offer_rejected_outside_talk_over_ws():
     c = TestClient(app)
     with c.websocket_connect("/ws") as ws:
-        ws.send_json({"type": "join", "code": "TESTROOM4", "name": "A"})
+        ws.send_json({"type": "join", "code": "TESTROOM4", "pid": _pid()})
         got_error = False
         for _ in range(100):
             m = ws.receive_json()
@@ -120,9 +139,42 @@ def test_trade_offer_rejected_outside_talk_over_ws():
                 elif m.get("phase") == "decision":
                     ws.send_json({"type": "trade_offer", "to": 1, "give": ["MAGNET"], "want": []})
             elif m["type"] == "error":
-                got_error = True                     # decision phase / bot teammate — rejected
+                got_error = True                     # decision phase / bot teammate - rejected
                 break
         assert got_error
+
+
+def test_join_without_papers_is_refused():
+    c = TestClient(app)
+    with c.websocket_connect("/ws") as ws:
+        ws.send_json({"type": "join", "code": "TESTROOM6", "pid": "M-FAKE"})
+        m = ws.receive_json()
+        assert m["type"] == "error" and m["msg"] == "papers not in order"
+
+
+def test_reconnect_by_pid_reclaims_seat():
+    c = TestClient(app)
+    pid = _pid()
+    with c.websocket_connect("/ws") as ws:
+        ws.send_json({"type": "join", "code": "TESTROOM7", "pid": pid})
+        seat = None
+        for _ in range(20):
+            m = ws.receive_json()
+            if m["type"] == "joined":
+                ws.send_json({"type": "start"})
+            elif m["type"] == "view":
+                seat = m["you"]
+                break
+        assert seat is not None
+    with c.websocket_connect("/ws") as ws:      # same papers, fresh socket
+        ws.send_json({"type": "join", "code": "TESTROOM7", "pid": pid})
+        for _ in range(20):
+            m = ws.receive_json()
+            if m["type"] == "joined":
+                assert m["seat"] == seat        # the seat was held for the papers
+                break
+        else:
+            assert False, "never rejoined"
 
 
 def test_root_serves_v2_client():

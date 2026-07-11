@@ -11,7 +11,8 @@ from social_roulette.online.room import Room
 
 def _lobby(wall):
     lb = server.Lobby("TEST")
-    lb.members = [{"name": "P", "token": "tok", "seat": 0, "ws": None, "host": True}]
+    lb.members = [{"pid": "M-TEST", "name": "P.P.", "portrait": 0, "seat": 0,
+                   "ws": None, "host": True, "ready": True}]
     lb.room = Room(human_seats={0}, seed=1, now_fn=lambda: wall[0])
     return lb
 
