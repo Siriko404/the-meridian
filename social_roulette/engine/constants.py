@@ -20,13 +20,13 @@ class Bullet(Enum):
     BLANK = auto()
 
 
-POINT_VALUE = {
-    Item.TERMS: 6,
+POINT_VALUE = {          # ladder ratified 2026-07-10 (itemsession): TERMS<->SHAKEDOWN swapped
     Item.PASSPORT: 6,
+    Item.SHAKEDOWN: 6,
     Item.GEIGER: 5,
     Item.POISON: 5,
     Item.MAGNET: 4,
-    Item.SHAKEDOWN: 4,
+    Item.TERMS: 4,
 }
 ITEM_TABLE = {
     1: Item.MAGNET,

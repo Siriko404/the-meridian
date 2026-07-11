@@ -50,8 +50,8 @@ def test_next_living_after_cyclic():
 
 
 def test_cheapest_payment_minimizes():
-    p = Player(0, Team.RED, 3, True, {Item.MAGNET: 1, Item.TERMS: 1}, set(), False, False)
-    assert cheapest_payment(p, 5) == [Item.TERMS]
+    p = Player(0, Team.RED, 3, True, {Item.MAGNET: 1, Item.SHAKEDOWN: 1}, set(), False, False)
+    assert cheapest_payment(p, 5) == [Item.SHAKEDOWN]
 
 
 def test_legal_actions_includes_items_and_shoot():

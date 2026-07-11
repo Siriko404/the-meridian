@@ -13,8 +13,8 @@ def mkstate():
 
 def test_pay_burns_overpay():
     s = mkstate()
-    s.players[0].inventory = {Item.TERMS: 1}
-    pay_cost(s, 0, 5, [Item.TERMS])
+    s.players[0].inventory = {Item.SHAKEDOWN: 1}
+    pay_cost(s, 0, 5, [Item.SHAKEDOWN])
     assert s.players[0].inventory == {}
 
 

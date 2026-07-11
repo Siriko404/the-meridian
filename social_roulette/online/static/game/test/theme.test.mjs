@@ -10,7 +10,7 @@ test("all six engine enums are mapped to ratified names", () => {
 });
 
 test("points match the public POINT_VALUE table (game_guide:110)", () => {
-  const pts = { PASSPORT: 6, TERMS: 6, GEIGER: 5, POISON: 5, MAGNET: 4, SHAKEDOWN: 4 };
+  const pts = { PASSPORT: 6, SHAKEDOWN: 6, GEIGER: 5, POISON: 5, MAGNET: 4, TERMS: 4 };
   for (const [k, v] of Object.entries(pts)) assert.equal(THEME.ITEMS[k].pts, v);
 });
 

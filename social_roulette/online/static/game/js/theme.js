@@ -6,11 +6,11 @@
   // ratified (or swapped) at the Task-5 gallery gate via the icon strip in moments.html.
   const ITEMS = {
     PASSPORT:  { name: "PASSPORT",  icon: 37, pts: 6, blurb: "+1 COVER" },
-    TERMS:     { name: "TERMS",     icon: 14, pts: 6, blurb: "TARGET CAN'T SHOOT YOU" },
+    SHAKEDOWN: { name: "SHAKEDOWN", icon: 2,  pts: 6, blurb: "TARGET SKIPS A TURN" },
     GEIGER:    { name: "GEIGER",    icon: 8,  pts: 5, blurb: "PEEK NEXT BULLET" },
     POISON:    { name: "POISON",    icon: 11, pts: 5, blurb: "NEXT SHOT x2" },
     MAGNET:    { name: "MAGNET",    icon: 5,  pts: 4, blurb: "EJECT CURRENT BULLET" },
-    SHAKEDOWN: { name: "SHAKEDOWN", icon: 2,  pts: 4, blurb: "TARGET SKIPS A TURN" },
+    TERMS:     { name: "TERMS",     icon: 14, pts: 4, blurb: "TARGET CAN'T SHOOT YOU" },
   };
   // TEAM = POLARITY (locked 2026-07-10): plates carry the team; frames are HAIRLINE
   // 1px — bloc A full alpha, bloc B half alpha ("0.5px", framelab row 2).

@@ -106,12 +106,12 @@ Items double as currency. To pay for an action, you **sacrifice items** whose co
 
 | Item | Point Value |
 |------|-------------|
-| Terms | 6 pts |
 | Passport | 6 pts |
+| Shakedown | 6 pts |
 | Geiger | 5 pts |
 | Poison | 5 pts |
 | Magnet | 4 pts |
-| Shakedown | 4 pts |
+| Terms | 4 pts |
 
 - **No change is given.** If you overpay, the surplus value is **burned.**
 - A 5-point action is paid most cleanly with a **Geiger or Poison** (both worth 5).
