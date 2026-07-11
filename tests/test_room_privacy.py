@@ -13,7 +13,7 @@ def test_view_carries_v2_fields():
     r, t = clockroom()
     v = r.view(r.current)
     for k in ("phase", "phase_ends_at", "server_now", "bonus", "extra_turn",
-              "saw_active", "use_counts", "use_limit", "teams_active"):
+              "poison_armed", "use_counts", "use_limit", "teams_active"):
         assert k in v, k
     assert v["phase"] == "talk" and v["teams_active"] is True
     assert v["use_limit"] == 5                       # cap = living players (×1.0, 2026-07-10)

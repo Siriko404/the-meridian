@@ -117,8 +117,8 @@
 
     buildDial() {                                             // cylinder dial REMOVED (review); turn = active-seat frame.
       this.center = this.add.container(CX, CY).setDepth(4);   // empty anchor kept for POISON/MAGNET effects
-      // ×2 ARMED chip, shown at table center while POISON is live (M20 — red: danger)
-      this.sawChip = this.add.text(CX, CY, "×2 ARMED", style(13, "#c8102e")).setOrigin(0.5)
+      // POISON ARMED chip, table center while a poison round is chambered (M20 — red: danger)
+      this.poisonChip = this.add.text(CX, CY, "POISON ARMED", style(13, "#c8102e")).setOrigin(0.5)
         .setResolution(2).setDepth(8).setBackgroundColor("#000000").setVisible(false);
     }
 
@@ -135,7 +135,7 @@
       view.players.forEach((p) => this.paintSeat(p, view, roster));
       if (view.winner == null) this.dialTo(view.current, false);
       this.setScan(view.scan);
-      this.setSawChip(!!view.saw_active);
+      this.setPoisonChip(!!view.poison_armed);
       this.bandCode.setText(this._code || "");
     }
 
@@ -602,7 +602,7 @@
         this.scanBg.setStrokeStyle(2, certain ? RED : WHITE, 0.95);
       }
     }
-    setSawChip(on) { if (this.sawChip) this.sawChip.setVisible(!!on); }
+    setPoisonChip(on) { if (this.poisonChip) this.poisonChip.setVisible(!!on); }
     equalizePlates() {                                        // M27 — team semantics visibly end
       this.seats.forEach((s) => {
         if (!s.dead) this.repaintPlate(s, s.nameT.text, "bare");   // carriers vanish with the teams

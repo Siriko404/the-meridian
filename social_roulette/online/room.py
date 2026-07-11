@@ -236,7 +236,7 @@ class Room:
             "gen": self.gen,
             "phase": self.phase, "phase_ends_at": self.phase_ends_at, "server_now": self.now(),
             "bonus": self.state.bonus_pending, "extra_turn": self.extra_turn,
-            "saw_active": self.state.saw_active,
+            "poison_armed": self.state.poison_armed,
             "use_counts": {it.name: c for it, c in self.state.use_counts.items()},
             "use_limit": consumption_limit(self.state),
             "teams_active": teams_active(self.state),
@@ -334,12 +334,15 @@ class Room:
         alive_before = living_ids(self.state)
         ch_before = self.state.chamber
         if isinstance(action, Shoot):
-            saw = self.state.saw_active
+            armed = self.state.poison_armed
             ev = engine_step(self.state, seat, action)
             self.rec.shot(self._turn, seat, action.target_id, ev["bullet"].name,
-                          ev["damage"], ev["killed"], saw)
+                          ev["damage"], ev["killed"], armed)
+            tick_dead = {v for (v, _, k) in self.state.last_ticks if k}
             for d in sorted(alive_before - living_ids(self.state)):
-                self.rec.elimination(self._turn, d, seat)
+                if d not in tick_dead:
+                    self.rec.elimination(self._turn, d, seat)
+            self._drain_ticks()
             if self.state.chamber is not ch_before and self.state.winner is None:
                 live = sum(1 for s in self.state.chamber.bullets if s == Bullet.LIVE)
                 self.rec.reload(self._turn, "death" if len(living_ids(self.state)) < len(alive_before) else "empty",
@@ -371,6 +374,15 @@ class Room:
             self.rec.draw(self._turn, {pid: {"attempted": [i.name for i in d["attempted"]],
                                              "received": [i.name for i in d["received"]]}
                                        for pid, d in ev["draws"].items()})
+
+    def _drain_ticks(self):
+        """Poison ticks fired at a turn advance (or a death) are PUBLIC events —
+        flush them; a tick KILL credits the poisoner, not the acting seat."""
+        for (v, poisoner, k) in self.state.last_ticks:
+            self.rec.tick(self._turn, poisoner, v, k)
+            if k:
+                self.rec.elimination(self._turn, v, poisoner)
+        self.state.last_ticks.clear()
 
     def _drain_skips(self):
         """A handcuffed seat skipped at turn-advance is a PUBLIC event — flush the

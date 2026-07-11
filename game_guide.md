@@ -46,7 +46,7 @@ Each player rolls a single die **three times** to receive three starting items:
 ## Cover
 
 - Every player starts with **3 cover**, capped at **5**.
-- A live bullet costs the target **1 cover** (2 if Poison is active).
+- A live bullet costs the target **1 cover** (+1 later if the shot was Poisoned).
 - A player is eliminated at **0 cover**.
 
 ---
@@ -83,7 +83,7 @@ Each item is used on your own turn and has both an **effect** and a **point valu
 | **Terms** | Place on one player. They **cannot target you with their next shot.** It expires the **moment they fire that shot** (at anyone, including themselves). If they self-shoot a blank, it expires and they may shoot you on the resulting bonus turn. |
 | **Passport** | Restore **1 cover**. **Cannot be used at max cover (5)** — it stays locked in your inventory, taking a slot until you drop below max. (You may instead sacrifice it for points or trade it.) |
 | **Geiger** | Privately learn **how many of the next 2 bullets are live** (0, 1, or 2) — never which. With 1 bullet left it reports on that 1. A re-scan of the unchanged window repeats the same report. |
-| **Poison** | Your next shot deals **double damage** (2 cover), including a self-shot (2 self-damage). **If that shot is a blank, the Poison is wasted.** **Max one Poison per turn** (no stacking to 4). |
+| **Poison** | Your next shot is poisoned: a **live** hit costs the victim **1 cover now + 1 more when your turn comes around again**. There is **no cure** — healing restores cover but never removes the pending hit. A **blank wastes it**. Max one Poison per turn; a victim carries at most **one** pending hit; if the poisoner dies first, the hit lands **immediately**; a poison kill grants **no extra turn**. |
 | **Magnet** | Discard the current bullet and draw the next. **The discarded bullet is removed for good** (the chamber shrinks). Magnet the last bullet → chamber empties → reload → you still take your shot from the new chamber. |
 | **Shakedown** | Place on one player — they **skip their next turn.** Only **one Shakedown at a time** per target (a second while one is active does nothing). **Never on a teammate** while teams are active (2026-07-10). |
 
@@ -178,9 +178,9 @@ Silence. Decide your target: **yourself** or **another player**. **Item use and 
 | Outcome | Result |
 |---------|--------|
 | Self, **blank** | Survive. Earn a **bonus turn**. |
-| Self, **live** | Lose 1 cover (2 if Poison). Turn ends. |
+| Self, **live** | Lose 1 cover (+1 later if Poisoned). Turn ends. |
 | Other, **blank** | Nothing happens. Turn ends. |
-| Other, **live** | Target loses 1 cover (2 if Poison). Turn ends. |
+| Other, **live** | Target loses 1 cover (+1 later if Poisoned). Turn ends. |
 
 > If you have **no legal target** and **cannot afford a flip**, you **must shoot yourself** — passing is never allowed.
 

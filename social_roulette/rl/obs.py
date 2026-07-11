@@ -7,8 +7,8 @@ from social_roulette.comms.vocab import ACT_N
 
 ITEMS = [Item.MAGNET, Item.SHAKEDOWN, Item.GEIGER, Item.POISON, Item.PASSPORT, Item.TERMS]
 N_SLOTS = 5
-PER_SLOT = 8       # alive, is_self, is_ally, is_enemy, lives, handcuffed, learner_immunized_them, they_immunized_learner
-GLOBALS = 22       # own_cover(1) own_inv(6) flipback(1) scan(3) item_counts(6) ann_total(1) ann_live(1) fired(1) saw(1) bonus(1)
+PER_SLOT = 9       # alive, is_self, is_ally, is_enemy, cover, handcuffed, poisoned, learner_immunized_them, they_immunized_learner
+GLOBALS = 22       # own_cover(1) own_inv(6) flipback(1) scan(3) item_counts(6) ann_total(1) ann_live(1) fired(1) poison_armed(1) bonus(1)
 MSG_K = 8          # last-K messages heard
 MSG_FEATURES = 5   # has, speaker_rel, act, target_rel, value (re-relativized per listener)
 OBS_DIM = N_SLOTS * PER_SLOT + GLOBALS + MSG_K * MSG_FEATURES
@@ -38,6 +38,7 @@ def encode_obs(state, learner_id, extras):
             1.0 if is_enemy else 0.0,
             p.cover / MAX_COVER,
             1.0 if p.handcuffed else 0.0,
+            1.0 if p.poison_tick is not None else 0.0,
             1.0 if learner_id in p.immunity_against else 0.0,
             1.0 if k in me.immunity_against else 0.0,
         ]
@@ -53,7 +54,7 @@ def encode_obs(state, learner_id, extras):
     vec.append((extras["announced_total"] or 0) / 30.0)
     vec.append((extras["announced_live"] or 0) / 30.0)
     vec.append(state.chamber.pos / 30.0)
-    vec.append(1.0 if state.saw_active else 0.0)
+    vec.append(1.0 if state.poison_armed else 0.0)
     vec.append(1.0 if state.bonus_pending else 0.0)
     recent = state.messages[-MSG_K:]
     for _ in range(MSG_K - len(recent)):

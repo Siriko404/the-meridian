@@ -31,7 +31,7 @@ def test_saw_once_per_turn():
     s = mkstate()
     s.players[0].inventory = {Item.POISON: 2}
     I.apply_item(s, 0, Item.POISON)
-    assert s.saw_active and s.saw_used_this_turn
+    assert s.poison_armed and s.poison_used_this_turn
     with pytest.raises(Exception):
         I.apply_item(s, 0, Item.POISON)
 

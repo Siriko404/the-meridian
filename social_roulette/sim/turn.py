@@ -96,10 +96,10 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
     for _ in range(40):
         a = policy(state, pid, ex)
         if isinstance(a, Shoot):
-            saw = state.saw_active
+            armed = state.poison_armed
             ev = step(state, pid, a)
             if rec:
-                rec.shot(turn_idx, pid, a.target_id, ev["bullet"].name, ev["damage"], ev["killed"], saw)
+                rec.shot(turn_idx, pid, a.target_id, ev["bullet"].name, ev["damage"], ev["killed"], armed)
             _rec_draws(rec, turn_idx, ev)
             shot_done = True
             break
@@ -132,16 +132,22 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
             e.sync(state)
     if not shot_done:
         tgt = state.rng.choice(legal_targets(state, pid))
-        saw = state.saw_active
+        armed = state.poison_armed
         ev = step(state, pid, Shoot(tgt))
         if rec:
-            rec.shot(turn_idx, pid, tgt, ev["bullet"].name, ev["damage"], ev["killed"], saw)
+            rec.shot(turn_idx, pid, tgt, ev["bullet"].name, ev["damage"], ev["killed"], armed)
         _rec_draws(rec, turn_idx, ev)
 
     dead = sorted(alive_before - living_ids(state))
+    tick_dead = {v for (v, _, k) in state.last_ticks if k}
     if rec:
+        for (v, poisoner, k) in state.last_ticks:
+            rec.tick(turn_idx, poisoner, v, k)
+            if k:
+                rec.elimination(turn_idx, v, poisoner)   # tick kill credits the POISONER
         for d in dead:
-            rec.elimination(turn_idx, d, pid)
+            if d not in tick_dead:
+                rec.elimination(turn_idx, d, pid)
         if state.chamber is not ch_before and state.winner is None:
             live = sum(1 for s in state.chamber.bullets if s == Bullet.LIVE)
             rec.reload(turn_idx, "death" if dead else "empty", len(state.chamber.bullets), live)
@@ -151,6 +157,7 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
         for pid_s in state.last_skipped:
             rec.skip(turn_idx, pid_s)
         state.last_skipped.clear()
+    state.last_ticks.clear()
     for e in extras_map.values():
         e.sync(state)
     return {"dead": dead}

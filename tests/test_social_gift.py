@@ -51,7 +51,7 @@ def test_harm_recorded_on_enemy_hit_not_self():
     enemy = next(p.id for p in g.players if p.team != g.players[0].team)
     g.chamber.bullets = [Bullet.LIVE, Bullet.LIVE]
     g.chamber.pos = 0
-    g.saw_active = False
+    g.poison_armed = False
     player_by_id(g, enemy).cover = 3
     g.current_id = 0
     step(g, 0, Shoot(enemy))

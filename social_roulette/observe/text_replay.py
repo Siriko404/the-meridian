@@ -31,8 +31,8 @@ def render(rows):
         elif ty == "shot":
             who = "SELF" if ex.get("self") else f"s{r['target']}"
             res = (f"LIVE \U0001f4a5 -{r['damage']}" if r["damage"] else f"{r['bullet']} click")
-            saw = " [POISON x2]" if ex.get("saw") else ""
-            out.append(f"        SHOOTS {who}: {res}{saw}")
+            poi = " [POISON]" if ex.get("poison") else ""
+            out.append(f"        SHOOTS {who}: {res}{poi}")
         elif ty == "bonus":
             out.append(f"        ↺ earns bonus turn (self-blank)")
         elif ty == "elimination":

@@ -13,6 +13,7 @@ class Player:
     immunity_against: set
     handcuffed: bool
     flipback_discount: bool
+    poison_tick: int = None    # poisoner pid whose next turn-start costs me 1 cover; max ONE (no stacking)
 
 
 @dataclass
@@ -47,8 +48,8 @@ class GameState:
     chamber: object
     rng: object
     use_counts: dict = field(default_factory=dict)
-    saw_active: bool = False
-    saw_used_this_turn: bool = False
+    poison_armed: bool = False
+    poison_used_this_turn: bool = False
     bonus_pending: bool = False
     winner: int = None
     messages: list = field(default_factory=list)
@@ -59,6 +60,7 @@ class GameState:
     harm: dict = field(default_factory=dict)   # (victim_id, actor_id) -> cumulative damage taken from actor
     help: dict = field(default_factory=dict)   # (receiver_id, giver_id) -> cumulative gift point-value received
     last_skipped: list = field(default_factory=list)  # pids skipped by handcuff at turn advance
+    last_ticks: list = field(default_factory=list)    # (victim, poisoner, killed) fired at turn advance / a death
 
 
 def player_by_id(state, pid):

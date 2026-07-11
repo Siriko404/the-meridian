@@ -7,7 +7,7 @@ EX = {"scan_live": None, "scan_of": 0, "announced_total": 10, "announced_live": 
 
 
 def test_obs_dim_includes_message_window():
-    assert OBS_DIM == 62 + MSG_K * MSG_FEATURES
+    assert OBS_DIM == 67 + MSG_K * MSG_FEATURES
 
 
 def test_message_changes_obs_and_is_relativized():

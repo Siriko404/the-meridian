@@ -10,26 +10,70 @@ from .endgame import assert_legal_shot, winner, next_living_after
 from .actions import UseItem, Flip, Trade, Shoot, EndSubactions, Speak
 
 
+def _process_death(state, victim_id):
+    """Shared death bookkeeping (shot AND poison-tick kills): burn the corpse's
+    items, expire the Terms they placed, drop them from the rotation, honor-reload,
+    update winner. Turn reassignment/draws stay with the caller (context-specific)."""
+    victim = player_by_id(state, victim_id)
+    victim.alive = False
+    victim.inventory = {}                       # guide:69 — items burned
+    for p in state.players:                     # guide:69 — their placed Terms expires
+        p.immunity_against.discard(victim_id)
+    state.order = [pid for pid in state.order if pid != victim_id]
+    reload_on_death(state)
+    state.winner = winner(state)
+
+
+def _fire_ticks(state, poisoner_id):
+    """Fire every pending poison tick owed to `poisoner_id` — their turn started, or
+    they died (itemsession ruling: a dead poisoner's tick fires immediately). A tick
+    kill cascades: the dead victim's own owed ticks (as poisoner) fire in turn.
+    NO extra turn for a tick kill. Rows buffer in state.last_ticks (drained like skips)."""
+    queue = [poisoner_id]
+    while queue:
+        pid = queue.pop(0)
+        for v in [p for p in state.players if p.alive]:
+            if v.poison_tick == pid:
+                v.poison_tick = None
+                v.cover = max(0, v.cover - 1)
+                key = (v.id, pid)
+                state.harm[key] = state.harm.get(key, 0) + 1
+                killed = v.cover == 0
+                state.last_ticks.append((v.id, pid, killed))
+                if killed:
+                    _process_death(state, v.id)
+                    if state.winner is not None:
+                        return
+                    queue.append(v.id)
+
+
 def _on_turn_start(state, pid):
-    state.saw_used_this_turn = False
+    state.poison_used_this_turn = False
     state.msgs_this_turn = 0
+    _fire_ticks(state, pid)
 
 
 def _set_turn_to(state, start_id):
-    living = living_ids(state)
     cur = start_id
-    for _ in range(len(state.order) + 1):
+    for _ in range(2 * len(state.players) + 2):
+        living = living_ids(state)
+        if cur is None or not living:
+            return
         p = player_by_id(state, cur)
+        if not p.alive:                          # a tick corpse — pass on
+            cur = next_living_after(state.order, living, cur)
+            continue
         if p.handcuffed:
             state.last_skipped.append(cur)
             p.handcuffed = False
             cur = next_living_after(state.order, living, cur)
             continue
         state.current_id = cur
-        _on_turn_start(state, cur)
-        return
+        _on_turn_start(state, cur)               # fires ticks — a SELF-poisoned cur can die here
+        if state.winner is not None or player_by_id(state, cur).alive:
+            return
+        cur = next_living_after(state.order, living_ids(state), cur)
     state.current_id = start_id
-    _on_turn_start(state, start_id)
 
 
 def _advance_turn(state, from_id):
@@ -49,18 +93,12 @@ def take_shot(state, shooter_id, target_id):
     emptied = state.chamber.is_empty()
     if ev["killed"]:
         order_before = list(state.order)
-        player_by_id(state, target_id).alive = False
-        victim = player_by_id(state, target_id)
-        victim.inventory = {}                       # guide:69 — items burned
-        for p in state.players:                     # guide:69 — their placed Terms expires
-            p.immunity_against.discard(target_id)
-        state.order = [pid for pid in order_before if pid != target_id]
-        reload_on_death(state)
+        _process_death(state, target_id)
+        _fire_ticks(state, target_id)               # a dead poisoner's tick fires NOW (B2 ruling)
         if emptied:
             ev["draws"] = draw_items_for_all(state, 2)
         state.bonus_pending = False
-        state.saw_used_this_turn = False
-        state.winner = winner(state)
+        state.poison_used_this_turn = False
         if state.winner is not None:
             return ev
         if shooter_id == target_id:
@@ -71,7 +109,7 @@ def take_shot(state, shooter_id, target_id):
     if emptied:
         ev["draws"] = reload_on_empty(state)
     if state.bonus_pending:
-        state.saw_used_this_turn = False
+        state.poison_used_this_turn = False
         return ev
     _advance_turn(state, shooter_id)
     state.winner = winner(state)

@@ -21,6 +21,7 @@ FINE = "fine"              # v2: timeout fine (public copy names no item)
 SKIP = "skip"              # v2: a handcuffed seat was skipped at turn advance
 DRAW = "draw"              # v2: reload refill draws (per-seat enrichment)
 TRADE = "trade"            # v2: settled offer/accept swap
+TICK = "tick"              # v3: poison tick fired at the poisoner's turn start (or their death)
 MATCH_END = "match_end"
 
 COLUMNS = ["match_id", "seq", "turn", "actor", "type", "target",

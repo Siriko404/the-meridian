@@ -74,7 +74,7 @@
       type: "view", roster: ROSTER, events: o.events || [],
       you: 0, order: [0, 1, 2, 3, 4], current: 0, winner: null, gen: ++gen,
       phase: "talk", phase_ends_at: now + (o.secs != null ? o.secs : 47), server_now: now,
-      bonus: false, extra_turn: false, saw_active: false, teams_active: true,
+      bonus: false, extra_turn: false, poison_armed: false, teams_active: true,
       flipback_discount: false, use_counts: {}, use_limit: 6, feed: [], players,
       your_hand: { MAGNET: 1, SHAKEDOWN: 1, GEIGER: 1 },
       item_counts: { MAGNET: 3, SHAKEDOWN: 2, GEIGER: 2, POISON: 1, PASSPORT: 3, TERMS: 2 },

@@ -39,12 +39,12 @@ def apply_item(state, player_id, item, target_id=None):
         live = sum(1 for b in window if b == Bullet.LIVE)
         return {"scan_live": live, "scan_of": len(window)}
     if item == Item.POISON:
-        if state.saw_used_this_turn:
+        if state.poison_used_this_turn:
             raise ValueError("poison already used this turn")
-        state.saw_active = True
-        state.saw_used_this_turn = True
+        state.poison_armed = True
+        state.poison_used_this_turn = True
         _consume(state, p, item)
-        return {"saw": True}
+        return {"poison": True}
     if item == Item.MAGNET:
         bullet = state.chamber.current()
         if bullet is not None:

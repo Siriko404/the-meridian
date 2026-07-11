@@ -42,9 +42,9 @@ class Recorder:
         self._emit(E.FLIP, turn=turn, actor=actor, target=target,
                    extra={"paid": paid, "new_team": new_team})
 
-    def shot(self, turn, actor, target, bullet, damage, killed, saw):
+    def shot(self, turn, actor, target, bullet, damage, killed, poison):
         self._emit(E.SHOT, turn=turn, actor=actor, target=target, bullet=bullet,
-                   damage=damage, killed=killed, extra={"saw": saw, "self": actor == target})
+                   damage=damage, killed=killed, extra={"poison": poison, "self": actor == target})
 
     def bonus(self, turn, actor):
         self._emit(E.BONUS, turn=turn, actor=actor)
@@ -70,6 +70,9 @@ class Recorder:
 
     def draw(self, turn, draws):
         self._emit(E.DRAW, turn=turn, extra={"draws": draws})
+
+    def tick(self, turn, poisoner, victim, killed):
+        self._emit(E.TICK, turn=turn, actor=poisoner, target=victim, damage=1, killed=killed)
 
     def trade(self, turn, actor, target, give, want):
         self._emit(E.TRADE, turn=turn, actor=actor, target=target,

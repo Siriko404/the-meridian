@@ -131,7 +131,7 @@
           if (e.actor === e.target && view.bonus && view.current === e.actor && view.winner == null)
             await scene.stampSeat(e.actor, "BONUS TURN", false);                 // M13
         }
-        scene.setSawChip(false); lastBeer = null;
+        scene.setPoisonChip(false); lastBeer = null;
       } else if (e.type === "elimination") {
         sawElim = true;
         if (work[e.target]) { work[e.target].alive = false; work[e.target].cover = 0; }
@@ -162,6 +162,15 @@
         await scene.crumbleCard(e.actor);
       } else if (e.type === "draw") {
         await drawBeat(scene, e, view, roster);               // M17
+      } else if (e.type === "tick") {                       // M20b — the poison collects its debt
+        scene.floatText(e.target, "−1 POISON", true);
+        scene.seatRecoil(e.target);
+        if (work[e.target]) {
+          work[e.target].cover = Math.max(0, work[e.target].cover - (e.damage || 1));
+          work[e.target].poisoned = false;
+          paint(e.target);
+        }
+        await scene.w(900);
       } else if (e.type === "skip") {
         if (work[e.target]) { work[e.target].handcuffed = false; paint(e.target); }
         await scene.skipBeat(e.target, roster);               // M23 beat
@@ -216,8 +225,8 @@
       scene.flashWhite();                                                        // shutter blink
       await scene.toast(who + " RAN A GEIGER SWEEP", 1400);
     } else if (it === "POISON") {                                                   // M20 POISON
-      scene.setSawChip(true);
-      await scene.toast(who + " · ×2 ARMED", 1500);
+      scene.setPoisonChip(true);
+      await scene.toast(who + " · POISON ARMED", 1500);
     } else if (it === "MAGNET") {                                                  // M22 MAGNET
       await scene.bulletEject();
       await scene.toast("BULLET EJECTED", 1100);

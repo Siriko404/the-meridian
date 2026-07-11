@@ -43,7 +43,8 @@ def seat_view(state, seat, ex, feed=None, seating=None):
     # immune_from = the caster ids this player is BARRED from shooting (public, like flips).
     # P1.immune_from=[3] renders "P3" above P1 → P3 put immunity on P1; clears when P1 shoots.
     players = [{"id": p.id, "team": p.team.name, "cover": p.cover, "alive": p.alive,
-                "handcuffed": p.handcuffed, "immune_from": sorted(p.immunity_against)}
+                "handcuffed": p.handcuffed, "poisoned": p.poison_tick is not None,
+                "immune_from": sorted(p.immunity_against)}
                for p in state.players]
     counts = {it: 0 for it in ITEMS}
     for p in state.players:

@@ -60,7 +60,7 @@
   const BASE = () => ({
     you: 0, order: [0, 1, 2, 3, 4], current: 0, winner: null, gen: 1,
     phase: "talk", phase_ends_at: null, server_now: 0, bonus: false, extra_turn: false,
-    saw_active: false, teams_active: true, flipback_discount: false,
+    poison_armed: false, teams_active: true, flipback_discount: false,
     use_counts: {}, use_limit: 6, feed: [],
     players: [
       { id: 0, team: "RED",  cover: 3, alive: true, handcuffed: false, immune_from: [] },
@@ -100,7 +100,7 @@
       await CHOREO.play(s, [{ type: "item", actor: 0, item: "GEIGER", target: null }], BASE(), BASE(), ROSTER);
       s.setScan({ live: 2, of: 2 }); await s.w(1200); s.setScan({ live: 0, of: 2 }); await s.w(900);
     },
-    poison:     (s) => { const v = BASE(); v.saw_active = true;
+    poison:     (s) => { const v = BASE(); v.poison_armed = true;
                   return CHOREO.play(s, [{ type: "item", actor: 3, item: "POISON", target: null }], BASE(), v, ROSTER); },
     magnet:     (s) => CHOREO.play(s, [{ type: "item", actor: 1, item: "MAGNET", target: null }], BASE(), BASE(), ROSTER),
     sedative:   (s) => CHOREO.play(s, [{ type: "item", actor: 3, item: "SHAKEDOWN", target: 2 }, { type: "skip", target: 2 }], BASE(), BASE(), ROSTER),

@@ -69,7 +69,7 @@ def legal_actions(state, player_id):
             if p.cover < MAX_COVER:
                 acts.append(UseItem(it))
         elif it == Item.POISON:
-            if not state.saw_used_this_turn:
+            if not state.poison_used_this_turn:
                 acts.append(UseItem(it))
         elif it in (Item.GEIGER, Item.MAGNET):
             acts.append(UseItem(it))

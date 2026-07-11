@@ -37,9 +37,9 @@ def test_kill_gives_killer_extra_turn():
     assert s.players[1].alive is False and s.current_id == 0 and 1 not in s.order
 
 
-def test_self_kill_with_saw_no_crash_no_extra_turn():
-    s = mk(5, [Bullet.LIVE], saw_active=True)
-    s.players[0].cover = 2
+def test_self_kill_with_poison_no_crash_no_extra_turn():
+    s = mk(5, [Bullet.LIVE], poison_armed=True)
+    s.players[0].cover = 1
     take_shot(s, 0, 0)
     assert s.players[0].alive is False and 0 not in s.order and s.current_id == 1
 
@@ -82,3 +82,17 @@ def test_winner_set_on_last_kill():
     s.players[1].cover = 1
     take_shot(s, 0, 1)
     assert s.winner == 0
+
+
+def test_self_poison_tick_at_own_turn_start_passes_turn_on():
+    """A self-poisoned player whose tick kills them the moment their turn starts
+    must NOT stay current (corpse-turn bug, B2): the turn passes to the next living."""
+    from social_roulette.engine.engine import _set_turn_to
+    s = mk(5, [Bullet.BLANK] * 3)
+    s.players[2].cover = 1
+    s.players[2].poison_tick = 2          # self-poisoned earlier
+    _set_turn_to(s, 2)
+    assert s.players[2].alive is False
+    from social_roulette.engine.state import player_by_id as _pbi
+    assert s.current_id != 2 and _pbi(s, s.current_id).alive
+    assert (2, 2, True) in s.last_ticks
