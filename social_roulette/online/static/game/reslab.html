@@ -1,0 +1,25 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>RESLAB — pick the sharpness that survives your phone</title>
+<style>
+  html,body{margin:0;padding:0;background:#000;height:100svh;overflow:hidden;position:fixed;inset:0;width:100%}
+  #stage{width:min(100vw,440px);height:100svh;margin:0 auto}
+  canvas{image-rendering:pixelated}
+  #bar{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;gap:4px;justify-content:center;
+    padding:6px 4px;background:rgba(0,0,0,.85)}
+  #bar a{color:#fff;border:1px solid #666;padding:6px 9px;font:bold 13px Consolas,monospace;
+    text-decoration:none;background:#000}
+  #bar a.on{background:#fff;color:#000;border-color:#fff}
+  #hud{position:fixed;bottom:6px;left:50%;transform:translateX(-50%);z-index:20;color:#0f0;
+    font:bold 14px Consolas,monospace;background:#000;padding:3px 12px;border:1px solid #0f0;white-space:nowrap}
+</style></head><body>
+<div id="bar"></div>
+<div id="stage"></div><div id="hud">…</div>
+<script src="/static/vendor/phaser.min.js"></script>
+<script>
+  for (const f of ["theme", "dice", "net", "scene", "choreo"])
+    document.write('<script src="/static/game/js/' + f + '.js?v=' + Date.now() + '"><\/script>');
+</script>
+<script>document.write('<script src="/static/game/reslab.js?v=' + Date.now() + '"><\/script>')</script>
+</body></html>
