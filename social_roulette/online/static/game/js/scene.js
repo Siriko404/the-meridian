@@ -79,6 +79,14 @@
     }
 
     /* ================= layout (parametric N) ================= */
+    setPortraits(map) {                                     // seat -> face frame (papers, spec §2);
+      if (!map) return;                                     // JSON stringifies the keys
+      this._portraits = {};
+      Object.keys(map).forEach((k) => { this._portraits[+k] = map[k]; });
+    }
+    _pmap(id) {
+      return this._portraits && this._portraits[id] != null ? this._portraits[id] : id % 12;
+    }
     seatAngle(i, n) { return -Math.PI / 2 + i * (Math.PI * 2 / n); }
     seatXY(id) { const s = this.seats.get(id); return { x: s.x, y: s.y }; }
     kitXY() { return this._kitXY; }
@@ -95,7 +103,7 @@
           broken.lineBetween(x + dx + sx * 4, y + dy + sy * 4, x + dx + sx * 16, y + dy + sy * 4);
           broken.lineBetween(x + dx + sx * 4, y + dy + sy * 4, x + dx + sx * 4, y + dy + sy * 16);
         });
-        const face = this.add.image(x, y, "faces", id % 12).setScale(2); // faces SACRED — no tint ever
+        const face = this.add.image(x, y, "faces", this._pmap(id)).setScale(2); // faces SACRED — no tint ever
         // PLATE (ratified M2): A = black serif in a slim white box · B = white serif
         // between two thin rules · dead = bare gray + strike. Art lives in plateG.
         const plateG = this.add.graphics().setDepth(2);
@@ -151,6 +159,7 @@
       this.setChips(s, p, roster);
       const active = p.alive && p.id === view.current && view.winner == null;
       s.tile.setStrokeStyle(1, WHITE, (active ? 1 : 0.55) * s.fa);
+      s.face.setFrame(this._pmap(p.id));                      // papers may arrive after layout
       s.face.setScale(2);                                     // uniform — turn is shown by the ARROW only
       if (active && !live) this._arrowTo(p.id);
       if (!p.alive) {                                         // M14 end-state (the beat itself is choreo)
@@ -1086,7 +1095,7 @@
     }
     async winnerScene(id, roster) {                            // M28
       this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1).setDepth(24);
-      this.add.image(W / 2, 330, "faces", id % 12).setScale(6).setDepth(25);
+      this.add.image(W / 2, 330, "faces", this._pmap(id)).setScale(6).setDepth(25);
       this.add.text(W / 2, 470, "LAST AGENT STANDING", style(16)).setOrigin(0.5).setResolution(2)
         .setDepth(25).setLetterSpacing(2);
       const t2 = this.add.text(W / 2, 505, "", style(26)).setOrigin(0.5)

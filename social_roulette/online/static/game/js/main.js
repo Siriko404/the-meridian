@@ -3,10 +3,13 @@
   "use strict";
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ("&#" + c.charCodeAt(0) + ";"));
-  let net = null, token = localStorage.meridian_token || null, host = false;
+  let net = null, host = false;
+  let pid = localStorage.meridian_pid || null, profile = null;
+  try { profile = JSON.parse(localStorage.meridian_profile || "null"); } catch (e) { /* stale */ }
+  let pendingCode = null, joining = false;      // the code we asked to board (join-phase errors only)
   let game = null, scene = null, sceneCode = "";
   let queue = [], busy = false, ended = false, endWinner = null;
-  let curView = null, roster = null;
+  let curView = null, roster = null, portraits = null;
   const accept = NET.genGate();
   let bannerT = null;
   let seizeInFlight = false;                  // a seize awaiting its verdict (v2-3 alarm routing)
@@ -22,29 +25,66 @@
     if (id) $(id).classList.add("on");
   }
 
+  /* ---- [PAPERS] identity pages: terminus → papers/sign-in → dashboard (spec §1) ---- */
+  const api = (path, opts) => fetch(path, opts).then(async (r) => {
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.msg || "the line is down");
+    return j;
+  });
+  const faceCSS = (el, frame) => {                          // 4x3 sheet of 36px, shown 2x
+    el.style.backgroundPosition = (-(frame % 4) * 72) + "px " + (-Math.floor(frame / 4) * 72) + "px";
+  };
+  function saveProfile(p) {
+    profile = p; pid = p.pid;
+    localStorage.meridian_pid = pid;
+    localStorage.meridian_profile = JSON.stringify(p);
+  }
+  function gotoTerminus() {
+    if (profile) {
+      $("contbtn").style.display = "";
+      $("contbtn").textContent = "CONTINUE AS " + profile.initials;
+    } else $("contbtn").style.display = "none";
+    show("terminus");
+  }
+  function gotoDashboard() {
+    faceCSS($("dface"), profile.portrait);
+    $("dmono").textContent = profile.initials;
+    $("dpid").textContent = "DOCUMENT NO. " + profile.pid;
+    show("dashboard");
+    api("/journeys?pid=" + encodeURIComponent(pid)).then((j) => {
+      const rows = (j.journeys || []).map((x) =>
+        `<div class="jrow"><span class="member">CAR ${esc(x.code)} · ${x.seats || "?"} SEATS</span>` +
+        `<button data-code="${esc(x.code)}">REJOIN</button></div>`).join("");
+      $("journeys").innerHTML = rows || '<p class="hint">THE LINE IS QUIET.</p>';
+      $("journeys").querySelectorAll("button").forEach((b) =>
+        b.addEventListener("click", () => connect(b.dataset.code)));
+    }).catch(() => {});
+  }
+
   /* ---- [NET-GLUE] ---- */
-  function connect() {
-    const fi = $("name").value.trim().toUpperCase(), li = $("lastinit").value.trim().toUpperCase();
-    if (!/^[A-Z]$/.test(fi) || !/^[A-Z]$/.test(li)) { banner("ENTER YOUR INITIALS — TWO LETTERS"); return; }
-    const agent = fi + "." + li + ".";                      // agents go by monogram (spy plates)
-    token = localStorage.meridian_token || null;            // read at CONNECT — a cleared token acts now
+  function connect(code) {
+    pendingCode = String(code == null ? $("code").value : code).trim().toUpperCase();
+    joining = true;
     const proto = location.protocol === "https:" ? "wss" : "ws";
     net = NET.connect(() => new WebSocket(proto + "://" + location.host + "/ws"), handle);
-    net.ws.onopen = () => net.send({ type: "join", code: $("code").value, name: agent, token });
+    net.ws.onopen = () => net.send({ type: "join", code: pendingCode, pid });
     net.ws.onclose = () => banner("DISCONNECTED — RELOAD TO RECONNECT", 60000);
     setInterval(() => net.send({ type: "ping" }), 20000);
   }
   function handle(m) {
     if (m.type === "joined") {
-      token = m.token; host = m.host; localStorage.meridian_token = token;
+      joining = false; host = m.host;
+      if (pendingCode) localStorage.meridian_car = pendingCode;   // rejoinable from any device
       show("lobby"); $("startbtn").style.display = host ? "" : "none";
     } else if (m.type === "lobby") {
       sceneCode = m.code;
+      localStorage.meridian_car = m.code;                   // a fresh car mints its code here
       $("lcode").textContent = m.code;
       $("members").innerHTML = m.members.map((x) =>
         `<div class="member">${esc(x.name)}${x.host ? " · CONDUCTOR" : ""}</div>`).join("");
     } else if (m.type === "view") {
       roster = m.roster || roster;
+      portraits = m.portraits || portraits;
       seizeInFlight = false;                  // any fresh state settles the seize silently
       // anchor the countdown at ARRIVAL — anchoring at drain time (after queued beats
       // played) ran the clock seconds ahead, then re-anchors jumped it (timer-freeze class)
@@ -56,13 +96,20 @@
       log.scrollTop = log.scrollHeight;
       if (scene) scene.setTicker(m.from + ": " + m.text);
     } else if (m.type === "error") {
-      if (seizeInFlight && scene) {           // the v2-3 alarm is an IN-WORLD beat — serif
+      if (joining) {                          // join refused (papers/full/departed) → back to the pages
+        joining = false;
+        delete localStorage.meridian_car;
+        banner("⚠ " + m.msg.toUpperCase());
+        if (profile) gotoDashboard(); else gotoTerminus();
+      } else if (seizeInFlight && scene) {    // the v2-3 alarm is an IN-WORLD beat — serif
         seizeInFlight = false;                // toast, never the harness's white banner
         scene.toast((m.msg || "the trigger is already held").toUpperCase(), 1600);
       } else banner("⚠ " + m.msg);
       if (curView) cancelSel();               // rejected action → restore the verb strip
     } else if (m.type === "end") {
-      ended = true; endWinner = m.winner; drain();
+      ended = true; endWinner = m.winner;
+      delete localStorage.meridian_car;       // the journey is over — don't auto-board a corpse
+      drain();
     }
   }
   function bootGame() {
@@ -109,6 +156,7 @@
       const prev = curView;
       curView = it.view;
       leftFn = it.left || NET.countdown(curView);
+      if (scene.setPortraits) scene.setPortraits(portraits);   // faces follow the papers
       if (firstView) {
         firstView = false;
         const ann = (it.events || []).find((e) => e.type === "announce");
@@ -641,12 +689,65 @@
   document.addEventListener("pointerdown", () => { if (busy) CHOREO.skip(); }, true);
 
   /* ---- wiring ---- */
-  $("enterbtn").addEventListener("click", connect);
-  $("name").addEventListener("input", () => { if ($("name").value.length) $("lastinit").focus(); });
-  $("name").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
-  $("lastinit").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
+  const mono = (a, b) => $(a).addEventListener("input", () => { if ($(a).value.length) $(b).focus(); });
+  $("contbtn").addEventListener("click", gotoDashboard);
+  $("signinbtn").addEventListener("click", () => show("signin"));
+  $("papersbtn").addEventListener("click", () => show("papers"));
+  $("papersback").addEventListener("click", gotoTerminus);
+  $("signinback").addEventListener("click", gotoTerminus);
+  mono("pfi", "pli"); mono("sfi", "sli");
+  let pick = 0;                                             // the chosen face, frame index
+  for (let f = 0; f < 12; f++) {
+    const c = document.createElement("div");
+    c.className = "pcell" + (f === 0 ? " on" : "");
+    faceCSS(c, f);
+    c.addEventListener("click", () => {
+      pick = f;
+      $("pgrid").querySelectorAll(".pcell").forEach((el, k) => el.classList.toggle("on", k === f));
+    });
+    $("pgrid").appendChild(c);
+  }
+  $("issuebtn").addEventListener("click", async () => {
+    const fi = $("pfi").value.trim(), li = $("pli").value.trim();
+    if (!/^[a-z]$/i.test(fi) || !/^[a-z]$/i.test(li)) { banner("TWO LETTERS MAKE A MONOGRAM"); return; }
+    try {
+      const p = await api("/papers", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fi, li, portrait: pick }) });
+      saveProfile(p);
+      faceCSS($("iface"), p.portrait);
+      $("imono").textContent = p.initials;
+      $("ipid").textContent = p.pid;
+      show("issued");
+    } catch (e) { banner("⚠ " + e.message.toUpperCase()); }
+  });
+  $("issuedgo").addEventListener("click", gotoDashboard);
+  let found = null;                                         // the looked-up papers, pre-confirm
+  $("findbtn").addEventListener("click", async () => {
+    try {
+      found = await api("/papers?fi=" + encodeURIComponent($("sfi").value.trim())
+        + "&li=" + encodeURIComponent($("sli").value.trim())
+        + "&pid=" + encodeURIComponent($("spid").value.trim()));
+      faceCSS($("cface"), found.portrait);
+      $("cmono").textContent = found.initials;
+      $("cpid").textContent = "DOCUMENT NO. " + found.pid;
+      show("confirm");
+    } catch (e) { banner("⚠ " + e.message.toUpperCase()); }
+  });
+  $("spid").addEventListener("keydown", (e) => { if (e.key === "Enter") $("findbtn").click(); });
+  $("confirmgo").addEventListener("click", () => { saveProfile(found); gotoDashboard(); });
+  $("confirmno").addEventListener("click", () => show("signin"));
+  $("switchbtn").addEventListener("click", () => {
+    delete localStorage.meridian_pid; delete localStorage.meridian_profile;
+    delete localStorage.meridian_car;
+    pid = null; profile = null; gotoTerminus();
+  });
+  $("newcarbtn").addEventListener("click", () => connect(""));
+  $("enterbtn").addEventListener("click", () => connect());
   $("code").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
   $("startbtn").addEventListener("click", () => net.send({ type: "start" }));
+  // land: an unfinished journey re-boards itself; otherwise the terminus
+  if (pid && localStorage.meridian_car) connect(localStorage.meridian_car);
+  else gotoTerminus();
   const sendChat = () => {
     const t = $("chatin").value.trim();
     if (t) { net.send({ type: "chat", text: t }); $("chatin").value = ""; }

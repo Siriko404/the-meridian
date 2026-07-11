@@ -2,29 +2,109 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>THE MERIDIAN</title>
-<link rel="stylesheet" href="/static/game/game.css">
+<script>/* dev cache-buster — same law as the JS loader below (stale CSS burned a review round 2026-07-11) */
+document.write('<link rel="stylesheet" href="/static/game/game.css?v=' + Date.now() + '">');</script>
 </head><body>
 <div id="stage"></div>
 
-<section id="join" class="overlay on">
+<section id="terminus" class="overlay on">
   <div class="ticket">
     <div class="rule"></div>
     <div class="brand">THE MERIDIAN</div>
-    <div class="sub">NIGHT SERVICE · CAR 4 · 5 SEATS</div>
+    <div class="sub">NIGHT SERVICE · PAPERS REQUIRED</div>
+    <div class="rule"></div>
+    <button id="contbtn" style="display:none">CONTINUE</button>
+    <button id="signinbtn">SIGN IN</button>
+    <button id="papersbtn" class="ghost">NEW PAPERS</button>
+    <p class="hint">Your papers are your seat. One document, every journey.</p>
+    <div class="rule"></div>
+    <p class="credits">ART: JJ99 (PORTRAITS) · DARKMOONFIRE (ICONS)</p>
+  </div>
+</section>
+
+<section id="papers" class="overlay">
+  <div class="ticket">
+    <div class="rule"></div>
+    <div class="sub">APPLICATION FOR PAPERS</div>
     <div class="rule"></div>
     <label class="lbl">AGENT MONOGRAM</label>
     <div class="initials">
-      <input id="name" autocomplete="off" maxlength="1" inputmode="latin">
+      <input id="pfi" autocomplete="off" maxlength="1" inputmode="latin">
       <span class="dot">.</span>
-      <input id="lastinit" autocomplete="off" maxlength="1" inputmode="latin">
+      <input id="pli" autocomplete="off" maxlength="1" inputmode="latin">
       <span class="dot">.</span>
     </div>
-    <label class="lbl">INVITE CODE — LEAVE BLANK TO OPEN A NEW CAR</label>
-    <input id="code" class="codein" autocomplete="off" maxlength="8" placeholder="····">
-    <button id="enterbtn">BOARD</button>
-    <p class="hint">Share the car code. Empty seats become agents of the house.</p>
+    <label class="lbl">CHOOSE A FACE</label>
+    <div id="pgrid" class="pgrid"></div>
+    <button id="issuebtn">ISSUE PAPERS</button>
+    <button id="papersback" class="ghost">◂ BACK</button>
+  </div>
+</section>
+
+<section id="issued" class="overlay">
+  <div class="ticket">
     <div class="rule"></div>
-    <p class="credits">ART: JJ99 (PORTRAITS) · DARKMOONFIRE (ICONS)</p>
+    <div class="sub">TRAVEL DOCUMENT</div>
+    <div class="rule"></div>
+    <div class="prow"><div id="iface" class="pface"></div>
+      <div class="pmeta"><div id="imono" class="member"></div></div></div>
+    <div class="lbl">DOCUMENT NO.</div>
+    <div id="ipid" class="code"></div>
+    <p class="hint">WRITE IT DOWN — IT IS YOUR ONLY KEY.</p>
+    <button id="issuedgo">CONTINUE</button>
+    <div class="rule"></div>
+  </div>
+</section>
+
+<section id="signin" class="overlay">
+  <div class="ticket">
+    <div class="rule"></div>
+    <div class="sub">PRESENT YOUR PAPERS</div>
+    <div class="rule"></div>
+    <label class="lbl">AGENT MONOGRAM</label>
+    <div class="initials">
+      <input id="sfi" autocomplete="off" maxlength="1" inputmode="latin">
+      <span class="dot">.</span>
+      <input id="sli" autocomplete="off" maxlength="1" inputmode="latin">
+      <span class="dot">.</span>
+    </div>
+    <label class="lbl">DOCUMENT NO.</label>
+    <input id="spid" class="codein" autocomplete="off" maxlength="6" placeholder="X-····">
+    <button id="findbtn">FIND MY PAPERS</button>
+    <button id="signinback" class="ghost">◂ BACK</button>
+  </div>
+</section>
+
+<section id="confirm" class="overlay">
+  <div class="ticket">
+    <div class="rule"></div>
+    <div class="sub">IS THIS YOU?</div>
+    <div class="rule"></div>
+    <div class="prow"><div id="cface" class="pface"></div>
+      <div class="pmeta"><div id="cmono" class="member"></div>
+        <div id="cpid" class="lbl"></div></div></div>
+    <button id="confirmgo">SIGN IN</button>
+    <button id="confirmno" class="ghost">NOT ME</button>
+    <div class="rule"></div>
+  </div>
+</section>
+
+<section id="dashboard" class="overlay">
+  <div class="ticket">
+    <div class="rule"></div>
+    <div class="prow"><div id="dface" class="pface"></div>
+      <div class="pmeta"><div id="dmono" class="member"></div>
+        <div id="dpid" class="lbl"></div></div></div>
+    <div class="rule"></div>
+    <label class="lbl">ACTIVE JOURNEYS</label>
+    <div id="journeys"><p class="hint">THE LINE IS QUIET.</p></div>
+    <div class="rule"></div>
+    <button id="newcarbtn">OPEN A NEW CAR</button>
+    <label class="lbl">OR BOARD WITH A CODE</label>
+    <div class="row"><input id="code" class="codein" autocomplete="off" maxlength="8" placeholder="····">
+      <button id="enterbtn" class="inline">BOARD</button></div>
+    <button id="switchbtn" class="ghost">SWITCH PAPERS</button>
+    <div class="rule"></div>
   </div>
 </section>
 

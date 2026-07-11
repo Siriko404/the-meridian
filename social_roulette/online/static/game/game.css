@@ -27,6 +27,22 @@ button{background:#fff;color:#000;border:0;padding:12px 0;width:100%;font:inheri
   font-size:15px;letter-spacing:6px;cursor:pointer;margin-top:4px}
 .hint{font-size:11px;color:#777;max-width:280px;line-height:1.6}
 .credits{font-size:10px;color:#555;letter-spacing:1px}
+button.ghost{background:#000;color:#fff;border:2px solid #fff;padding:10px 0}
+button.inline{width:auto;padding:12px 18px;margin-top:0}
+.ticket .row{display:flex;gap:8px;width:100%;align-items:stretch}
+/* portraits: 12 frames on a 144x108 sheet (4x3 of 36px), shown 2x pixelated */
+.pgrid{display:grid;grid-template-columns:repeat(4,72px);gap:8px;justify-content:center}
+.pcell,.pface{width:72px;height:72px;image-rendering:pixelated;background:#000
+  url("/static/game/assets/portraits/Noir-portraits/36x36-bw-portraits-no-background.png") no-repeat;
+  background-size:288px 216px;border:2px solid #444}
+.pcell{cursor:pointer}
+.pcell.on{border-color:#fff}
+.prow{display:flex;gap:14px;align-items:center;justify-content:center}
+.pmeta{text-align:left}
+.jrow{display:flex;gap:8px;width:100%;align-items:center;justify-content:space-between;
+  padding:6px 0;border-bottom:1px solid #333}
+.jrow .member{font-size:14px}
+.jrow button{width:auto;padding:8px 14px;margin:0;font-size:12px;letter-spacing:3px}
 .member{font-size:15px;font-weight:bold;letter-spacing:3px;padding:5px 0;
   font-family:'Times New Roman',Times,Georgia,serif}
 #banner{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:30;font-size:13px;font-weight:bold;
