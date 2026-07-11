@@ -120,7 +120,7 @@
           scene.pipShatter(e.target, e.damage || 1);
           scene.floatText(e.target, "−" + (e.damage || 1), true);
           if (work[e.target]) {                               // pips drop AT impact
-            work[e.target].lives = Math.max(0, work[e.target].lives - (e.damage || 1));
+            work[e.target].cover = Math.max(0, work[e.target].cover - (e.damage || 1));
             paint(e.target);
           }
           await scene.w(1000);
@@ -134,7 +134,7 @@
         scene.setSawChip(false); lastBeer = null;
       } else if (e.type === "elimination") {
         sawElim = true;
-        if (work[e.target]) { work[e.target].alive = false; work[e.target].lives = 0; }
+        if (work[e.target]) { work[e.target].alive = false; work[e.target].cover = 0; }
         Object.values(work).forEach((w) => {                  // their DIRT dissolves with them
           w.immune_from = w.immune_from.filter((c) => c !== e.target); });
         await deathBeat(scene, e.target, roster);             // M14
@@ -147,7 +147,7 @@
         } else if (e.item === "TERMS" && work[e.target] != null) {
           work[e.target].immune_from.push(e.actor); paint(e.target);
         } else if (e.item === "PASSPORT" && work[e.actor] != null) {
-          work[e.actor].lives = Math.min(work[e.actor].lives + 1, THEME.MAX_LIVES);
+          work[e.actor].cover = Math.min(work[e.actor].cover + 1, THEME.MAX_COVER);
           paint(e.actor);
         }
         await itemBeat(scene, e, view, roster);

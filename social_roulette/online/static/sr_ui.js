@@ -51,7 +51,7 @@
     el(root, "seats").innerHTML = v.players.map((p) => {
       const pos = seatPos(n, order.indexOf(p.id));
       const cls = ["seat", p.id === v.current ? "current" : "", p.id === v.you ? "me" : "", p.alive ? "" : "dead"].join(" ").trim();
-      const pips = Array.from({ length: Math.max(0, p.lives) }, () => "<i></i>").join("");
+      const pips = Array.from({ length: Math.max(0, p.cover) }, () => "<i></i>").join("");
       const imm = (p.immune_from || []).map((c) => `<span class="immtag">P${c}<b>M</b></span>`).join("");
       return `<div class="${cls}" data-seat="${p.id}" style="left:${pos.left}%;top:${pos.top}%">
         <div class="imm">${imm}</div>

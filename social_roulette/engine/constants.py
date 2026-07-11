@@ -38,8 +38,8 @@ ITEM_TABLE = {
 }
 MAX_PER_TYPE = 3
 MAX_TOTAL = 8
-START_LIVES = 3
-MAX_LIVES = 5
+START_COVER = 3
+MAX_COVER = 5
 CONSUMPTION_MULT = 1.0   # user 2026-07-10: cap = exactly the living-player count
 MIN_PLAYERS = 5
 LIVE_FRACTION_MIN = 0.30

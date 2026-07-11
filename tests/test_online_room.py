@@ -42,7 +42,7 @@ def test_human_goes_first_no_unseen_preplay():
     assert r.current == 2 and r.seating[0] == 2
     v = r.view(2)
     assert v["order"][0] == 2
-    assert all(p["lives"] == 3 for p in v["players"])          # nothing shot yet
+    assert all(p["cover"] == 3 for p in v["players"])          # nothing shot yet
     assert all(p["immune_from"] == [] for p in v["players"])   # no immunity placed unseen
 
 

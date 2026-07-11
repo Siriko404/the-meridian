@@ -9,7 +9,7 @@ def _stage_kill(seed=0):
     shooter = s.current_id
     victim = next(p.id for p in s.players
                   if p.id != shooter and p.team != player_by_id(s, shooter).team)
-    player_by_id(s, victim).lives = 1
+    player_by_id(s, victim).cover = 1
     player_by_id(s, victim).inventory = {Item.MAGNET: 2}
     # the victim had placed Terms on someone
     other = next(p.id for p in s.players if p.id not in (shooter, victim))

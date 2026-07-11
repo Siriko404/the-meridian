@@ -62,7 +62,7 @@ def test_decision_deadline_fines_then_auto_shoots():
     assert any(e["type"] == "fine" for e in r.last_events)
     assert r.phase == "decision"                         # 30 more seconds
     t[0] = r.phase_ends_at + 0.1
-    lives_before = player_by_id(r.state, seat).lives
+    cover_before = player_by_id(r.state, seat).cover
     assert r.on_deadline() is True                       # broke -> auto self-shoot
     assert any(e["type"] == "shot" for e in r.last_events)
     assert r.current != seat or r.state.bonus_pending or r.winner is not None

@@ -21,14 +21,14 @@
   const CODENAMES = ["V.K.", "C.W.", "J.L.", "N.D.", "W.N.", "H.Y.", "M.T.", "P.K."];  // bots wear monograms too
   const ICON = { revolver: 0, heart: 20, ledger: 37, briefcase: 40, envelope: 14,
                  poison: 11, phone: 38 };
-  const MAX_LIVES = 5, MAX_PER_TYPE = 3, MAX_TOTAL = 8;
+  const MAX_COVER = 5, MAX_PER_TYPE = 3, MAX_TOTAL = 8;
 
   function itemName(en) { return ITEMS[en] ? ITEMS[en].name : String(en); }
   function seatName(seat, roster) {
     const n = roster && (roster[seat] != null ? roster[seat] : roster[String(seat)]);
     return n ? String(n).slice(0, 8).toUpperCase() : CODENAMES[seat % CODENAMES.length];
   }
-  const THEME = { ITEMS, TEAMS, CODENAMES, ICON, MAX_LIVES, MAX_PER_TYPE, MAX_TOTAL,
+  const THEME = { ITEMS, TEAMS, CODENAMES, ICON, MAX_COVER, MAX_PER_TYPE, MAX_TOTAL,
                   itemName, seatName, CREDITS: "ART: JJ99 · DARKMOONFIRE" };
   global.THEME = THEME;
   if (typeof module !== "undefined" && module.exports) module.exports = THEME;

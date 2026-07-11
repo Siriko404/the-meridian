@@ -254,7 +254,7 @@
         const n = (v.your_hand || {})[en] || 0;
         const left = Math.max(0, (v.use_limit || 0) - ((v.use_counts || {})[en] || 0));
         const ok = usable.has(en) && n > 0 && left > 0 &&
-          !(en === "PASSPORT" && (me.lives || 0) >= THEME.MAX_LIVES);
+          !(en === "PASSPORT" && (me.cover || 0) >= THEME.MAX_COVER);
         return { en, label: iname(en), badge: "×" + n,
           sub: THEME.ITEMS[en].blurb + (left > 0 ? "" : " · SEALED"),
           bright: ok, dim: !ok };

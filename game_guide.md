@@ -43,11 +43,11 @@ Each player rolls a single die **three times** to receive three starting items:
 
 ---
 
-## Lives
+## Cover
 
-- Every player starts with **3 lives**, capped at **5**.
-- A live bullet costs the target **1 life** (2 if Poison is active).
-- A player is eliminated at **0 lives**.
+- Every player starts with **3 cover**, capped at **5**.
+- A live bullet costs the target **1 cover** (2 if Poison is active).
+- A player is eliminated at **0 cover**.
 
 ---
 
@@ -81,9 +81,9 @@ Each item is used on your own turn and has both an **effect** and a **point valu
 | Item | Effect |
 |------|--------|
 | **Terms** | Place on one player. They **cannot target you with their next shot.** It expires the **moment they fire that shot** (at anyone, including themselves). If they self-shoot a blank, it expires and they may shoot you on the resulting bonus turn. |
-| **Passport** | Restore **1 life**. **Cannot be used at max life (5)** — it stays locked in your inventory, taking a slot until you drop below max. (You may instead sacrifice it for points or trade it.) |
+| **Passport** | Restore **1 cover**. **Cannot be used at max cover (5)** — it stays locked in your inventory, taking a slot until you drop below max. (You may instead sacrifice it for points or trade it.) |
 | **Geiger** | Peek at the **next 1 bullet**. A second peek at an already-revealed bullet does nothing. |
-| **Poison** | Your next shot deals **double damage** (2 lives), including a self-shot (2 self-damage). **If that shot is a blank, the Poison is wasted.** **Max one Poison per turn** (no stacking to 4). |
+| **Poison** | Your next shot deals **double damage** (2 cover), including a self-shot (2 self-damage). **If that shot is a blank, the Poison is wasted.** **Max one Poison per turn** (no stacking to 4). |
 | **Magnet** | Discard the current bullet and draw the next. **The discarded bullet is removed for good** (the chamber shrinks). Magnet the last bullet → chamber empties → reload → you still take your shot from the new chamber. |
 | **Shakedown** | Place on one player — they **skip their next turn.** Only **one Shakedown at a time** per target (a second while one is active does nothing). **Never on a teammate** while teams are active (2026-07-10). |
 
@@ -151,9 +151,9 @@ Items double as currency. To pay for an action, you **sacrifice items** whose co
 | Public — all players see | Hidden |
 |---|---|
 | Every player's **team color**, and every **flip** (live) | **Who holds which item** |
-| Every player's **current lives** | The **order** of bullets in the chamber |
+| Every player's **current cover** | The **order** of bullets in the chamber |
 | The **count of each item type in play** (e.g. "5 Passports exist") | |
-| Your own lives and full inventory | |
+| Your own cover and full inventory | |
 
 - **Chamber counts (total bullets + live bullets) are announced once, at load — and never updated officially after.** Players track depletion from memory, and may **talk about it publicly, including lying.**
 - The bullet **order** is always hidden — Geiger is the only legal peek.
@@ -178,9 +178,9 @@ Silence. Decide your target: **yourself** or **another player**. **Item use and 
 | Outcome | Result |
 |---------|--------|
 | Self, **blank** | Survive. Earn a **bonus turn**. |
-| Self, **live** | Lose 1 life (2 if Poison). Turn ends. |
+| Self, **live** | Lose 1 cover (2 if Poison). Turn ends. |
 | Other, **blank** | Nothing happens. Turn ends. |
-| Other, **live** | Target loses 1 life (2 if Poison). Turn ends. |
+| Other, **live** | Target loses 1 cover (2 if Poison). Turn ends. |
 
 > If you have **no legal target** and **cannot afford a flip**, you **must shoot yourself** — passing is never allowed.
 
@@ -203,7 +203,7 @@ Silence. Decide your target: **yourself** or **another player**. **Item use and 
 ## Quick Reference
 
 - **Players:** min 5, no hard max; teams balanced (coin-flip the odd one)
-- **Lives:** start 3, max 5, dead at 0
+- **Cover:** start 3, max 5, dead at 0
 - **Inventory:** ≤ 3 per type, ≤ 8 total; over-cap items not received
 - **Chamber load:** accumulate two dice until **live > living players**; 30–70% live; shuffled, hidden order
 - **Reload triggers:** chamber empties (→ +2 items each, rolled on the 1–6 table) OR any elimination (→ killer's full extra turn, caps reset; items only if the chamber also emptied)

@@ -1,6 +1,6 @@
 import numpy as np
 
-from social_roulette.engine.constants import Item, MAX_LIVES
+from social_roulette.engine.constants import Item, MAX_COVER
 from social_roulette.engine.state import player_by_id
 from social_roulette.engine.endgame import teams_active
 from social_roulette.comms.vocab import ACT_N
@@ -33,12 +33,12 @@ def encode_obs(state, learner_id, extras):
             1.0 if is_self else 0.0,
             1.0 if is_ally else 0.0,
             1.0 if is_enemy else 0.0,
-            p.lives / MAX_LIVES,
+            p.cover / MAX_COVER,
             1.0 if p.handcuffed else 0.0,
             1.0 if learner_id in p.immunity_against else 0.0,
             1.0 if k in me.immunity_against else 0.0,
         ]
-    vec.append(me.lives / MAX_LIVES)
+    vec.append(me.cover / MAX_COVER)
     vec += [me.inventory.get(it, 0) / 3.0 for it in ITEMS]
     vec.append(1.0 if me.flipback_discount else 0.0)
     vec += _peek_onehot(extras["known_next_bullet"])

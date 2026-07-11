@@ -18,10 +18,10 @@ def test_limit_equals_living_players():
 
 def test_cig_heals_and_blocks_at_max():
     s = mkstate()
-    s.players[0].lives = 4
+    s.players[0].cover = 4
     s.players[0].inventory = {Item.PASSPORT: 1}
     I.apply_item(s, 0, Item.PASSPORT)
-    assert s.players[0].lives == 5
+    assert s.players[0].cover == 5
     s.players[0].inventory = {Item.PASSPORT: 1}
     with pytest.raises(Exception):
         I.apply_item(s, 0, Item.PASSPORT)

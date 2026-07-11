@@ -32,14 +32,14 @@ def test_self_blank_keeps_turn_bonus():
 
 def test_kill_gives_killer_extra_turn():
     s = mk(5, [Bullet.LIVE], teams=[Team.RED, Team.BLUE, Team.RED, Team.RED, Team.RED])
-    s.players[1].lives = 1
+    s.players[1].cover = 1
     take_shot(s, 0, 1)
     assert s.players[1].alive is False and s.current_id == 0 and 1 not in s.order
 
 
 def test_self_kill_with_saw_no_crash_no_extra_turn():
     s = mk(5, [Bullet.LIVE], saw_active=True)
-    s.players[0].lives = 2
+    s.players[0].cover = 2
     take_shot(s, 0, 0)
     assert s.players[0].alive is False and 0 not in s.order and s.current_id == 1
 
@@ -58,7 +58,7 @@ def test_emptied_plus_bonus_reloads_and_keeps_player():
 
 def test_kill_and_emptied_draws_items():
     s = mk(5, [Bullet.LIVE], teams=[Team.RED, Team.BLUE, Team.RED, Team.RED, Team.RED])
-    s.players[1].lives = 1
+    s.players[1].cover = 1
     before = sum(sum(p.inventory.values()) for p in s.players)
     take_shot(s, 0, 1)
     assert sum(sum(p.inventory.values()) for p in s.players) >= before and s.chamber.pos == 0
@@ -79,6 +79,6 @@ def test_illegal_shot_raises():
 
 def test_winner_set_on_last_kill():
     s = mk(2, [Bullet.LIVE], teams=[Team.RED, Team.BLUE])
-    s.players[1].lives = 1
+    s.players[1].cover = 1
     take_shot(s, 0, 1)
     assert s.winner == 0

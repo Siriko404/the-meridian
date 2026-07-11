@@ -3,7 +3,7 @@ from social_roulette.engine.state import Player, Chamber, can_receive, inventory
 
 
 def mkp(i=0, **kw):
-    d = dict(id=i, team=Team.RED, lives=3, alive=True, inventory={}, immunity_against=set(),
+    d = dict(id=i, team=Team.RED, cover=3, alive=True, inventory={}, immunity_against=set(),
              handcuffed=False, flipback_discount=False)
     d.update(kw)
     return Player(**d)
@@ -29,7 +29,7 @@ from social_roulette.engine.actions import UseItem, Shoot
 
 def test_new_game_shape():
     s = new_game(5, seed=1)
-    assert len(s.players) == 5 and all(p.lives == 3 for p in s.players)
+    assert len(s.players) == 5 and all(p.cover == 3 for p in s.players)
     assert all(sum(p.inventory.values()) == 3 for p in s.players)
     assert sum(1 for x in s.chamber.bullets if x == Bullet.LIVE) > 5 and s.current_id == s.order[0]
 

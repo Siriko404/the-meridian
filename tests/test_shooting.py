@@ -15,19 +15,19 @@ def mkstate(bullets, **kw):
 def test_live_costs_one():
     s = mkstate([Bullet.LIVE])
     ev = resolve_shot(s, 0, 1)
-    assert ev["damage"] == 1 and s.players[1].lives == 2 and s.chamber.pos == 1
+    assert ev["damage"] == 1 and s.players[1].cover == 2 and s.chamber.pos == 1
 
 
 def test_saw_doubles_and_clears():
     s = mkstate([Bullet.LIVE], saw_active=True)
     ev = resolve_shot(s, 0, 1)
-    assert ev["damage"] == 2 and s.players[1].lives == 1 and s.saw_active is False
+    assert ev["damage"] == 2 and s.players[1].cover == 1 and s.saw_active is False
 
 
 def test_saw_wasted_on_blank():
     s = mkstate([Bullet.BLANK], saw_active=True)
     ev = resolve_shot(s, 0, 1)
-    assert ev["damage"] == 0 and s.players[1].lives == 3 and s.saw_active is False
+    assert ev["damage"] == 0 and s.players[1].cover == 3 and s.saw_active is False
 
 
 def test_self_blank_sets_bonus():
@@ -45,6 +45,6 @@ def test_self_live_no_bonus_immunity_expires():
 
 def test_kill_floored():
     s = mkstate([Bullet.LIVE], saw_active=True)
-    s.players[1].lives = 1
+    s.players[1].cover = 1
     ev = resolve_shot(s, 0, 1)
-    assert ev["killed"] is True and s.players[1].lives == 0
+    assert ev["killed"] is True and s.players[1].cover == 0

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from .constants import Item, POINT_VALUE, MAX_LIVES
+from .constants import Item, POINT_VALUE, MAX_COVER
 from .state import player_by_id, living_players, can_receive
 from .items import cap_reached
 from .endgame import legal_targets
@@ -66,7 +66,7 @@ def legal_actions(state, player_id):
         if cap_reached(state, it):
             continue
         if it == Item.PASSPORT:
-            if p.lives < MAX_LIVES:
+            if p.cover < MAX_COVER:
                 acts.append(UseItem(it))
         elif it == Item.POISON:
             if not state.saw_used_this_turn:

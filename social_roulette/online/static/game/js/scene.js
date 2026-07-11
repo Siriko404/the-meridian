@@ -147,7 +147,7 @@
       this.repaintPlate(s, THEME.seatName(p.id, roster),
         !p.alive ? "dead" : (eq ? "bare" : (tm.plate === 0xffffff ? "box" : "rules")));
       s.dead = !p.alive;
-      this.syncCover(s, p.alive ? p.lives : 0, !!live);       // dots animate on live beats only
+      this.syncCover(s, p.alive ? p.cover : 0, !!live);       // dots animate on live beats only
       this.setChips(s, p, roster);
       const active = p.alive && p.id === view.current && view.winner == null;
       s.tile.setStrokeStyle(1, WHITE, (active ? 1 : 0.55) * s.fa);

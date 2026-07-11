@@ -7,7 +7,7 @@ def test_take_random_turn_advances_or_ends_game():
     start = s.current_id
     take_random_turn(s, start)
     assert (s.winner is not None or s.current_id != start
-            or any(p.lives < 3 for p in s.players) or s.bonus_pending)
+            or any(p.cover < 3 for p in s.players) or s.bonus_pending)
 
 
 def test_play_game_still_terminates():

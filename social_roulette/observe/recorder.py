@@ -28,7 +28,7 @@ class Recorder:
         self._emit(E.MATCH_START, turn=0, extra={
             "schema_version": E.SCHEMA_VERSION, "num_players": num_players, "seed": seed,
             "announced_total": ann_total, "announced_live": ann_live,
-            "players": [{"id": p.id, "team": p.team.name, "lives": p.lives,
+            "players": [{"id": p.id, "team": p.team.name, "lives": p.cover,
                          "inv": {it.name: c for it, c in p.inventory.items()}} for p in players],
         })
 

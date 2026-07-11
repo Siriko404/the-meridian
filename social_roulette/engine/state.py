@@ -7,7 +7,7 @@ from .constants import MAX_PER_TYPE, MAX_TOTAL
 class Player:
     id: int
     team: object
-    lives: int
+    cover: int
     alive: bool
     inventory: dict
     immunity_against: set

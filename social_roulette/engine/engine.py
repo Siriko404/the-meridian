@@ -1,4 +1,4 @@
-from .constants import Team, ITEM_TABLE, START_LIVES, Item, POINT_VALUE
+from .constants import Team, ITEM_TABLE, START_COVER, Item, POINT_VALUE
 from .state import player_by_id, living_ids, can_receive, Player, Chamber, GameState, Msg
 from .rng import SeededRng
 from .chamber import load_chamber
@@ -94,7 +94,7 @@ def new_game(num_players, seed):
         for _ in range(3):
             it = ITEM_TABLE[rng.randint(1, 6)]
             inv[it] = inv.get(it, 0) + 1
-        players.append(Player(i, teams[i], START_LIVES, True, inv, set(), False, False))
+        players.append(Player(i, teams[i], START_COVER, True, inv, set(), False, False))
     order = list(range(num_players))
     rng.shuffle(order)
     chamber = load_chamber(rng, num_players)

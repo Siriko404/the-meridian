@@ -1,6 +1,6 @@
 import math
 
-from .constants import Item, MAX_LIVES, CONSUMPTION_MULT
+from .constants import Item, MAX_COVER, CONSUMPTION_MULT
 from .state import player_by_id, living_players
 
 
@@ -26,9 +26,9 @@ def _consume(state, p, item):
 def apply_item(state, player_id, item, target_id=None):
     p = player_by_id(state, player_id)
     if item == Item.PASSPORT:
-        if p.lives >= MAX_LIVES:
+        if p.cover >= MAX_COVER:
             raise ValueError("passport unusable at max life")
-        p.lives += 1
+        p.cover += 1
         _consume(state, p, item)
         return {"healed": 1}
     if item == Item.GEIGER:

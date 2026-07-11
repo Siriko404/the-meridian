@@ -52,7 +52,7 @@ def test_harm_recorded_on_enemy_hit_not_self():
     g.chamber.bullets = [Bullet.LIVE, Bullet.LIVE]
     g.chamber.pos = 0
     g.saw_active = False
-    player_by_id(g, enemy).lives = 3
+    player_by_id(g, enemy).cover = 3
     g.current_id = 0
     step(g, 0, Shoot(enemy))
     assert g.harm[(enemy, 0)] == 1

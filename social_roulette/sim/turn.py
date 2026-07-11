@@ -78,7 +78,7 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
     alive_before = living_ids(state)
     ch_before = state.chamber
     if rec:
-        rec.turn_start(turn_idx, pid, me.team.name, me.lives)
+        rec.turn_start(turn_idx, pid, me.team.name, me.cover)
 
     shot_done = False
     for _ in range(40):
