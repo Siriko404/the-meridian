@@ -94,6 +94,11 @@ class Room:
         self.handler = None              # {"by","victim"} while a HANDLER holds the trigger
         self.pending_bot_shot = None     # (bot_pid, target) parked during the aiming window
         self._dragnet = {}               # seat -> last report (rides the view; private)
+        self.held_since = None           # hold-on-drop (spec §4, supersedes D11 for drops):
+        self.held_remaining = None       # frozen phase seconds while humans are off the car
+        self.hold_missing = set()        # their seats; play resumes when all are back
+        self.hold_expired = False        # 5:00 passed — the conductor must choose
+        self.hold_chooser = None         # seat that owns the choice (server appoints)
         if self.human:
             # Rotate the (random) seating so the turn STARTS at a human: nobody plays before the
             # first human turn, so no state is applied unseen (a bot immunity/flip/shot the human
@@ -158,6 +163,8 @@ class Room:
     def on_deadline(self):
         if self.winner is not None or self.phase is None:
             return False
+        if self.held_since is not None or self.phase_ends_at is None:
+            return False                   # the car is HELD — no clock bites (spec §4)
         if self.now() < self.phase_ends_at:
             return False
         self._trade_result = None          # any REAL transition clears a stale trade note (parity with apply/proceed)
@@ -292,6 +299,36 @@ class Room:
     def current(self):
         return self.state.current_id
 
+    # ---- hold (spec 2026-07-11 §4): a dropped human freezes the car for everyone.
+    #      Supersedes ui-v2 D11 for DROPS; D11's fine/auto-shot machinery still
+    #      governs connected stalling untouched. gen does NOT move — a hold is
+    #      not a game mutation, it rides the view like every reconnect-safe state.
+
+    HOLD_S = 300.0                       # 5:00 at signal, then the conductor chooses
+
+    def hold(self, missing):
+        self.hold_missing = set(missing)
+        if self.held_since is not None:  # already held — refresh the missing list only
+            return
+        self.held_since = self.now()
+        self.hold_expired = False
+        if self.held_remaining is None:  # a restore may arrive pre-frozen (from_dict)
+            self.held_remaining = (None if self.phase_ends_at is None
+                                   else max(0.0, self.phase_ends_at - self.now()))
+        self.phase_ends_at = None        # nothing fires while the car is held
+
+    def release(self):
+        if self.held_since is None:
+            return
+        if self.held_remaining is not None:
+            # +3.0 — the 3·2·1 countdown beat plays before the clock bites again
+            self.phase_ends_at = self.now() + 3.0 + self.held_remaining
+        self.held_since = None
+        self.held_remaining = None
+        self.hold_missing = set()
+        self.hold_expired = False
+        self.hold_chooser = None
+
     # ---- snapshot (spec 2026-07-11 §4): the session file's last line IS the game ----
 
     def to_dict(self):
@@ -307,6 +344,7 @@ class Room:
             "phase": self.phase,
             "remaining": (None if self.phase_ends_at is None
                           else self.phase_ends_at - self.now()),
+            "held_remaining": self.held_remaining,   # a crash DURING a hold keeps the frozen clock
             "human": sorted(self.human),
             "seating": list(self.seating),
             "extra_turn": self.extra_turn,
@@ -421,6 +459,11 @@ class Room:
         r.rec = Recorder(0)                # fresh archive on restore (docstring above)
         r._turn = d["turn"]
         r.last_events = []                 # a restore settles silently — no beats replay
+        r.held_since = None                # a restored car is re-held EXPLICITLY (boot path)
+        r.held_remaining = d.get("held_remaining")
+        r.hold_missing = set()
+        r.hold_expired = False
+        r.hold_chooser = None
         return r
 
     def is_bot(self, seat):
@@ -459,6 +502,10 @@ class Room:
             and player_by_id(self.state, seat).specials.get("HANDLER", 0) > 0)
         if v["handler_available"]:
             v["seize_ids"] = legal_targets(self.state, self.state.current_id)
+        if self.held_since is not None:      # rides EVERY view — reconnect-safe (standing law)
+            v["hold"] = {"missing": sorted(self.hold_missing), "since": self.held_since,
+                         "deadline": self.held_since + self.HOLD_S,
+                         "expired": self.hold_expired, "chooser": self.hold_chooser}
         return v
 
     def events_for(self, seat):
