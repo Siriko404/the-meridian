@@ -139,13 +139,12 @@
     $("chatin").placeholder = chatOk ? "say something…" : "SILENCE.";
     buildFace();
     scene.setSeize(!!curView.handler_available && !over, () => {
-      if (!busy && curView.handler_available) net.send({ type: "handler_seize" });
+      if (!busy && curView.handler_available) seizeSheet();
     });
     const po = curView.pending_offer;                                // incoming offer → the sheet ARRIVES
     if (po && po.to === curView.you) respondThread(po);              // (rides the view: reconnect-safe)
     if (curView.phase === "tax" && myTurn()) taxThread();            // B3: the shakedown sheet arrives
     if (curView.warrant_pick) warrantSheet(curView.warrant_pick);    // your open warrant (reconnect-safe)
-    else if (curView.handler_pick) handlerPickSheet(curView.handler_pick);
     else if (curView.dragnet_report && !seenDragnet) dragnetSheet(curView.dragnet_report);
   }
 
@@ -211,11 +210,10 @@
               : { label: "TRADE", trade: canTrade, dim: !canTrade, sub: "PRIVATE OFFER TO A TEAMMATE" },
           { label: "PROCEED", bright: true, go: true, sub: "GO SILENT — DECIDE" }];
       } else {
-        const ridden = !!curView.ridden;
         rows = [
-          { label: "SHOOT", shoot: kinds.has("shoot") && !ridden, bright: kinds.has("shoot") && !ridden,
-            dim: !kinds.has("shoot") || ridden,
-            sub: ridden ? "YOUR HANDS MOVE ON THEIR OWN" : "PICK A TARGET — OR YOURSELF" },
+          { label: "SHOOT", shoot: kinds.has("shoot"), bright: kinds.has("shoot"),
+            dim: !kinds.has("shoot"),
+            sub: "PICK A TARGET — OR YOURSELF" },
           { label: "FLIP", flip: kinds.has("flip"), dim: !kinds.has("flip"), sub: "BUY A CHANGE OF LOYALTY" },
           { label: "ITEM", kit: kinds.has("item"), dim: !kinds.has("item"), sub: "OPEN YOUR KIT" }];
       }
@@ -501,14 +499,14 @@
       t.onRow = null;
     });
   }
-  function handlerPickSheet(pick) {
+  function seizeSheet() {                                            // HANDLER v2: pick X NOW, silently
     openTh("HANDLER");
     const t = th;
     t.show(async () => {
-      const id = await t.pickSeat("shoot", pick.ids, "THEIR SHOT — TAP THE TARGET");
+      const id = await t.pickSeat("shoot", curView.seize_ids || [], "THEIR SHOT — TAP THE REAL TARGET");
       if (id == null || !t.alive()) return;
-      closeTh();
-      net.send({ type: "handler_shot", target: id });
+      confirmStep("RE-AIM AT " + THEME.seatName(id, roster), THEME.SPECIALS.HANDLER.blurb,
+        () => net.send({ type: "handler_seize", target: id }));
     });
   }
 
@@ -600,8 +598,6 @@
       return "SHAKEDOWN — BUY YOUR TURN BACK, OR SIT IT OUT";
     if (v.phase === "aiming")
       return THEME.seatName(v.current, roster) + " IS TAKING AIM\u2026";
-    if (v.ridden && v.current === v.you)
-      return "YOUR HANDS MOVE ON THEIR OWN — THE SHOT IS NOT YOURS";
     return "";
   }
   function tick() {

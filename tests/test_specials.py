@@ -84,9 +84,7 @@ def test_room_dragnet_and_warrant_flow_stays_anonymous():
     assert v["special_counts"]["HANDLER"] == 5              # theft does not move the count
 
 
-def test_handler_seizes_a_bot_shot_and_it_reads_as_the_bots():
-    r, t = _clockroom(humans={0})
-    # drive to a bot aiming window
+def _drive_to_aiming(r, t):
     for _ in range(200):
         if r.phase == "aiming" or r.winner is not None:
             break
@@ -99,13 +97,94 @@ def test_handler_seizes_a_bot_shot_and_it_reads_as_the_bots():
         else:
             t[0] = (r.phase_ends_at or t[0]) + 0.1
             r.on_deadline()
+
+
+def test_handler_v2_reaims_a_bot_shot_silently():
+    r, t = _clockroom(humans={0})
+    _drive_to_aiming(r, t)
     if r.winner is not None or r.phase != "aiming":
         return                                              # seed didn't reach a window; engine tests cover
     bot = r.current
-    r.handler_seize(0)
-    assert r.view(bot).get("ridden") is True                # victim knows THAT
-    ids = r.view(0)["handler_pick"]["ids"]
-    r.handler_shot(0, ids[-1])
+    x = r.view(0)["seize_ids"][-1]
+    gen0 = r.gen
+    r.handler_seize(0, x)
+    assert r.gen == gen0                                    # v2: seize moves NOTHING observable
+    assert r.view(bot).get("ridden") is None                # victim is told NOTHING
+    assert not [e for e in r.events_for(bot) if e.get("type") == "ridden"]
+    t[0] = r.phase_ends_at + 0.1                            # window burns to its exact deadline
+    r.on_deadline()
     shots = [e for e in r.last_events if e.get("type") == "shot"]
     assert shots and shots[0]["actor"] == bot               # the wire says the BOT chose it
+    assert shots[0]["target"] == x                          # …but the bullet went where 0 pointed
     assert "handler" not in str(r.last_events).lower()      # anonymity
+    assert r.handler is None
+
+
+def test_handler_v2_swaps_a_human_shot_silently():
+    r, t = _clockroom(humans={0, 1, 2, 3, 4})
+    victim = r.current
+    seizer = next(p for p in range(5) if p != victim)
+    r.proceed(victim)
+    x = r.view(seizer)["seize_ids"][-1]
+    r.handler_seize(seizer, x)
+    assert player_by_id(r.state, seizer).specials["HANDLER"] == 0
+    v = r.view(victim)
+    assert v.get("ridden") is None                          # UI fully normal: shoot NOT locked
+    shoots = [a for a in v["legal"] if a["kind"] == "shoot"]
+    assert shoots
+    pick = next((a for a in shoots if a["target"] != x), shoots[0])
+    r.apply(victim, pick["i"])                              # victim aims at THEIR choice…
+    shots = [e for e in r.last_events if e.get("type") == "shot"]
+    assert shots and shots[0]["actor"] == victim
+    assert shots[0]["target"] == x                          # …the bullet obeys the puppeteer
+    assert r.handler is None
+
+
+def test_handler_v2_timeout_selfshot_redirects():
+    r, t = _clockroom(humans={0, 1, 2, 3, 4})
+    victim = r.current
+    seizer = next(p for p in range(5) if p != victim)
+    r.proceed(victim)
+    x = next(i for i in r.view(seizer)["seize_ids"] if i != victim)
+    r.handler_seize(seizer, x)
+    player_by_id(r.state, victim).inventory = {}            # broke: timeout skips fines, gun fires
+    t[0] = r.phase_ends_at + 0.1
+    r.on_deadline()
+    shots = [e for e in r.last_events if e.get("type") == "shot"]
+    assert shots and shots[0]["actor"] == victim
+    assert shots[0]["target"] == x                          # v2-1: even the timeout shot obeys
+
+
+def test_handler_v2_first_seize_locks_second_alarms():
+    r, t = _clockroom(humans={0, 1, 2, 3, 4})
+    victim = r.current
+    others = [p for p in range(5) if p != victim]
+    r.proceed(victim)
+    r.handler_seize(others[0], r.view(others[0])["seize_ids"][0])
+    assert r.view(others[1])["handler_available"] is True   # no passive leak: button stays
+    with pytest.raises(Exception, match="already held"):
+        r.handler_seize(others[1], r.view(others[1])["seize_ids"][0])
+    assert player_by_id(r.state, others[1]).specials["HANDLER"] == 1   # alarm costs nothing
+
+
+def test_handler_v2_target_must_be_legal_for_the_victim():
+    r, t = _clockroom(humans={0, 1, 2, 3, 4})
+    victim = r.current
+    seizer = next(p for p in range(5) if p != victim)
+    r.proceed(victim)
+    with pytest.raises(Exception, match="not a shot"):
+        r.handler_seize(seizer, 99)
+    assert player_by_id(r.state, seizer).specials["HANDLER"] == 1
+
+
+def test_searched_note_fires_once_not_forever():
+    r, t = _clockroom(humans={0, 1, 2, 3, 4})
+    seat = r.current
+    other = next(p for p in range(5) if p != seat)
+    r.use_special(seat, "WARRANT", other)
+    pick = r.view(seat)["warrant_pick"]
+    name = next(iter(pick["hand"]), None) or next(iter(pick["specials"]))
+    r.warrant_take(seat, name)
+    assert [e for e in r.events_for(other) if e.get("type") == "searched"]
+    r.proceed(seat)                                         # ANY next delta
+    assert not [e for e in r.events_for(other) if e.get("type") == "searched"]

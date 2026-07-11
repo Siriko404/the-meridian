@@ -108,7 +108,7 @@ Every player is dealt **all three specials at game start**. They are **never dra
 |---------|--------|
 | **Warrant** | Search one player's kit — you privately see **everything** they hold (items AND specials) and **take one thing** of your choice. The victim learns they were searched and what vanished — never by whom. |
 | **Dragnet** | Privately see **every player's items**. Specials stay dark — only a search reveals those. |
-| **Handler** | During **any** player's decision phase (bot turns pause ~5s to aim), seize their shot: their targeting locks, they are told a higher power holds their trigger — never who — and **you pick the target under their constraints** (their team wall, Terms on them, self included). The shot looks like their own choice to everyone else. The clock is untouched; a timeout follows the normal timeout law. |
+| **Handler** | During **any** player's decision phase (bot turns pause ~5s to aim), silently re-aim their coming shot: you pick the real target **now**, from shots they could legally take (their Terms respected, self included) — and they are told **nothing**. They keep aiming and firing normally; the bullet simply lands where you pointed. To the whole table — record included — it reads as **their** shot at **your** target. The shooter learns only from the damage, and can never prove they aimed elsewhere; if you picked the same target they did, they never know at all. Even a timed-out shot obeys the seize. First seize locks the trigger — a second Handler that turn is privately refused. The clock is untouched. |
 
 ---
 

@@ -22,7 +22,7 @@
   const SPECIALS = {
     WARRANT: { name: "WARRANT", icon: 22, blurb: "SEARCH ONE KIT - TAKE ONE THING" },
     DRAGNET: { name: "DRAGNET", icon: 26, blurb: "SEE EVERY KIT - ONCE" },
-    HANDLER: { name: "HANDLER", icon: 33, blurb: "SEIZE SOMEONE'S SHOT - ONCE" },
+    HANDLER: { name: "HANDLER", icon: 33, blurb: "RE-AIM SOMEONE'S SHOT - THEY NEVER KNOW" },
   };
   const CODENAMES = ["V.K.", "C.W.", "J.L.", "N.D.", "W.N.", "H.Y.", "M.T.", "P.K."];  // bots wear monograms too
   const ICON = { revolver: 0, heart: 20, ledger: 37, briefcase: 40, envelope: 14,

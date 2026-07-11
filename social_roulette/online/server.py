@@ -231,7 +231,7 @@ async def ws(ws: WebSocket):
                     payloads = _capture_payloads(lb)
                 await _broadcast_views(lb, payloads)
 
-            elif t in ("special", "warrant_take", "handler_seize", "handler_shot") \
+            elif t in ("special", "warrant_take", "handler_seize") \
                     and lb and lb.room and me and me["seat"] is not None:
                 async with lb.lock:
                     try:
@@ -240,10 +240,8 @@ async def ws(ws: WebSocket):
                                                 msg.get("target"))
                         elif t == "warrant_take":
                             lb.room.warrant_take(me["seat"], msg.get("name"))
-                        elif t == "handler_seize":
-                            lb.room.handler_seize(me["seat"])
                         else:
-                            lb.room.handler_shot(me["seat"], int(msg.get("target", -1)))
+                            lb.room.handler_seize(me["seat"], int(msg.get("target", -1)))
                     except (IllegalAction, ValueError, TypeError) as e:
                         await _send(ws, {"type": "error", "msg": str(e) or "bad payload"})
                         continue

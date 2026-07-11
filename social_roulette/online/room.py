@@ -136,6 +136,7 @@ class Room:
             raise IllegalAction("not in talk phase")
         self._trade_result = None
         self._last_trade_items = None
+        self._notes = []
         self.gen += 1
         self.phase = "decision"
         self.phase_ends_at = self.now() + self.DECISION_S
@@ -149,6 +150,7 @@ class Room:
             return False
         self._trade_result = None          # any REAL transition clears a stale trade note (parity with apply/proceed)
         self._last_trade_items = None
+        self._notes = []                   # private notes live for ONE delta — never replayed
         if self.phase == "talk":
             self.gen += 1
             self.phase = "decision"
@@ -158,9 +160,8 @@ class Room:
             return True
         if self.phase == "aiming" and self.pending_bot_shot is not None:
             pid, tgt = self.pending_bot_shot
-            if self.handler is not None:
-                self.handler = None            # seized but never fired: wasted, bot shoots its own call
-            self.pending_bot_shot = None
+            tgt = self._seized_target(pid, tgt)    # v2: fires AT the deadline either way —
+            self.pending_bot_shot = None           # an early shot would leak the seize
             n0 = len(self.rec.rows)
             self._emit_human_action(pid, Shoot(tgt))
             for e in self.extras.values():
@@ -191,8 +192,8 @@ class Room:
             self.phase_ends_at = self.now() + self.DECISION_S
             return True
         n0 = len(self.rec.rows)
-        self.handler = None                                # timeout: the seized trigger is wasted
-        self._emit_human_action(seat, Shoot(seat))
+        self._emit_human_action(seat, Shoot(self._seized_target(seat, seat)))
+        # v2-1: even the timeout auto-shot obeys a seized trigger
         for e in self.extras.values():
             e.sync(self.state)
         self._run_bots()
@@ -230,6 +231,7 @@ class Room:
                 raise IllegalAction("bad item name")
         self._trade_result = None
         self._last_trade_items = None
+        self._notes = []
         self.gen += 1
         self.last_events = []          # a gen bump REBROADCASTS — stale beats must not replay
         self.pending_offer = {"from": seat, "to": to, "give": list(give), "want": list(want)}
@@ -237,6 +239,7 @@ class Room:
     def trade_withdraw(self, seat):
         if self.pending_offer is None or self.pending_offer["from"] != seat:
             raise IllegalAction("no offer of yours is pending")
+        self._notes = []
         self.gen += 1
         self.last_events = []          # a gen bump REBROADCASTS — stale beats must not replay
         self.pending_offer = None
@@ -245,6 +248,7 @@ class Room:
         if self.pending_offer is None or self.pending_offer["to"] != seat:
             raise IllegalAction("no offer for you is pending")
         off = self.pending_offer
+        self._notes = []
         self.gen += 1
         self.last_events = []          # settle re-sets it below; decline/cancel carry only the private note
         self.pending_offer = None
@@ -302,17 +306,16 @@ class Room:
             v["warrant_pick"] = {k: self.pending_warrant[k] for k in ("target", "hand", "specials")}
         if seat in self._dragnet:
             v["dragnet_report"] = self._dragnet[seat]
-        if self.handler is not None and self.handler.get("victim") == seat:
-            v["ridden"] = True                             # they know THAT, never WHO
-        if self.handler is not None and self.handler.get("by") == seat:
-            v["handler_pick"] = {"victim": self.handler["victim"],
-                                 "ids": legal_targets(self.state, self.handler["victim"])}
+        # v2: the shooter is NEVER flagged, and a live seize must not hide the button
+        # from other holders (a vanishing button would leak it) — they alarm on attempt.
         v["handler_available"] = (
-            self.winner is None and self.handler is None
+            self.winner is None
             and self.phase in ("decision", "aiming")
             and seat != self.state.current_id
             and player_by_id(self.state, seat).alive
             and player_by_id(self.state, seat).specials.get("HANDLER", 0) > 0)
+        if v["handler_available"]:
+            v["seize_ids"] = legal_targets(self.state, self.state.current_id)
         return v
 
     def events_for(self, seat):
@@ -356,15 +359,16 @@ class Room:
         acts = legal_actions(self.state, seat)
         if not (0 <= i < len(acts)):
             raise IllegalAction("no such action")
-        if (self.handler is not None and self.handler.get("victim") == seat
-                and isinstance(acts[i], Shoot)):
-            raise IllegalAction("your hands move on their own")
         if not self._allowed(acts[i]):
             raise IllegalAction("not allowed in this phase")
         self._trade_result = None
         self._last_trade_items = None
+        self._notes = []
+        act = acts[i]
+        if isinstance(act, Shoot):                       # v2: a seized trigger obeys the
+            act = Shoot(self._seized_target(seat, act.target_id))   # puppeteer, silently
         n0 = len(self.rec.rows)
-        self._emit_human_action(seat, acts[i])
+        self._emit_human_action(seat, act)
         for e in self.extras.values():
             e.sync(self.state)
         self._run_bots()
@@ -395,6 +399,7 @@ class Room:
             raise IllegalAction("bad payment item")
         self._trade_result = None
         self._last_trade_items = None
+        self._notes = []
         n0 = len(self.rec.rows)
         try:
             engine_step(self.state, seat, Flip(target_id, sacrifice))
@@ -460,8 +465,12 @@ class Room:
         self.gen += 1
         self.last_events = []
 
-    def handler_seize(self, seat):
-        """Any decision/aiming phase, not your own shot, consumes the HANDLER now."""
+    def handler_seize(self, seat, target):
+        """v2 (2026-07-11): ONE atomic move during ANOTHER player's decision/aiming —
+        consume your HANDLER and silently re-aim their coming shot at `target`
+        (a shot THEY could legally take). The shooter is told NOTHING: no note,
+        no lock, no gen bump — the table sees nothing until the bullet lands.
+        First seize locks the trigger; later attempts alarm PRIVATELY (the error)."""
         p = player_by_id(self.state, seat)
         victim = self.state.current_id
         if (self.winner is not None or not p.alive or seat == victim
@@ -471,29 +480,21 @@ class Room:
             raise IllegalAction("the trigger is already held")
         if p.specials.get("HANDLER", 0) < 1:
             raise IllegalAction("no handler left")
-        p.specials["HANDLER"] -= 1
-        self.handler = {"by": seat, "victim": victim}
-        self.rec.special(self._turn, seat, "HANDLER", victim)
-        self._notes = [(victim, {"type": "ridden"})]
-        self.gen += 1
-        self.last_events = []              # timer untouched — SECRECY LAW (ruling 6)
-
-    def handler_shot(self, seat, target):
-        h = self.handler
-        if h is None or h["by"] != seat:
-            raise IllegalAction("you do not hold the trigger")
-        victim = h["victim"]
-        if self.state.winner is not None or self.state.current_id != victim:
-            raise IllegalAction("the moment has passed")
         if target not in legal_targets(self.state, victim):
             raise IllegalAction("not a shot they could take")
+        p.specials["HANDLER"] -= 1
+        self.handler = {"by": seat, "victim": victim, "target": int(target)}
+        self.rec.special(self._turn, seat, "HANDLER", victim, aim=int(target))
+        # NO gen bump, NO event, NO note — even the ledger's aggregate count must not
+        # move until the next natural delta (the shot). Timer untouched — SECRECY LAW.
+
+    def _seized_target(self, shooter, fallback):
+        """The puppeteer's pick if this shooter's trigger is held, else the shooter's
+        own choice. Consumes the seize — every turn ends in exactly one shot."""
+        if self.handler is not None and self.handler["victim"] == shooter:
+            fallback = self.handler["target"]
         self.handler = None
-        self.pending_bot_shot = None
-        self._trade_result = None
-        self._last_trade_items = None
-        n0 = len(self.rec.rows)
-        self._emit_human_action(victim, Shoot(target))   # the shot IS the victim's on every wire
-        self._finish_delta(n0)
+        return fallback
 
     def pay_tax(self, seat, tier, item_names):
         """Resolve your shakedown with a CHOSEN payment (tier 6/4) or skip (0)."""
@@ -507,6 +508,7 @@ class Room:
             raise IllegalAction("bad payment item")
         self._trade_result = None
         self._last_trade_items = None
+        self._notes = []
         n0 = len(self.rec.rows)
         try:
             self._emit_human_action(seat, PayTax(int(tier), sacrifice))

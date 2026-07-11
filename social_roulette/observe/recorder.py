@@ -77,8 +77,11 @@ class Recorder:
     def tax(self, turn, actor, tier):
         self._emit(E.TAX, turn=turn, actor=actor, extra={"tier": tier})
 
-    def special(self, turn, actor, kind, target=None):
-        self._emit(E.SPECIAL, turn=turn, actor=actor, target=target, extra={"kind": kind})
+    def special(self, turn, actor, kind, target=None, aim=None):
+        extra = {"kind": kind}
+        if aim is not None:
+            extra["aim"] = aim             # HANDLER's real pick — archive only, never the wire
+        self._emit(E.SPECIAL, turn=turn, actor=actor, target=target, extra=extra)
 
     def trade(self, turn, actor, target, give, want):
         self._emit(E.TRADE, turn=turn, actor=actor, target=target,
