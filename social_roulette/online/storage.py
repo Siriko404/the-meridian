@@ -73,7 +73,9 @@ def session_write_meta(code, meta):
 
 
 def session_append(code, line):
-    with open(session_path(code), "a", encoding="utf-8") as f:
+    path = session_path(code)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(line) + "\n")
 
 

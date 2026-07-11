@@ -5,8 +5,16 @@ room.on_deadline() return False, and without a reschedule the phase timer is
 dead forever — nobody is fined or auto-shot until an unrelated broadcast."""
 import asyncio
 
-from social_roulette.online import server
+import pytest
+
+from social_roulette.online import server, storage
 from social_roulette.online.room import Room
+
+
+@pytest.fixture(autouse=True)
+def data_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr(storage, "DATA_DIR", tmp_path)   # _persist writes here now
+    return tmp_path
 
 
 def _lobby(wall):
