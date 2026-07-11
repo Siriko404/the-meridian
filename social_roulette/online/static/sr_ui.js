@@ -64,7 +64,7 @@
     el(root, "hand").innerHTML = items.length
       ? items.map(([t, c]) => `<div class="card"><div class="t">${t}</div><div class="c">${c}</div></div>`).join("")
       : '<div class="card empty">NO ITEMS</div>';
-    el(root, "peek").textContent = v.peek && v.peek !== "unknown" ? `NEXT BULLET: ${v.peek.toUpperCase()}` : "";
+    el(root, "peek").textContent = v.scan ? `NEXT ${v.scan.of}: ${v.scan.live} LIVE` : "";
     const turn = el(root, "turn"), label = v.winner != null ? "" : (v.current === v.you ? "YOUR TURN" : `P${v.current}'S TURN`);
     if (turn.dataset.label !== label) { turn.dataset.label = label; if (label) decoder(turn, label, { dur: 620 }); else turn.textContent = ""; }
   }

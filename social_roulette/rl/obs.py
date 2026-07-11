@@ -8,14 +8,17 @@ from social_roulette.comms.vocab import ACT_N
 ITEMS = [Item.MAGNET, Item.SHAKEDOWN, Item.GEIGER, Item.POISON, Item.PASSPORT, Item.TERMS]
 N_SLOTS = 5
 PER_SLOT = 8       # alive, is_self, is_ally, is_enemy, lives, handcuffed, learner_immunized_them, they_immunized_learner
-GLOBALS = 22       # own_lives(1) own_inv(6) flipback(1) peek(3) item_counts(6) ann_total(1) ann_live(1) fired(1) saw(1) bonus(1)
+GLOBALS = 22       # own_cover(1) own_inv(6) flipback(1) scan(3) item_counts(6) ann_total(1) ann_live(1) fired(1) saw(1) bonus(1)
 MSG_K = 8          # last-K messages heard
 MSG_FEATURES = 5   # has, speaker_rel, act, target_rel, value (re-relativized per listener)
 OBS_DIM = N_SLOTS * PER_SLOT + GLOBALS + MSG_K * MSG_FEATURES
 
 
-def _peek_onehot(v):
-    return [1.0 if v == "live" else 0.0, 1.0 if v == "blank" else 0.0, 1.0 if v == "unknown" else 0.0]
+def _scan_feats(ex):
+    """3 floats (same width the old peek one-hot used): scanned?, live/2, of/2."""
+    if ex.get("scan_live") is None:
+        return [0.0, 0.0, 0.0]
+    return [1.0, ex["scan_live"] / 2.0, ex["scan_of"] / 2.0]
 
 
 def encode_obs(state, learner_id, extras):
@@ -41,7 +44,7 @@ def encode_obs(state, learner_id, extras):
     vec.append(me.cover / MAX_COVER)
     vec += [me.inventory.get(it, 0) / 3.0 for it in ITEMS]
     vec.append(1.0 if me.flipback_discount else 0.0)
-    vec += _peek_onehot(extras["known_next_bullet"])
+    vec += _scan_feats(extras)
     counts = {it: 0 for it in ITEMS}
     for p in state.players:
         for it, c in p.inventory.items():

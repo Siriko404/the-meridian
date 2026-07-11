@@ -214,7 +214,7 @@
     } else if (it === "GEIGER") {                                             // M19 GEIGER
       await scene.iconFly(icon, e.actor, { x: SCENE.CX, y: SCENE.CY - 90 });
       scene.flashWhite();                                                        // shutter blink
-      await scene.toast(who + " USED A GEIGER", 1400);
+      await scene.toast(who + " RAN A GEIGER SWEEP", 1400);
     } else if (it === "POISON") {                                                   // M20 POISON
       scene.setSawChip(true);
       await scene.toast(who + " · ×2 ARMED", 1500);

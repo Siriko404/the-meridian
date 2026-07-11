@@ -82,7 +82,7 @@ Each item is used on your own turn and has both an **effect** and a **point valu
 |------|--------|
 | **Terms** | Place on one player. They **cannot target you with their next shot.** It expires the **moment they fire that shot** (at anyone, including themselves). If they self-shoot a blank, it expires and they may shoot you on the resulting bonus turn. |
 | **Passport** | Restore **1 cover**. **Cannot be used at max cover (5)** — it stays locked in your inventory, taking a slot until you drop below max. (You may instead sacrifice it for points or trade it.) |
-| **Geiger** | Peek at the **next 1 bullet**. A second peek at an already-revealed bullet does nothing. |
+| **Geiger** | Privately learn **how many of the next 2 bullets are live** (0, 1, or 2) — never which. With 1 bullet left it reports on that 1. A re-scan of the unchanged window repeats the same report. |
 | **Poison** | Your next shot deals **double damage** (2 cover), including a self-shot (2 self-damage). **If that shot is a blank, the Poison is wasted.** **Max one Poison per turn** (no stacking to 4). |
 | **Magnet** | Discard the current bullet and draw the next. **The discarded bullet is removed for good** (the chamber shrinks). Magnet the last bullet → chamber empties → reload → you still take your shot from the new chamber. |
 | **Shakedown** | Place on one player — they **skip their next turn.** Only **one Shakedown at a time** per target (a second while one is active does nothing). **Never on a teammate** while teams are active (2026-07-10). |
@@ -156,7 +156,7 @@ Items double as currency. To pay for an action, you **sacrifice items** whose co
 | Your own cover and full inventory | |
 
 - **Chamber counts (total bullets + live bullets) are announced once, at load — and never updated officially after.** Players track depletion from memory, and may **talk about it publicly, including lying.**
-- The bullet **order** is always hidden — Geiger is the only legal peek.
+- The bullet **order** is always hidden — the Geiger's count of the next 2 is the only legal probe, and it never reveals positions.
 
 ---
 

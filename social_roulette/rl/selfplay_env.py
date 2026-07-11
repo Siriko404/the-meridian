@@ -83,10 +83,10 @@ class SocialRouletteSelfPlayEnv(gym.Env):
 
     def step(self, idx):
         action = ActionCodec.decode(int(idx), self.state, self.learner_id)
-        is_mag = getattr(action, "item", None) == Item.GEIGER
-        engine_step(self.state, self.learner_id, action)
-        if is_mag:
-            self._extras[self.learner_id].peek(self.state)
+        is_scan = getattr(action, "item", None) == Item.GEIGER
+        res = engine_step(self.state, self.learner_id, action)
+        if is_scan:
+            self._extras[self.learner_id].scan(res)
         for e in self._extras.values():
             e.sync(self.state)
         if not self._terminal() and self.state.current_id != self.learner_id:

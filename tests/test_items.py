@@ -90,3 +90,24 @@ def test_apply_second_same_caster_immunity_raises():
     with pytest.raises(ValueError):
         apply_item(s, caster, Item.TERMS, target)
     assert player_by_id(s, caster).inventory[Item.TERMS] == 1   # 2nd NOT consumed
+
+
+def test_geiger_counts_next_two_never_positions():
+    s = mkstate(bullets=[Bullet.LIVE, Bullet.BLANK, Bullet.LIVE])
+    s.players[0].inventory = {Item.GEIGER: 3}
+    ev = I.apply_item(s, 0, Item.GEIGER)
+    assert ev == {"scan_live": 1, "scan_of": 2}          # LIVE+BLANK window -> count only
+    s.players[0].inventory = {Item.GEIGER: 1}
+    assert I.apply_item(s, 0, Item.GEIGER) == {"scan_live": 1, "scan_of": 2}  # re-scan = same report
+
+
+def test_geiger_one_bullet_left_reports_on_one():
+    s = mkstate(bullets=[Bullet.LIVE])
+    s.players[0].inventory = {Item.GEIGER: 1}
+    assert I.apply_item(s, 0, Item.GEIGER) == {"scan_live": 1, "scan_of": 1}
+
+
+def test_geiger_all_blank_window():
+    s = mkstate(bullets=[Bullet.BLANK, Bullet.BLANK, Bullet.LIVE])
+    s.players[0].inventory = {Item.GEIGER: 1}
+    assert I.apply_item(s, 0, Item.GEIGER) == {"scan_live": 0, "scan_of": 2}

@@ -66,7 +66,9 @@ def seat_view(state, seat, ex, feed=None, seating=None):
         "item_counts": counts,
         # NO persistent chamber counts — game_guide:159 announces total/live ONCE at load, then
         # players track depletion from memory. Counts ride the announce/reload EVENTS only.
-        "peek": ex["known_next_bullet"],
+        # own GEIGER scan of the next-2 window (private): {"live","of"} or None
+        "scan": ({"live": ex["scan_live"], "of": ex["scan_of"]}
+                 if ex.get("scan_live") is not None else None),
         "current": state.current_id,
         "winner": state.winner,
         "legal": legal,

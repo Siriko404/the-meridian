@@ -5,7 +5,7 @@ from social_roulette.engine.constants import Item
 from social_roulette.online.view import seat_view, action_label
 from social_roulette.engine.actions import Shoot, UseItem, Flip
 
-EX = {"known_next_bullet": "unknown", "announced_total": 10, "announced_live": 6}
+EX = {"scan_live": None, "scan_of": 0, "announced_total": 10, "announced_live": 6}
 
 
 def test_view_hides_other_hands_and_bullet_order():
@@ -22,13 +22,13 @@ def test_view_hides_other_hands_and_bullet_order():
     assert "bullets" not in v and "chamber" not in v
 
 
-def test_view_shows_only_own_peek():
+def test_view_shows_only_own_scan():
     g = new_game(5, 0)
     g.current_id = 0
     seen = dict(EX)
-    seen["known_next_bullet"] = "live"
-    assert seat_view(g, 0, seen)["peek"] == "live"
-    assert seat_view(g, 0, EX)["peek"] == "unknown"
+    seen.update(scan_live=1, scan_of=2)
+    assert seat_view(g, 0, seen)["scan"] == {"live": 1, "of": 2}
+    assert seat_view(g, 0, EX)["scan"] is None
 
 
 def test_view_legal_only_on_your_turn():

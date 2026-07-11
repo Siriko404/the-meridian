@@ -17,13 +17,17 @@ from social_roulette.engine.endgame import legal_targets
 
 
 class Extras:
-    """Per-seat observable memory (announced chamber counts + a known peeked bullet)."""
+    """Per-seat observable memory (announced chamber counts + the seat's own
+    GEIGER scan of the next-2 window). A scan invalidates whenever the window
+    changes: any pos advance or a fresh chamber."""
     def __init__(self):
-        self.known = "unknown"
+        self.scan_live = None      # int 0..2 when scanned, else None
+        self.scan_of = 0
         self.total = 0
         self.live = 0
         self._lc = None
         self._lp = 0
+        self._ln = 0
 
     def sync(self, state):
         ch = state.chamber
@@ -31,18 +35,26 @@ class Extras:
             self._lc = ch
             self.total = len(ch.bullets)
             self.live = sum(1 for s in ch.bullets if s == Bullet.LIVE)
-            self.known = "unknown"
+            self.scan_live = None
+            self.scan_of = 0
             self._lp = ch.pos
-        elif ch.pos != self._lp:
-            self.known = "unknown"
+            self._ln = len(ch.bullets)
+        elif ch.pos != self._lp or len(ch.bullets) != self._ln:
+            # window moved OR a MAGNET ejected from it (len change at same pos):
+            # every seat's scan is stale, incl. seats other than the ejector
+            self.scan_live = None
+            self.scan_of = 0
             self._lp = ch.pos
+            self._ln = len(ch.bullets)
 
-    def peek(self, state):
-        c = state.chamber.current()
-        self.known = "live" if c == Bullet.LIVE else ("blank" if c == Bullet.BLANK else "unknown")
+    def scan(self, res):
+        """Record this seat's own GEIGER result (engine effect dict)."""
+        self.scan_live = res.get("scan_live")
+        self.scan_of = res.get("scan_of", 0)
 
     def d(self):
-        return {"known_next_bullet": self.known, "announced_total": self.total, "announced_live": self.live}
+        return {"scan_live": self.scan_live, "scan_of": self.scan_of,
+                "announced_total": self.total, "announced_live": self.live}
 
 
 def random_policy(state, pid, extras):
@@ -109,10 +121,10 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
             if rec:
                 rec.gift(turn_idx, pid, to, [it.name for it in a.items])
         else:
-            is_mag = a.item == Item.GEIGER
+            is_scan = a.item == Item.GEIGER
             res = step(state, pid, a)
-            if is_mag:
-                ex.peek(state)
+            if is_scan:
+                ex.scan(res)
             if rec:
                 rec.item_used(turn_idx, pid, a.item.name, a.target_id, _san(res))
             _rec_draws(rec, turn_idx, res)

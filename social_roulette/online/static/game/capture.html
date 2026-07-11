@@ -71,7 +71,7 @@
     ],
     your_hand: { MAGNET: 1, GEIGER: 1, PASSPORT: 1 },
     item_counts: { MAGNET: 3, SHAKEDOWN: 2, GEIGER: 2, POISON: 1, PASSPORT: 3, TERMS: 2 },
-    peek: "unknown",
+    scan: null,
   });
   const ROSTER = { "0": "S.S." };          // human = monogram initials (spy plates)
   const dead4 = () => { const v = BASE(); v.players[4].alive = false; v.players[4].cover = 0; return v; };
@@ -98,7 +98,7 @@
     passport:   (s) => CHOREO.play(s, [{ type: "item", actor: 2, item: "PASSPORT", target: 2 }], BASE(), BASE(), ROSTER),
     spycam: async (s) => {
       await CHOREO.play(s, [{ type: "item", actor: 0, item: "GEIGER", target: null }], BASE(), BASE(), ROSTER);
-      s.setPeek("LIVE"); await s.w(1200); s.setPeek("BLANK"); await s.w(900);
+      s.setScan({ live: 2, of: 2 }); await s.w(1200); s.setScan({ live: 0, of: 2 }); await s.w(900);
     },
     poison:     (s) => { const v = BASE(); v.saw_active = true;
                   return CHOREO.play(s, [{ type: "item", actor: 3, item: "POISON", target: null }], BASE(), v, ROSTER); },
@@ -605,7 +605,7 @@
   const KROWS = () => [                                       // every row wears its blurb
     { label: "MAGNET", badge: "×1", bright: true, sub: "EJECT CURRENT BULLET" },
     { label: "SHAKEDOWN", badge: "×1", bright: true, sub: "TARGET SKIPS A TURN" },
-    { label: "GEIGER", badge: "×1", dim: true, sub: "PEEK NEXT BULLET · SEALED" },
+    { label: "GEIGER", badge: "×1", dim: true, sub: "HOW MANY OF NEXT 2 ARE LIVE · SEALED" },
     { label: "POISON", badge: "×0", dim: true, sub: "NEXT SHOT x2" },
     { label: "PASSPORT", badge: "×0", dim: true, sub: "+1 COVER" },
     { label: "TERMS", badge: "×0", dim: true, sub: "TARGET CAN'T SHOOT YOU" }];

@@ -52,10 +52,10 @@
 
       // ---- DOCK: three circular hubs (the dial idiom) + a chat ticker row ----
       this.add.line(0, 0, 12, 700, W - 12, 700, WHITE, 0.5).setOrigin(0).setDepth(6);
-      this.peekChip = this.add.container(W / 2, 716).setDepth(6).setVisible(false);
-      this.peekBg = this.add.rectangle(0, 0, 108, 24, 0x000000).setStrokeStyle(2, WHITE, 0.9);
-      this.peekT = this.add.text(0, 0, "", style(12)).setOrigin(0.5).setResolution(2);
-      this.peekChip.add([this.peekBg, this.peekT]);
+      this.scanChip = this.add.container(W / 2, 716).setDepth(6).setVisible(false);
+      this.scanBg = this.add.rectangle(0, 0, 128, 24, 0x000000).setStrokeStyle(2, WHITE, 0.9);
+      this.scanT = this.add.text(0, 0, "", style(12)).setOrigin(0.5).setResolution(2);
+      this.scanChip.add([this.scanBg, this.scanT]);
       this.strip = this.add.container(0, 0).setDepth(7);      // legacy anchor (unused by the dial UI)
       const hy = 776, kx = W - 52, lx = 52;
       this._kitXY = { x: kx, y: hy };
@@ -134,7 +134,7 @@
       if (this._arrow) this._arrow.setVisible(false);         // re-shown by _arrowTo for the active seat
       view.players.forEach((p) => this.paintSeat(p, view, roster));
       if (view.winner == null) this.dialTo(view.current, false);
-      this.setPeek(view.peek);
+      this.setScan(view.scan);
       this.setSawChip(!!view.saw_active);
       this.bandCode.setText(this._code || "");
     }
@@ -592,13 +592,14 @@
         duration: 600, ease: "Quad.easeOut", onComplete: r }));
       sh.destroy();
     }
-    setPeek(v) {                                              // M19 — own view only; red only when LIVE
-      const known = v && v !== "unknown";
-      this.peekChip.setVisible(!!known);
+    setScan(s) {                                              // M19 — own GEIGER census; red only on CERTAIN live
+      const known = s && s.of > 0;
+      this.scanChip.setVisible(!!known);
       if (known) {
-        const live = v === "LIVE";
-        this.peekT.setText("NEXT: " + v).setColor(live ? "#c8102e" : "#ffffff");
-        this.peekBg.setStrokeStyle(2, live ? RED : WHITE, 0.95);
+        const certain = s.live === s.of && s.live > 0;        // all-live window → current IS live
+        this.scanT.setText("NEXT " + s.of + " · " + s.live + " LIVE")
+          .setColor(certain ? "#c8102e" : "#ffffff");
+        this.scanBg.setStrokeStyle(2, certain ? RED : WHITE, 0.95);
       }
     }
     setSawChip(on) { if (this.sawChip) this.sawChip.setVisible(!!on); }

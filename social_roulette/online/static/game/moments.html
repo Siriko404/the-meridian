@@ -35,7 +35,7 @@
     ],
     your_hand: { MAGNET: 1, GEIGER: 1, PASSPORT: 1 },
     item_counts: { MAGNET: 3, SHAKEDOWN: 2, GEIGER: 2, POISON: 1, PASSPORT: 3, TERMS: 2 },
-    peek: "unknown",
+    scan: null,
   });
   const ROSTER = { "0": "you" };                       // seat 0 human; 1–4 = codenames
   const dead4 = () => { const v = BASE(); v.players[4].alive = false; v.players[4].cover = 0; return v; };
@@ -83,9 +83,9 @@
       [{ type: "draw", you: { attempted: ["POISON", "MAGNET"], received: ["POISON"] } }], BASE(), BASE(), ROSTER)],
     ["M17b DRAW (public copy)", (s) => CHOREO.play(s, [{ type: "draw" }], BASE(), BASE(), ROSTER)],
     ["M18 PASSPORT (heal)", (s) => CHOREO.play(s, [{ type: "item", actor: 2, item: "PASSPORT", target: 2 }], BASE(), BASE(), ROSTER)],
-    ["M19 GEIGER (peek chip)", async (s) => {
+    ["M19 GEIGER (scan chip)", async (s) => {
       await CHOREO.play(s, [{ type: "item", actor: 0, item: "GEIGER", target: null }], BASE(), BASE(), ROSTER);
-      s.setPeek("LIVE"); await s.w(1500); s.setPeek("BLANK"); await s.w(1200); s.setPeek("unknown");
+      s.setScan({ live: 2, of: 2 }); await s.w(1500); s.setScan({ live: 1, of: 2 }); await s.w(1200); s.setScan(null);
     }],
     ["M20 POISON (×2 armed)", (s) => { const v = BASE(); v.saw_active = true;
       return CHOREO.play(s, [{ type: "item", actor: 3, item: "POISON", target: null }], BASE(), v, ROSTER); }],

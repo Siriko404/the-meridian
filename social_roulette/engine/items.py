@@ -1,6 +1,6 @@
 import math
 
-from .constants import Item, MAX_COVER, CONSUMPTION_MULT
+from .constants import Item, Bullet, MAX_COVER, CONSUMPTION_MULT
 from .state import player_by_id, living_players
 
 
@@ -32,8 +32,12 @@ def apply_item(state, player_id, item, target_id=None):
         _consume(state, p, item)
         return {"healed": 1}
     if item == Item.GEIGER:
+        # Census, not a peek (itemsession 2026-07-10): how many of the next
+        # min(2, remaining) bullets are LIVE — never which. Private to the user.
         _consume(state, p, item)
-        return {"peek": state.chamber.current()}
+        window = state.chamber.bullets[state.chamber.pos:state.chamber.pos + 2]
+        live = sum(1 for b in window if b == Bullet.LIVE)
+        return {"scan_live": live, "scan_of": len(window)}
     if item == Item.POISON:
         if state.saw_used_this_turn:
             raise ValueError("poison already used this turn")

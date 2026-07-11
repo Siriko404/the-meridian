@@ -355,9 +355,8 @@ class Room:
             it = getattr(action, "item", None)
             ev = engine_step(self.state, seat, action)
             if it == Item.GEIGER:
-                self.extras[seat].peek(self.state)
-            elif it == Item.MAGNET:
-                self.extras[seat].known = "unknown"     # the peeked bullet was ejected → clear the stale peek
+                self.extras[seat].scan(ev)
+            # MAGNET: every seat's stale scan clears via Extras.sync (window len change)
             self.rec.item_used(self._turn, seat, action.item.name, action.target_id, {})
             if self.state.chamber is not ch_before and self.state.winner is None:   # Magnet emptied it → reload
                 live = sum(1 for s in self.state.chamber.bullets if s == Bullet.LIVE)

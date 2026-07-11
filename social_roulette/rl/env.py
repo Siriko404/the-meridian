@@ -21,11 +21,12 @@ class SocialRouletteSingleEnv(gym.Env):
         self.observation_space = spaces.Box(-1.0, 5.0, shape=(OBS_DIM,), dtype=np.float32)
         self.action_space = spaces.Discrete(ACTION_N)
         self.state = None
-        self._known = "unknown"
+        self._scan = (None, 0)     # (scan_live, scan_of) — own GEIGER result
         self._ann_total = 0
         self._ann_live = 0
         self._last_chamber = None
         self._last_pos = 0
+        self._last_len = 0
 
     def _on_chamber_change(self):
         ch = self.state.chamber
@@ -33,15 +34,17 @@ class SocialRouletteSingleEnv(gym.Env):
             self._last_chamber = ch
             self._ann_total = len(ch.bullets)
             self._ann_live = sum(1 for s in ch.bullets if s == Bullet.LIVE)
-            self._known = "unknown"
+            self._scan = (None, 0)
             self._last_pos = ch.pos
-        elif ch.pos != self._last_pos:
-            self._known = "unknown"
+            self._last_len = len(ch.bullets)
+        elif ch.pos != self._last_pos or len(ch.bullets) != self._last_len:
+            self._scan = (None, 0)   # window moved or a MAGNET ejected from it
             self._last_pos = ch.pos
+            self._last_len = len(ch.bullets)
 
     def _extras(self):
-        return {"known_next_bullet": self._known, "announced_total": self._ann_total,
-                "announced_live": self._ann_live}
+        return {"scan_live": self._scan[0], "scan_of": self._scan[1],
+                "announced_total": self._ann_total, "announced_live": self._ann_live}
 
     def _obs(self):
         return encode_obs(self.state, self.learner_id, self._extras())
@@ -82,11 +85,10 @@ class SocialRouletteSingleEnv(gym.Env):
 
     def step(self, idx):
         action = ActionCodec.decode(int(idx), self.state, self.learner_id)
-        is_magnifier = getattr(action, "item", None) == Item.GEIGER
-        engine_step(self.state, self.learner_id, action)
-        if is_magnifier:
-            cur = self.state.chamber.current()
-            self._known = "live" if cur == Bullet.LIVE else ("blank" if cur == Bullet.BLANK else "unknown")
+        is_scan = getattr(action, "item", None) == Item.GEIGER
+        res = engine_step(self.state, self.learner_id, action)
+        if is_scan:
+            self._scan = (res.get("scan_live"), res.get("scan_of", 0))
         self._on_chamber_change()
         if not self._terminal() and self.state.current_id != self.learner_id:
             self._run_opponents()

@@ -6,7 +6,7 @@ from social_roulette.engine.actions import Shoot, legal_actions
 from social_roulette.rl.obs import encode_obs, PER_SLOT
 from social_roulette.rl.action_space import ActionCodec
 
-EXTRAS = {"known_next_bullet": "unknown", "announced_total": 10, "announced_live": 6}
+EXTRAS = {"scan_live": None, "scan_of": 0, "announced_total": 10, "announced_live": 6}
 
 
 def test_self_is_always_slot0_for_any_seat():
