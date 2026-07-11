@@ -51,9 +51,12 @@ def seat_view(state, seat, ex, feed=None, seating=None):
                 "immune_from": sorted(p.immunity_against)}
                for p in state.players]
     counts = {it: 0 for it in ITEMS}
+    sp_counts = {"WARRANT": 0, "DRAGNET": 0, "HANDLER": 0}
     for p in state.players:
         for it, c in p.inventory.items():
             counts[it.name] += c
+        for k, c in (p.specials or {}).items():
+            sp_counts[k] = sp_counts.get(k, 0) + c
     legal = []
     if state.winner is None and state.current_id == seat:
         for i, a in enumerate(legal_actions(state, seat)):
@@ -68,7 +71,11 @@ def seat_view(state, seat, ex, feed=None, seating=None):
         # to ADJACENT seats and the turn-dot proceeds in order (game_guide:166, public).
         "order": list(seating) if seating is not None else [p.id for p in state.players],
         "your_hand": {it.name: c for it, c in me.inventory.items()},
+        "your_specials": {k: c for k, c in (me.specials or {}).items()},
         "item_counts": counts,
+        # PUBLIC aggregate (user 2026-07-10): the table sees how many of each special
+        # remain in play — a use drops it (anonymous), a WARRANT theft doesn't move it.
+        "special_counts": sp_counts,
         # NO persistent chamber counts — game_guide:159 announces total/live ONCE at load, then
         # players track depletion from memory. Counts ride the announce/reload EVENTS only.
         # own GEIGER scan of the next-2 window (private): {"live","of"} or None

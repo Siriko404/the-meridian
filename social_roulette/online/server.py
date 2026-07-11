@@ -231,6 +231,29 @@ async def ws(ws: WebSocket):
                     payloads = _capture_payloads(lb)
                 await _broadcast_views(lb, payloads)
 
+            elif t in ("special", "warrant_take", "handler_seize", "handler_shot") \
+                    and lb and lb.room and me and me["seat"] is not None:
+                async with lb.lock:
+                    try:
+                        if t == "special":
+                            lb.room.use_special(me["seat"], str(msg.get("kind", "")),
+                                                msg.get("target"))
+                        elif t == "warrant_take":
+                            lb.room.warrant_take(me["seat"], msg.get("name"))
+                        elif t == "handler_seize":
+                            lb.room.handler_seize(me["seat"])
+                        else:
+                            lb.room.handler_shot(me["seat"], int(msg.get("target", -1)))
+                    except (IllegalAction, ValueError, TypeError) as e:
+                        await _send(ws, {"type": "error", "msg": str(e) or "bad payload"})
+                        continue
+                    payloads = _capture_payloads(lb)
+                await _broadcast_views(lb, payloads)
+                if lb.room.winner is not None:
+                    for m in lb.members:
+                        if m["ws"] is not None:
+                            await _send(m["ws"], {"type": "end", "winner": lb.room.winner})
+
             elif t == "tax" and lb and lb.room and me and me["seat"] is not None:
                 try:
                     tier = int(msg.get("tier", -1))

@@ -8,6 +8,7 @@ from .economy import flip_team, pay_cost
 from .reload import reload_on_empty, reload_on_death, draw_items_for_all
 from .endgame import assert_legal_shot, winner, next_living_after
 from .actions import UseItem, Flip, Trade, Shoot, EndSubactions, Speak, PayTax
+from .specials import starting_specials
 
 
 def _process_death(state, victim_id):
@@ -17,6 +18,7 @@ def _process_death(state, victim_id):
     victim = player_by_id(state, victim_id)
     victim.alive = False
     victim.inventory = {}                       # guide:69 — items burned
+    victim.specials = {}                        # unused specials burn with the corpse
     for p in state.players:                     # guide:69 — their placed Terms expires
         p.immunity_against.discard(victim_id)
     state.order = [pid for pid in state.order if pid != victim_id]
@@ -131,7 +133,8 @@ def new_game(num_players, seed):
         for _ in range(3):
             it = ITEM_TABLE[rng.randint(1, 6)]
             inv[it] = inv.get(it, 0) + 1
-        players.append(Player(i, teams[i], START_COVER, True, inv, set(), False, False))
+        players.append(Player(i, teams[i], START_COVER, True, inv, set(), False, False,
+                              specials=starting_specials()))
     order = list(range(num_players))
     rng.shuffle(order)
     chamber = load_chamber(rng, num_players)

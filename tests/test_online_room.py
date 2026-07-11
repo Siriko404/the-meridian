@@ -47,13 +47,20 @@ def test_human_goes_first_no_unseen_preplay():
 
 
 def test_human_action_advances_and_bots_autoplay():
-    r = Room(human_seats={0}, seed=0)            # seat 0 human, rest bots
+    t = [1000.0]
+    r = Room(human_seats={0}, seed=0, now_fn=lambda: t[0])   # seat 0 human, rest bots
     assert r.current == 0 and r.winner is None   # leading bots auto-played in __init__
-    for _ in range(200):
+    for _ in range(800):
         if r.winner is not None:
             break
-        if r.current == 0:
-            if r.phase == "talk":
-                r.proceed(0)                     # index 0 == Shoot(self): talk-illegal, enter decision
-            r.apply(0, 0)                        # index 0 == Shoot(self)
+        if r.phase == "aiming" or r.current != 0:            # C2: bots park at the aiming window
+            t[0] = (r.phase_ends_at or t[0]) + 0.1
+            r.on_deadline()
+            continue
+        if r.phase == "tax":
+            r.apply(0, 0)                        # index 0 == PayTax(0): sit it out
+            continue
+        if r.phase == "talk":
+            r.proceed(0)                         # index 0 == Shoot(self): talk-illegal, enter decision
+        r.apply(0, 0)                            # index 0 == Shoot(self)
     assert r.winner is not None

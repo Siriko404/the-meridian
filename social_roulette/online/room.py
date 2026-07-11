@@ -18,6 +18,8 @@ from social_roulette.engine.constants import Item, Bullet
 from social_roulette.engine.actions import legal_actions, Shoot, Flip, PayTax
 from social_roulette.engine.state import player_by_id, living_ids
 from social_roulette.engine.economy import fine_cheapest, swap
+from social_roulette.engine import specials as SP
+from social_roulette.engine.endgame import legal_targets
 from social_roulette.sim.turn import take_policy_turn, random_policy, Extras
 from social_roulette.observe.recorder import Recorder
 from social_roulette.online.view import seat_view
@@ -39,6 +41,8 @@ def _anim(row):
     if t == "tax":
         ex = json.loads(row["extra"]) if row.get("extra") else {}
         return {"type": "tax", "actor": row["actor"], "tier": ex.get("tier")}
+    if t == "special":
+        return None                                       # anonymity law: no public trace
     if t == "draw":
         return {"type": "draw", "seq": row["seq"]}                    # seq keys the per-seat enrichment lookup
     out = {k: row[k] for k in _ANIM_KEYS if k in ("type", "actor") or row.get(k) is not None}
@@ -56,6 +60,7 @@ class IllegalAction(Exception):
 class Room:
     TALK_S = 60.0
     DECISION_S = 30.0
+    AIMING_S = 5.0                  # bot pre-shot window a HANDLER can seize (option b)
     _PHASE_KINDS = {"talk": {"item"}, "decision": {"item", "flip", "shoot"}, "tax": {"tax"}}
 
     def __init__(self, human_seats, seed, num_players=5, now_fn=time.time):
@@ -72,6 +77,11 @@ class Room:
         self._trade_result = None
         self._last_trade_items = None
         self.extra_turn = False          # set true when a kill grants the killer another turn (read by view)
+        self._notes = []                 # per-delta PRIVATE payloads: (seat, dict) — anonymity law
+        self.pending_warrant = None      # {"user","target","hand","specials"} until the take
+        self.handler = None              # {"by","victim"} while a HANDLER holds the trigger
+        self.pending_bot_shot = None     # (bot_pid, target) parked during the aiming window
+        self._dragnet = {}               # seat -> last report (rides the view; private)
         if self.human:
             # Rotate the (random) seating so the turn STARTS at a human: nobody plays before the
             # first human turn, so no state is applied unseen (a bot immunity/flip/shot the human
@@ -103,6 +113,9 @@ class Room:
         if self.winner is not None:
             self.phase = None
             self.phase_ends_at = None
+            return
+        if self.pending_bot_shot is not None:          # a bot is aiming — the window owns the phase
+            self.phase = "aiming"
             return
         if self.state.tax_pending:                     # B3: resolve the shakedown first
             self.phase = "tax"
@@ -143,6 +156,21 @@ class Room:
             self._expire_offer()          # defined Task 9; stub `pass` for now
             self.last_events = []
             return True
+        if self.phase == "aiming" and self.pending_bot_shot is not None:
+            pid, tgt = self.pending_bot_shot
+            if self.handler is not None:
+                self.handler = None            # seized but never fired: wasted, bot shoots its own call
+            self.pending_bot_shot = None
+            n0 = len(self.rec.rows)
+            self._emit_human_action(pid, Shoot(tgt))
+            for e in self.extras.values():
+                e.sync(self.state)
+            self._run_bots()
+            self._drain_skips()
+            self.last_events = [a for a in (_anim(r) for r in self.rec.rows[n0:]) if a]
+            self._derive_extra_turn()
+            self._begin_phase_for_current()
+            return True
         seat = self.state.current_id
         if self.phase == "tax":
             n0 = len(self.rec.rows)
@@ -151,7 +179,7 @@ class Room:
                 e.sync(self.state)
             self._run_bots()
             self._drain_skips()
-            self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
+            self.last_events = [a for a in (_anim(r) for r in self.rec.rows[n0:]) if a]
             self._derive_extra_turn()
             self._begin_phase_for_current()
             return True
@@ -163,12 +191,13 @@ class Room:
             self.phase_ends_at = self.now() + self.DECISION_S
             return True
         n0 = len(self.rec.rows)
+        self.handler = None                                # timeout: the seized trigger is wasted
         self._emit_human_action(seat, Shoot(seat))
         for e in self.extras.values():
             e.sync(self.state)
         self._run_bots()
         self._drain_skips()
-        self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
+        self.last_events = [a for a in (_anim(r) for r in self.rec.rows[n0:]) if a]
         self._derive_extra_turn()
         self._begin_phase_for_current()
         return True
@@ -269,6 +298,21 @@ class Room:
         })
         if self.pending_offer and seat in (self.pending_offer["from"], self.pending_offer["to"]):
             v["pending_offer"] = dict(self.pending_offer)
+        if self.pending_warrant and self.pending_warrant["user"] == seat:
+            v["warrant_pick"] = {k: self.pending_warrant[k] for k in ("target", "hand", "specials")}
+        if seat in self._dragnet:
+            v["dragnet_report"] = self._dragnet[seat]
+        if self.handler is not None and self.handler.get("victim") == seat:
+            v["ridden"] = True                             # they know THAT, never WHO
+        if self.handler is not None and self.handler.get("by") == seat:
+            v["handler_pick"] = {"victim": self.handler["victim"],
+                                 "ids": legal_targets(self.state, self.handler["victim"])}
+        v["handler_available"] = (
+            self.winner is None and self.handler is None
+            and self.phase in ("decision", "aiming")
+            and seat != self.state.current_id
+            and player_by_id(self.state, seat).alive
+            and player_by_id(self.state, seat).specials.get("HANDLER", 0) > 0)
         return v
 
     def events_for(self, seat):
@@ -301,6 +345,9 @@ class Room:
         tr = self._trade_result
         if tr and tr["kind"] in ("declined", "cancelled") and seat in tr["parties"]:
             out.append({"type": "trade_private", "kind": tr["kind"]})
+        for (who, payload) in self._notes:
+            if who == seat:
+                out.append(dict(payload))
         return out
 
     def apply(self, seat, i):
@@ -309,6 +356,9 @@ class Room:
         acts = legal_actions(self.state, seat)
         if not (0 <= i < len(acts)):
             raise IllegalAction("no such action")
+        if (self.handler is not None and self.handler.get("victim") == seat
+                and isinstance(acts[i], Shoot)):
+            raise IllegalAction("your hands move on their own")
         if not self._allowed(acts[i]):
             raise IllegalAction("not allowed in this phase")
         self._trade_result = None
@@ -319,7 +369,7 @@ class Room:
             e.sync(self.state)
         self._run_bots()
         self._drain_skips()
-        self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
+        self.last_events = [a for a in (_anim(r) for r in self.rec.rows[n0:]) if a]
         self._derive_extra_turn()
         # The turn only resolves via a SHOT (fines/auto-shoot flow through the same shot
         # path). A non-turn-ending action (item use, incl. a MAGNET reload) must NOT re-begin
@@ -356,9 +406,94 @@ class Room:
             e.sync(self.state)
         self._run_bots()
         self._drain_skips()
-        self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
+        self.last_events = [a for a in (_anim(r) for r in self.rec.rows[n0:]) if a]
         self._derive_extra_turn()
         self.gen += 1                 # a flip never ends the turn → never re-begin the phase (C1/§4.1)
+
+    def _finish_delta(self, n0):
+        for e in self.extras.values():
+            e.sync(self.state)
+        self._run_bots()
+        self._drain_skips()
+        self.last_events = [a for a in (_anim(r) for r in self.rec.rows[n0:]) if a]
+        self._derive_extra_turn()
+        self._begin_phase_for_current()
+
+    def use_special(self, seat, kind, target=None):
+        """WARRANT / DRAGNET — own turn, talk or decision phase. ANONYMOUS: no
+        public event; results ride private notes / the view."""
+        if self.winner is not None or seat != self.state.current_id:
+            raise IllegalAction("not your turn")
+        if self.phase not in ("talk", "decision"):
+            raise IllegalAction("not now")
+        self._trade_result = None
+        self._last_trade_items = None
+        self._notes = []
+        try:
+            if kind == "DRAGNET":
+                rep = SP.dragnet(self.state, seat)
+                self._dragnet[seat] = rep["hands"]
+                self.rec.special(self._turn, seat, kind)
+            elif kind == "WARRANT":
+                if self.pending_warrant is not None:
+                    raise IllegalAction("a warrant is already open")
+                rep = SP.warrant_inspect(self.state, seat, int(target))
+                self.pending_warrant = {"user": seat, **rep}
+                self.rec.special(self._turn, seat, kind, int(target))
+            else:
+                raise IllegalAction("unknown special")
+        except ValueError as e:
+            raise IllegalAction(str(e))
+        self.gen += 1
+        self.last_events = []              # NOTHING public — anonymity law
+
+    def warrant_take(self, seat, name):
+        pw = self.pending_warrant
+        if pw is None or pw["user"] != seat:
+            raise IllegalAction("no warrant of yours is open")
+        try:
+            res = SP.warrant_take(self.state, seat, pw["target"], name or None)
+        except ValueError as e:
+            raise IllegalAction(str(e))
+        self.pending_warrant = None
+        self._notes = [(pw["target"], {"type": "searched", "taken": res["took"]})]
+        self.gen += 1
+        self.last_events = []
+
+    def handler_seize(self, seat):
+        """Any decision/aiming phase, not your own shot, consumes the HANDLER now."""
+        p = player_by_id(self.state, seat)
+        victim = self.state.current_id
+        if (self.winner is not None or not p.alive or seat == victim
+                or self.phase not in ("decision", "aiming")):
+            raise IllegalAction("nothing to seize")
+        if self.handler is not None:
+            raise IllegalAction("the trigger is already held")
+        if p.specials.get("HANDLER", 0) < 1:
+            raise IllegalAction("no handler left")
+        p.specials["HANDLER"] -= 1
+        self.handler = {"by": seat, "victim": victim}
+        self.rec.special(self._turn, seat, "HANDLER", victim)
+        self._notes = [(victim, {"type": "ridden"})]
+        self.gen += 1
+        self.last_events = []              # timer untouched — SECRECY LAW (ruling 6)
+
+    def handler_shot(self, seat, target):
+        h = self.handler
+        if h is None or h["by"] != seat:
+            raise IllegalAction("you do not hold the trigger")
+        victim = h["victim"]
+        if self.state.winner is not None or self.state.current_id != victim:
+            raise IllegalAction("the moment has passed")
+        if target not in legal_targets(self.state, victim):
+            raise IllegalAction("not a shot they could take")
+        self.handler = None
+        self.pending_bot_shot = None
+        self._trade_result = None
+        self._last_trade_items = None
+        n0 = len(self.rec.rows)
+        self._emit_human_action(victim, Shoot(target))   # the shot IS the victim's on every wire
+        self._finish_delta(n0)
 
     def pay_tax(self, seat, tier, item_names):
         """Resolve your shakedown with a CHOSEN payment (tier 6/4) or skip (0)."""
@@ -381,7 +516,7 @@ class Room:
             e.sync(self.state)
         self._run_bots()
         self._drain_skips()
-        self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
+        self.last_events = [a for a in (_anim(r) for r in self.rec.rows[n0:]) if a]
         self._derive_extra_turn()
         self._begin_phase_for_current()
 
@@ -462,8 +597,22 @@ class Room:
             e.get("type") == "elimination" and e.get("actor") == self.state.current_id
             for e in self.last_events)
 
+    def _humans_hold_handler(self):
+        return any(player_by_id(self.state, h).alive and
+                   player_by_id(self.state, h).specials.get("HANDLER", 0) > 0
+                   for h in self.human)
+
     def _run_bots(self):
         while self.state.winner is None and self.is_bot(self.state.current_id):
+            pid = self.state.current_id
             self._turn += 1
-            take_policy_turn(self.state, self.state.current_id, random_policy, self.extras,
-                             rec=self.rec, turn_idx=self._turn)
+            hold = self._humans_hold_handler()
+            res = take_policy_turn(self.state, pid, random_policy, self.extras,
+                                   rec=self.rec, turn_idx=self._turn, stop_before_shot=hold)
+            if res.get("pending_shot") is not None and self.state.current_id == pid                     and self.state.winner is None:
+                # park the shot; open the aiming window (HANDLER can seize it)
+                self.pending_bot_shot = (pid, res["pending_shot"])
+                self.gen += 1
+                self.phase = "aiming"
+                self.phase_ends_at = self.now() + self.AIMING_S
+                return

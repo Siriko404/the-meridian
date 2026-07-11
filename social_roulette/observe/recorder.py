@@ -77,6 +77,9 @@ class Recorder:
     def tax(self, turn, actor, tier):
         self._emit(E.TAX, turn=turn, actor=actor, extra={"tier": tier})
 
+    def special(self, turn, actor, kind, target=None):
+        self._emit(E.SPECIAL, turn=turn, actor=actor, target=target, extra={"kind": kind})
+
     def trade(self, turn, actor, target, give, want):
         self._emit(E.TRADE, turn=turn, actor=actor, target=target,
                    extra={"give": give, "want": want})

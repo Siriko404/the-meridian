@@ -84,7 +84,7 @@ def _rec_draws(rec, turn_idx, res):
                             for pid, d in res["draws"].items()})
 
 
-def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
+def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0, stop_before_shot=False):
     me = player_by_id(state, pid)
     ex = extras_map[pid]
     alive_before = living_ids(state)
@@ -106,6 +106,9 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
                 break
             continue
         if isinstance(a, Shoot):
+            if stop_before_shot:
+                return {"dead": sorted(alive_before - living_ids(state)),
+                        "pending_shot": a.target_id}      # room executes it (HANDLER aiming window)
             armed = state.poison_armed
             ev = step(state, pid, a)
             if rec:
@@ -142,6 +145,8 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
             e.sync(state)
     if not shot_done:
         tgt = state.rng.choice(legal_targets(state, pid))
+        if stop_before_shot:
+            return {"dead": sorted(alive_before - living_ids(state)), "pending_shot": tgt}
         armed = state.poison_armed
         ev = step(state, pid, Shoot(tgt))
         if rec:

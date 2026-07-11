@@ -23,6 +23,7 @@ DRAW = "draw"              # v2: reload refill draws (per-seat enrichment)
 TRADE = "trade"            # v2: settled offer/accept swap
 TICK = "tick"              # v3: poison tick fired at the poisoner's turn start (or their death)
 TAX = "tax"                # v3: shakedown resolved (tier 6 full / 4 silent / 0 skip)
+SPECIAL = "special"        # v3: a special was used (NEVER animated - anonymity law)
 MATCH_END = "match_end"
 
 COLUMNS = ["match_id", "seq", "turn", "actor", "type", "target",

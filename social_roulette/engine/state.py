@@ -14,6 +14,11 @@ class Player:
     shaken: bool            # a SHAKEDOWN is placed on me; my next turn starts taxed
     flipback_discount: bool
     poison_tick: int = None    # poisoner pid whose next turn-start costs me 1 cover; max ONE (no stacking)
+    specials: dict = None      # {"WARRANT","DRAGNET","HANDLER"} -> remaining (0-pt second rail)
+
+    def __post_init__(self):
+        if self.specials is None:
+            self.specials = {}
 
 
 @dataclass
