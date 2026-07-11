@@ -56,7 +56,7 @@
     } else if (m.type === "error") {
       if (seizeInFlight && scene) {           // the v2-3 alarm is an IN-WORLD beat — serif
         seizeInFlight = false;                // toast, never the harness's white banner
-        scene.toast("THE TRIGGER IS ALREADY HELD", 1600);
+        scene.toast((m.msg || "the trigger is already held").toUpperCase(), 1600);
       } else banner("⚠ " + m.msg);
       if (curView) cancelSel();               // rejected action → restore the verb strip
     } else if (m.type === "end") {
@@ -525,7 +525,7 @@
       confirmStep("RE-AIM AT " + THEME.seatName(id, roster), THEME.SPECIALS.HANDLER.blurb,
         () => { seizeInFlight = true;                            // a SILENT success sends no view —
           setTimeout(() => { seizeInFlight = false; }, 4000);    // don't let the flag eat later errors
-          net.send({ type: "handler_seize", target: id }); });
+          net.send({ type: "handler_seize", target: id, gen: curView.gen }); });
     });
   }
 

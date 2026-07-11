@@ -465,14 +465,19 @@ class Room:
         self.gen += 1
         self.last_events = []
 
-    def handler_seize(self, seat, target):
+    def handler_seize(self, seat, target, gen=None):
         """v2 (2026-07-11): ONE atomic move during ANOTHER player's decision/aiming —
         consume your HANDLER and silently re-aim their coming shot at `target`
         (a shot THEY could legally take). The shooter is told NOTHING: no note,
         no lock, no gen bump — the table sees nothing until the bullet lands.
-        First seize locks the trigger; later attempts alarm PRIVATELY (the error)."""
+        First seize locks the trigger; later attempts alarm PRIVATELY (the error).
+        `gen` stamps WHICH turn the seizer was aiming at — a confirm that crosses
+        the turn boundary in flight must die, never re-aim the NEXT shooter
+        (atomicity law: not executed legally -> not spent, no effect)."""
         p = player_by_id(self.state, seat)
         victim = self.state.current_id
+        if gen is not None and int(gen) != self.gen:
+            raise IllegalAction("the moment has passed")
         if (self.winner is not None or not p.alive or seat == victim
                 or self.phase not in ("decision", "aiming")):
             raise IllegalAction("nothing to seize")

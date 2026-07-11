@@ -167,6 +167,22 @@ def test_handler_v2_first_seize_locks_second_alarms():
     assert player_by_id(r.state, others[1]).specials["HANDLER"] == 1   # alarm costs nothing
 
 
+def test_handler_v2_stale_gen_dies_unspent():
+    """A confirm that crosses the turn boundary in flight must NOT re-aim the
+    NEXT shooter — atomicity law: not executed legally -> not spent, no effect."""
+    r, t = _clockroom(humans={0, 1, 2, 3, 4})
+    victim = r.current
+    seizer = next(p for p in range(5) if p != victim)
+    r.proceed(victim)
+    stale = r.gen - 1                                       # a gen from a turn gone by
+    with pytest.raises(Exception, match="moment has passed"):
+        r.handler_seize(seizer, r.view(seizer)["seize_ids"][0], gen=stale)
+    assert player_by_id(r.state, seizer).specials["HANDLER"] == 1
+    assert r.handler is None
+    r.handler_seize(seizer, r.view(seizer)["seize_ids"][0], gen=r.gen)  # fresh stamp works
+    assert r.handler is not None
+
+
 def test_handler_v2_target_must_be_legal_for_the_victim():
     r, t = _clockroom(humans={0, 1, 2, 3, 4})
     victim = r.current

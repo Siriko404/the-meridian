@@ -241,7 +241,8 @@ async def ws(ws: WebSocket):
                         elif t == "warrant_take":
                             lb.room.warrant_take(me["seat"], msg.get("name"))
                         else:
-                            lb.room.handler_seize(me["seat"], int(msg.get("target", -1)))
+                            lb.room.handler_seize(me["seat"], int(msg.get("target", -1)),
+                                                  msg.get("gen"))
                     except (IllegalAction, ValueError, TypeError) as e:
                         await _send(ws, {"type": "error", "msg": str(e) or "bad payload"})
                         continue
