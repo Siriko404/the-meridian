@@ -1,4 +1,4 @@
-﻿import json
+import json
 
 import pytest
 from starlette.testclient import TestClient
@@ -32,7 +32,7 @@ def test_full_game_over_ws_no_leak():
         for _ in range(1000):
             m = ws.receive_json()
             if m["type"] == "joined":
-                ws.send_json({"type": "start"})
+                ws.send_json({"type": "ready", "on": True}); ws.send_json({"type": "start"})
             elif m["type"] == "view":
                 blob = json.dumps(m)
                 assert "bullets" not in blob                           # hidden bullet ORDER never sent
@@ -65,7 +65,7 @@ def test_illegal_action_rejected_over_ws():
         for _ in range(50):
             m = ws.receive_json()
             if m["type"] == "joined":
-                ws.send_json({"type": "start"})
+                ws.send_json({"type": "ready", "on": True}); ws.send_json({"type": "start"})
             elif m["type"] == "view":
                 ws.send_json({"type": "action", "i": 9999})           # out of range
             elif m["type"] == "error":
@@ -84,7 +84,7 @@ def test_proceed_trade_messages_and_chat_gate():
         for _ in range(200):
             m = ws.receive_json()
             if m["type"] == "joined":
-                ws.send_json({"type": "start"})
+                ws.send_json({"type": "ready", "on": True}); ws.send_json({"type": "start"})
             elif m["type"] == "view":
                 assert m["roster"].get("0") == "A.B." or m["roster"].get(0) == "A.B."
                 # every seat wears a face; the human keeps their chosen frame (0)
@@ -111,7 +111,7 @@ def test_malformed_payload_does_not_kill_socket():
         for _ in range(50):
             m = ws.receive_json()
             if m["type"] == "joined":
-                ws.send_json({"type": "start"})
+                ws.send_json({"type": "ready", "on": True}); ws.send_json({"type": "start"})
             elif m["type"] == "view" and not started:
                 started = True
                 ws.send_json({"type": "action", "i": "garbage"})   # non-int -> bad payload
@@ -132,7 +132,7 @@ def test_trade_offer_rejected_outside_talk_over_ws():
         for _ in range(100):
             m = ws.receive_json()
             if m["type"] == "joined":
-                ws.send_json({"type": "start"})
+                ws.send_json({"type": "ready", "on": True}); ws.send_json({"type": "start"})
             elif m["type"] == "view" and m["current"] == m["you"]:
                 if m.get("phase") == "talk":
                     ws.send_json({"type": "proceed"})
@@ -161,7 +161,7 @@ def test_reconnect_by_pid_reclaims_seat():
         for _ in range(20):
             m = ws.receive_json()
             if m["type"] == "joined":
-                ws.send_json({"type": "start"})
+                ws.send_json({"type": "ready", "on": True}); ws.send_json({"type": "start"})
             elif m["type"] == "view":
                 seat = m["you"]
                 break

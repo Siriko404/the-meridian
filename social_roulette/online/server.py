@@ -20,7 +20,6 @@ app = FastAPI()
 HERE = os.path.dirname(__file__)
 STATIC = os.path.join(HERE, "static")
 app.mount("/static", StaticFiles(directory=STATIC), name="static")   # logo + shared UI assets
-NUM = 5
 
 PROFILES = storage.load_profiles()          # papers, hot in memory; storage owns the file
 
@@ -69,6 +68,7 @@ class Lobby:
     def __init__(self, code):
         self.code = code
         self.members = []          # list of {"pid","name","portrait","seat","ws","host","ready"}
+        self.seats = 5             # the conductor's dial, 5-12 (spec §3); bots fill the gap
         self.room = None           # Room once started
         self.lock = asyncio.Lock()
         self.deadline_task = None   # pending asyncio task that fires the phase deadline
@@ -166,9 +166,12 @@ async def _broadcast_views(lb, payloads=None):
 async def _lobby_state(lb):
     members = [{"name": m["name"], "portrait": m["portrait"], "seat": m["seat"],
                 "host": m["host"], "ready": m.get("ready", False)} for m in lb.members]
+    all_ready = all(m.get("ready") for m in lb.members)
     for m in lb.members:
         if m["ws"] is not None:
-            await _send(m["ws"], {"type": "lobby", "code": lb.code, "members": members})
+            # per-recipient "host": conductor inheritance must reach the heir's DEPART button
+            await _send(m["ws"], {"type": "lobby", "code": lb.code, "seats": lb.seats,
+                                  "members": members, "host": m["host"], "all_ready": all_ready})
 
 
 @app.get("/")
@@ -235,8 +238,11 @@ async def ws(ws: WebSocket):
                 if me:                                   # reconnect: reclaim seat
                     me["ws"] = ws
                 else:
-                    if lb.room is not None and len(lb.members) >= NUM:
-                        await _send(ws, {"type": "error", "msg": "room full / already started"})
+                    if lb.room is not None:              # started cars accept only their own
+                        await _send(ws, {"type": "error", "msg": "the car has departed"})
+                        continue
+                    if len(lb.members) >= lb.seats:      # the dial gates boarding (spec §3)
+                        await _send(ws, {"type": "error", "msg": "the car is full"})
                         continue
                     me = {"pid": prof["pid"], "name": prof["initials"], "portrait": prof["portrait"],
                           "seat": None, "ws": ws, "host": len(lb.members) == 0, "ready": False}
@@ -247,12 +253,32 @@ async def ws(ws: WebSocket):
                 else:
                     await _broadcast_views(lb)
 
+            elif t == "ready" and lb and me and lb.room is None:
+                me["ready"] = bool(msg.get("on"))
+                await _lobby_state(lb)
+
+            elif t == "seats" and lb and me and me["host"] and lb.room is None:
+                try:
+                    n = int(msg.get("n", -1))
+                except (ValueError, TypeError):
+                    await _send(ws, {"type": "error", "msg": "bad payload"})
+                    continue
+                if not 5 <= n <= 12 or n < len(lb.members):
+                    await _send(ws, {"type": "error", "msg": "5 to 12 seats, never fewer than aboard"})
+                    continue
+                lb.seats = n
+                await _lobby_state(lb)
+
             elif t == "start" and lb and me and me["host"] and lb.room is None:
+                if not all(m["ready"] for m in lb.members):   # DEPART is locked until the
+                    await _send(ws, {"type": "error", "msg": "the manifest is not ready"})
+                    continue                                  # whole manifest is ready (spec §3)
                 async with lb.lock:
-                    for seat, m in enumerate(lb.members[:NUM]):
+                    for seat, m in enumerate(lb.members):
                         m["seat"] = seat
                     human_seats = {m["seat"] for m in lb.members if m["seat"] is not None}
-                    lb.room = Room(human_seats=human_seats, seed=_seed_from(lb.code))
+                    lb.room = Room(human_seats=human_seats, seed=_seed_from(lb.code),
+                                   num_players=lb.seats)
                     payloads = _capture_payloads(lb)
                 await _broadcast_views(lb, payloads)     # per-seat events_for carries the opening announce
 
@@ -388,5 +414,17 @@ async def ws(ws: WebSocket):
                 await _send(ws, {"type": "pong"})
 
     except WebSocketDisconnect:
-        if me:
-            me["ws"] = None            # seat empty; token can reclaim it
+        if me and lb:
+            if lb.room is None:
+                # pre-departure a leaver steps OFF the manifest (a ghost would jam the
+                # ready-all gate); the earliest remaining boarder inherits the whistle
+                if me in lb.members:
+                    lb.members.remove(me)
+                    if me["host"] and lb.members:
+                        lb.members[0]["host"] = True
+                    if lb.members:
+                        await _lobby_state(lb)
+                    else:
+                        LOBBIES.pop(lb.code, None)   # empty car returns to the yard
+            else:
+                me["ws"] = None        # seat held; the papers reclaim it
