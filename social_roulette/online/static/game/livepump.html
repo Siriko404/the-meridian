@@ -1,0 +1,51 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<title>livepump</title>
+<!-- DEV-ONLY rig (Claude's eyes, like capture.html). Boots the REAL game page
+     (index.html — live server, live ws) under capture.html's virtual clock, so an
+     rAF-dead environment (locked screen / occluded window) can still play it.
+     Usage: livepump.html[?dpr=1] then window.__pump.start()/stop(); __pump.tick = hook.
+     The virtual clock races ~60x real — server phase clocks are untouched (wall),
+     so beats fast-forward while the server stays authoritative. -->
+<script>
+  /* unthrottled virtual clock — MUST run before phaser (it captures these at load).
+   * Virtualizes rAF + performance.now + Date.now exactly like capture.html. */
+  (function () {
+    let vt = performance.now();
+    const q = [];
+    window.__vt = () => vt;
+    const realNow = performance.now.bind(performance);
+    window.__realNow = realNow;
+    performance.now = () => vt;
+    const dateBase = Date.now();
+    const vt0 = vt;
+    Date.now = () => Math.round(dateBase + (vt - vt0));
+    window.requestAnimationFrame = (cb) => { q.push(cb); return q.length; };
+    window.cancelAnimationFrame = () => {};
+    const mc = new MessageChannel();
+    const pump = { on: false, tick: null };
+    mc.port1.onmessage = () => {
+      if (!pump.on) return;
+      vt += 16.67;
+      const cbs = q.splice(0);
+      for (const cb of cbs) { try { cb(vt); } catch (e) { console.error(e); } }
+      if (pump.tick) { try { pump.tick(vt); } catch (e) { console.error(e); } }
+      mc.port2.postMessage(0);
+    };
+    pump.start = () => { if (!pump.on) { pump.on = true; mc.port2.postMessage(0); } };
+    pump.stop = () => { pump.on = false; };
+    window.__pump = pump;
+  })();
+</script>
+</head><body>
+<script>
+  /* swallow the real page whole — document.open keeps THIS window (and its
+     patched clocks); the game's scripts then boot against the virtual time. */
+  (async function () {
+    const html = await (await fetch("index.html")).text();
+    document.open();
+    document.write(html);
+    document.close();
+  })();
+</script>
+</body></html>
