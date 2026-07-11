@@ -65,19 +65,19 @@ def legal_actions(state, player_id):
     for it in list(p.inventory):
         if cap_reached(state, it):
             continue
-        if it == Item.CIGARETTES:
+        if it == Item.PASSPORT:
             if p.lives < MAX_LIVES:
                 acts.append(UseItem(it))
-        elif it == Item.SAW:
+        elif it == Item.POISON:
             if not state.saw_used_this_turn:
                 acts.append(UseItem(it))
-        elif it in (Item.MAGNIFIER, Item.BEER):
+        elif it in (Item.GEIGER, Item.MAGNET):
             acts.append(UseItem(it))
-        elif it == Item.IMMUNITY:
+        elif it == Item.TERMS:
             for o in others:
                 if player_id not in player_by_id(state, o).immunity_against:
                     acts.append(UseItem(it, o))
-        elif it == Item.HANDCUFFS:
+        elif it == Item.SHAKEDOWN:
             from .endgame import teams_active
             for o in others:
                 q = player_by_id(state, o)

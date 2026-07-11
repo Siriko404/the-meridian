@@ -114,7 +114,7 @@
       } else if (e.type === "shot") {
         await scene.dialTo(e.actor, true);                    // M12 overwind + lock
         await scene.w(400);                                   // tension hold
-        if (e.shell === "LIVE") {
+        if (e.bullet === "LIVE") {
           scene.flashWhite(); scene.shake();
           scene.seatRecoil(e.target);
           scene.pipShatter(e.target, e.damage || 1);
@@ -140,13 +140,13 @@
         await deathBeat(scene, e.target, roster);             // M14
         Object.values(work).forEach((w) => { if (w.alive) paint(w.id); });   // ! chips refresh
       } else if (e.type === "item") {
-        if (e.item === "BEER") lastBeer = e.actor;
+        if (e.item === "MAGNET") lastBeer = e.actor;
         await scene.dialTo(e.actor);                          // the arrow OWNS every beat's actor
-        if (e.item === "HANDCUFFS" && work[e.target] != null) {
+        if (e.item === "SHAKEDOWN" && work[e.target] != null) {
           work[e.target].handcuffed = true; paint(e.target);  // SEDATED chip lands with the beat
-        } else if (e.item === "IMMUNITY" && work[e.target] != null) {
+        } else if (e.item === "TERMS" && work[e.target] != null) {
           work[e.target].immune_from.push(e.actor); paint(e.target);
-        } else if (e.item === "CIGARETTES" && work[e.actor] != null) {
+        } else if (e.item === "PASSPORT" && work[e.actor] != null) {
           work[e.actor].lives = Math.min(work[e.actor].lives + 1, THEME.MAX_LIVES);
           paint(e.actor);
         }
@@ -207,24 +207,24 @@
   async function itemBeat(scene, e, view, roster) {
     const who = nm(e.actor, roster), it = e.item;
     const icon = THEME.ITEMS[it] ? THEME.ITEMS[it].icon : 0;
-    if (it === "CIGARETTES") {                                                   // M18 PASSPORT
+    if (it === "PASSPORT") {                                                   // M18 PASSPORT
       if (e.actor === view.you) await scene.iconFly(icon, scene.kitXY(), e.actor);  // spend from YOUR kit
       scene.floatText(e.actor, "+1 COVER", false);
       await scene.w(700);
-    } else if (it === "MAGNIFIER") {                                             // M19 SPYCAM
+    } else if (it === "GEIGER") {                                             // M19 GEIGER
       await scene.iconFly(icon, e.actor, { x: SCENE.CX, y: SCENE.CY - 90 });
       scene.flashWhite();                                                        // shutter blink
-      await scene.toast(who + " USED A SPYCAM", 1400);
-    } else if (it === "SAW") {                                                   // M20 POISON
+      await scene.toast(who + " USED A GEIGER", 1400);
+    } else if (it === "POISON") {                                                   // M20 POISON
       scene.setSawChip(true);
       await scene.toast(who + " · ×2 ARMED", 1500);
-    } else if (it === "BEER") {                                                  // M22 MAGNET
-      await scene.shellEject();
-      await scene.toast("SHELL EJECTED", 1100);
-    } else if (it === "HANDCUFFS") {                                             // M23 place
+    } else if (it === "MAGNET") {                                                  // M22 MAGNET
+      await scene.bulletEject();
+      await scene.toast("BULLET EJECTED", 1100);
+    } else if (it === "SHAKEDOWN") {                                             // M23 place
       await scene.iconFly(icon, e.actor, e.target);
       await scene.toast(nm(e.target, roster) + " SEDATED", 1300);
-    } else if (it === "IMMUNITY") {                                             // M21 BLACKMAIL
+    } else if (it === "TERMS") {                                             // M21 TERMS
       await scene.iconFly(THEME.ICON.envelope, e.actor, e.target);
       await scene.toast(who + (who === "YOU" ? " HAVE" : " HAS") + " DIRT ON " + nm(e.target, roster), 1500);
     }

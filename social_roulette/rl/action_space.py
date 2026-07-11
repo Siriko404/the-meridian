@@ -7,7 +7,7 @@ from social_roulette.comms.vocab import SPEAK_TABLE, SPEAK_N, speak_index
 
 N_SEATS = 5
 ACTION_N = 24 + SPEAK_N
-NONTARGET = [Item.CIGARETTES, Item.MAGNIFIER, Item.SAW, Item.BEER]  # indices 5..8
+NONTARGET = [Item.PASSPORT, Item.GEIGER, Item.POISON, Item.MAGNET]  # indices 5..8
 
 # Targets are EGO-CENTRIC: index r=0..4 is a relative offset; the absolute seat is
 # (learner_id + r) % N_SEATS. r=0 is always self. This makes a seat-0-trained policy
@@ -34,9 +34,9 @@ class ActionCodec:
         if idx < 9:
             return UseItem(NONTARGET[idx - 5])
         if idx < 14:
-            return UseItem(Item.IMMUNITY, _abs_seat(learner_id, idx - 9))
+            return UseItem(Item.TERMS, _abs_seat(learner_id, idx - 9))
         if idx < 19:
-            return UseItem(Item.HANDCUFFS, _abs_seat(learner_id, idx - 14))
+            return UseItem(Item.SHAKEDOWN, _abs_seat(learner_id, idx - 14))
         k = _abs_seat(learner_id, idx - 19)
         p = player_by_id(state, learner_id)
         cost = 4 if (k == learner_id and p.flipback_discount) else 5
@@ -52,9 +52,9 @@ class ActionCodec:
         if isinstance(action, UseItem):
             if action.item in NONTARGET:
                 return 5 + NONTARGET.index(action.item)
-            if action.item == Item.IMMUNITY:
+            if action.item == Item.TERMS:
                 return 9 + _rel(learner_id, action.target_id)
-            if action.item == Item.HANDCUFFS:
+            if action.item == Item.SHAKEDOWN:
                 return 14 + _rel(learner_id, action.target_id)
         if isinstance(action, Flip):
             return 19 + _rel(learner_id, action.target_id)

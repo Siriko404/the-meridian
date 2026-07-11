@@ -22,7 +22,7 @@ def play_game(num_players, seed, max_turns=20000):
     while state.winner is None and turns < max_turns:
         pid = state.current_id
         ev = take_random_turn(state, pid)
-        h.update(repr((pid, ev["shell"].name, ev["damage"], ev["killed"])).encode())
+        h.update(repr((pid, ev["bullet"].name, ev["damage"], ev["killed"])).encode())
         turns += 1
     if state.winner is None:
         raise RuntimeError("game did not terminate")

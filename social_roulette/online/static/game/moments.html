@@ -33,15 +33,15 @@
       { id: 3, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
       { id: 4, team: "RED",  lives: 1, alive: true, handcuffed: false, immune_from: [] },
     ],
-    your_hand: { BEER: 1, MAGNIFIER: 1, CIGARETTES: 1 },
-    item_counts: { BEER: 3, HANDCUFFS: 2, MAGNIFIER: 2, SAW: 1, CIGARETTES: 3, IMMUNITY: 2 },
+    your_hand: { MAGNET: 1, GEIGER: 1, PASSPORT: 1 },
+    item_counts: { MAGNET: 3, SHAKEDOWN: 2, GEIGER: 2, POISON: 1, PASSPORT: 3, TERMS: 2 },
     peek: "unknown",
   });
   const ROSTER = { "0": "you" };                       // seat 0 human; 1–4 = codenames
   const dead4 = () => { const v = BASE(); v.players[4].alive = false; v.players[4].lives = 0; return v; };
 
   const MOMENTS = [
-    ["ICON STRIP (pick SPYCAM/MAGNET/SEDATIVE/LEDGER)", async (s) => {
+    ["ICON STRIP (pick GEIGER/MAGNET/SHAKEDOWN/LEDGER)", async (s) => {
       const layer = s.add.container(0, 0).setDepth(30);
       layer.add(s.add.rectangle(195, 422, 390, 844, 0x000000, 0.97));
       for (let i = 0; i < 45; i++) {
@@ -62,45 +62,45 @@
     ["M9 TIMEOUT FINE (anonymous)", (s) => CHOREO.play(s, [{ type: "fine", actor: 3 }], BASE(), BASE(), ROSTER)],
     ["M10+M12 AUTO SELF-SHOOT (LIVE)", async (s) => {
       s.setBand({ phase: "decision", secs: 0, name: "NOMAD", note: "NO ASSETS · THE HANDLER DECIDES", invert: true });
-      await CHOREO.play(s, [{ type: "shot", actor: 3, target: 3, shell: "LIVE", damage: 1, killed: false }], BASE(), BASE(), ROSTER);
+      await CHOREO.play(s, [{ type: "shot", actor: 3, target: 3, bullet: "LIVE", damage: 1, killed: false }], BASE(), BASE(), ROSTER);
       s.setBand({ phase: "talk", secs: 60, name: "" });
     }],
     ["M11 TARGET BRACKETS (red)", async (s) => {
       s.setTargets([1, 3], null); await s.w(1800); s.clearTargets();
     }],
     ["M12 SHOT — BLANK CLICK", (s) => CHOREO.play(s,
-      [{ type: "shot", actor: 2, target: 0, shell: "BLANK", damage: 0, killed: false }], BASE(), BASE(), ROSTER)],
+      [{ type: "shot", actor: 2, target: 0, bullet: "BLANK", damage: 0, killed: false }], BASE(), BASE(), ROSTER)],
     ["M13 SELF-BLANK BONUS", (s) => { const v = BASE(); v.bonus = true; v.current = 1;
-      return CHOREO.play(s, [{ type: "shot", actor: 1, target: 1, shell: "BLANK", damage: 0, killed: false }], BASE(), v, ROSTER); }],
+      return CHOREO.play(s, [{ type: "shot", actor: 1, target: 1, bullet: "BLANK", damage: 0, killed: false }], BASE(), v, ROSTER); }],
     ["M14 DEATH (burned)", (s) => CHOREO.play(s,
-      [{ type: "shot", actor: 0, target: 4, shell: "LIVE", damage: 1, killed: true },
+      [{ type: "shot", actor: 0, target: 4, bullet: "LIVE", damage: 1, killed: true },
        { type: "elimination", actor: 0, target: 4 }], BASE(), dead4(), ROSTER)],
     ["M15 KILLER'S EXTRA TURN", (s) => { const v = dead4(); v.extra_turn = true; v.current = 0;
       return CHOREO.play(s, [], BASE(), v, ROSTER); }],
     ["M16 RELOAD (in their honor)", (s) => CHOREO.play(s,
       [{ type: "elimination", actor: 0, target: 4 }, { type: "reload", total: 6, live: 3 }], BASE(), dead4(), ROSTER)],
     ["M17 ITEM DRAW (yours + FULL bounce)", (s) => CHOREO.play(s,
-      [{ type: "draw", you: { attempted: ["SAW", "BEER"], received: ["SAW"] } }], BASE(), BASE(), ROSTER)],
+      [{ type: "draw", you: { attempted: ["POISON", "MAGNET"], received: ["POISON"] } }], BASE(), BASE(), ROSTER)],
     ["M17b DRAW (public copy)", (s) => CHOREO.play(s, [{ type: "draw" }], BASE(), BASE(), ROSTER)],
-    ["M18 PASSPORT (heal)", (s) => CHOREO.play(s, [{ type: "item", actor: 2, item: "CIGARETTES", target: 2 }], BASE(), BASE(), ROSTER)],
-    ["M19 SPYCAM (peek chip)", async (s) => {
-      await CHOREO.play(s, [{ type: "item", actor: 0, item: "MAGNIFIER", target: null }], BASE(), BASE(), ROSTER);
+    ["M18 PASSPORT (heal)", (s) => CHOREO.play(s, [{ type: "item", actor: 2, item: "PASSPORT", target: 2 }], BASE(), BASE(), ROSTER)],
+    ["M19 GEIGER (peek chip)", async (s) => {
+      await CHOREO.play(s, [{ type: "item", actor: 0, item: "GEIGER", target: null }], BASE(), BASE(), ROSTER);
       s.setPeek("LIVE"); await s.w(1500); s.setPeek("BLANK"); await s.w(1200); s.setPeek("unknown");
     }],
     ["M20 POISON (×2 armed)", (s) => { const v = BASE(); v.saw_active = true;
-      return CHOREO.play(s, [{ type: "item", actor: 3, item: "SAW", target: null }], BASE(), v, ROSTER); }],
-    ["M21 BLACKMAIL (envelope chip)", (s) => { const v = BASE(); v.players[1].immune_from = [0];
-      return CHOREO.play(s, [{ type: "item", actor: 0, item: "IMMUNITY", target: 1 }], BASE(), v, ROSTER); }],
-    ["M22 MAGNET (shell out)", (s) => CHOREO.play(s, [{ type: "item", actor: 1, item: "BEER", target: null }], BASE(), BASE(), ROSTER)],
-    ["M23 SEDATIVE + THE SKIP", (s) => CHOREO.play(s,
-      [{ type: "item", actor: 3, item: "HANDCUFFS", target: 2 }, { type: "skip", target: 2 }], BASE(), BASE(), ROSTER)],
-    ["M24 CAP HIT", (s) => { const p = BASE(); p.use_counts = { BEER: 5 }; const v = BASE(); v.use_counts = { BEER: 6 };
+      return CHOREO.play(s, [{ type: "item", actor: 3, item: "POISON", target: null }], BASE(), v, ROSTER); }],
+    ["M21 TERMS (envelope chip)", (s) => { const v = BASE(); v.players[1].immune_from = [0];
+      return CHOREO.play(s, [{ type: "item", actor: 0, item: "TERMS", target: 1 }], BASE(), v, ROSTER); }],
+    ["M22 MAGNET (bullet out)", (s) => CHOREO.play(s, [{ type: "item", actor: 1, item: "MAGNET", target: null }], BASE(), BASE(), ROSTER)],
+    ["M23 SHAKEDOWN + THE SKIP", (s) => CHOREO.play(s,
+      [{ type: "item", actor: 3, item: "SHAKEDOWN", target: 2 }, { type: "skip", target: 2 }], BASE(), BASE(), ROSTER)],
+    ["M24 CAP HIT", (s) => { const p = BASE(); p.use_counts = { MAGNET: 5 }; const v = BASE(); v.use_counts = { MAGNET: 6 };
       return CHOREO.play(s, [], p, v, ROSTER); }],
     ["M25 FLIP (polarity snap)", (s) => { const v = BASE(); v.players[1].team = "RED";
       return CHOREO.play(s, [{ type: "flip", actor: 0, target: 1 }], BASE(), v, ROSTER); }],
     ["M26 TRADE — public card-backs", (s) => CHOREO.play(s, [{ type: "trade", actor: 2, target: 4 }], BASE(), BASE(), ROSTER)],
     ["M26b TRADE — party view (real items)", (s) => CHOREO.play(s,
-      [{ type: "trade", actor: 0, target: 2, items: { give: ["BEER"], want: ["CIGARETTES"] } }], BASE(), BASE(), ROSTER)],
+      [{ type: "trade", actor: 0, target: 2, items: { give: ["MAGNET"], want: ["PASSPORT"] } }], BASE(), BASE(), ROSTER)],
     ["M26c TRADE CANCELLED (bluff exposed)", (s) => CHOREO.play(s, [{ type: "trade_private", kind: "cancelled" }], BASE(), BASE(), ROSTER)],
     ["M26d BOT GIFT", (s) => CHOREO.play(s, [{ type: "gift", actor: 1, target: 3 }], BASE(), BASE(), ROSTER)],
     ["M27 AGENCIES DISSOLVED", (s) => { const v = BASE(); v.teams_active = false;

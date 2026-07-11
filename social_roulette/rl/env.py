@@ -3,7 +3,7 @@ import gymnasium as gym
 from gymnasium import spaces
 
 from social_roulette.engine.engine import new_game, step as engine_step
-from social_roulette.engine.constants import Shell, Item
+from social_roulette.engine.constants import Bullet, Item
 from social_roulette.engine.state import player_by_id
 from social_roulette.sim.random_agent import take_random_turn
 from social_roulette.rl.obs import encode_obs, OBS_DIM
@@ -31,8 +31,8 @@ class SocialRouletteSingleEnv(gym.Env):
         ch = self.state.chamber
         if ch is not self._last_chamber:
             self._last_chamber = ch
-            self._ann_total = len(ch.shells)
-            self._ann_live = sum(1 for s in ch.shells if s == Shell.LIVE)
+            self._ann_total = len(ch.bullets)
+            self._ann_live = sum(1 for s in ch.bullets if s == Bullet.LIVE)
             self._known = "unknown"
             self._last_pos = ch.pos
         elif ch.pos != self._last_pos:
@@ -40,7 +40,7 @@ class SocialRouletteSingleEnv(gym.Env):
             self._last_pos = ch.pos
 
     def _extras(self):
-        return {"known_next_shell": self._known, "announced_total": self._ann_total,
+        return {"known_next_bullet": self._known, "announced_total": self._ann_total,
                 "announced_live": self._ann_live}
 
     def _obs(self):
@@ -82,11 +82,11 @@ class SocialRouletteSingleEnv(gym.Env):
 
     def step(self, idx):
         action = ActionCodec.decode(int(idx), self.state, self.learner_id)
-        is_magnifier = getattr(action, "item", None) == Item.MAGNIFIER
+        is_magnifier = getattr(action, "item", None) == Item.GEIGER
         engine_step(self.state, self.learner_id, action)
         if is_magnifier:
             cur = self.state.chamber.current()
-            self._known = "live" if cur == Shell.LIVE else ("blank" if cur == Shell.BLANK else "unknown")
+            self._known = "live" if cur == Bullet.LIVE else ("blank" if cur == Bullet.BLANK else "unknown")
         self._on_chamber_change()
         if not self._terminal() and self.state.current_id != self.learner_id:
             self._run_opponents()

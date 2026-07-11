@@ -1,16 +1,16 @@
-/* THEME — the ONE display table (spec §2). Engine + protocol keep enum names;
- * the final naming pass edits this file only. UMD so node tests import it. */
+/* THEME — the ONE display table (spec §2). 2026-07-10 rename sweep: engine enums,
+ * protocol, and display all speak the FINAL names. UMD so node tests import it. */
 (function (global) {
   "use strict";
-  // icon = Mystery_Icons.png frame index. SPYCAM/MAGNET/SEDATIVE indices are DRAFTS —
+  // icon = Mystery_Icons.png frame index. GEIGER/MAGNET/SHAKEDOWN indices are DRAFTS —
   // ratified (or swapped) at the Task-5 gallery gate via the icon strip in moments.html.
   const ITEMS = {
-    CIGARETTES: { name: "PASSPORT",  icon: 37, pts: 6, blurb: "+1 COVER" },
-    IMMUNITY:   { name: "BLACKMAIL", icon: 14, pts: 6, blurb: "TARGET CAN'T SHOOT YOU" },
-    MAGNIFIER:  { name: "SPYCAM",    icon: 8,  pts: 5, blurb: "PEEK NEXT SHELL" },
-    SAW:        { name: "POISON",    icon: 11, pts: 5, blurb: "NEXT SHOT x2" },
-    BEER:       { name: "MAGNET",    icon: 5,  pts: 4, blurb: "EJECT CURRENT SHELL" },
-    HANDCUFFS:  { name: "SEDATIVE",  icon: 2,  pts: 4, blurb: "TARGET SKIPS A TURN" },
+    PASSPORT:  { name: "PASSPORT",  icon: 37, pts: 6, blurb: "+1 COVER" },
+    TERMS:     { name: "TERMS",     icon: 14, pts: 6, blurb: "TARGET CAN'T SHOOT YOU" },
+    GEIGER:    { name: "GEIGER",    icon: 8,  pts: 5, blurb: "PEEK NEXT BULLET" },
+    POISON:    { name: "POISON",    icon: 11, pts: 5, blurb: "NEXT SHOT x2" },
+    MAGNET:    { name: "MAGNET",    icon: 5,  pts: 4, blurb: "EJECT CURRENT BULLET" },
+    SHAKEDOWN: { name: "SHAKEDOWN", icon: 2,  pts: 4, blurb: "TARGET SKIPS A TURN" },
   };
   // TEAM = POLARITY (locked 2026-07-10): plates carry the team; frames are HAIRLINE
   // 1px — bloc A full alpha, bloc B half alpha ("0.5px", framelab row 2).

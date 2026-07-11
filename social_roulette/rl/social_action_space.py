@@ -14,7 +14,7 @@ from social_roulette.engine.constants import Item
 from social_roulette.engine.actions import Trade, legal_actions
 from social_roulette.rl.action_space import ActionCodec, ACTION_N as BASE_N, _abs_seat, _rel
 
-GIFT_ITEMS = [Item.BEER, Item.HANDCUFFS, Item.MAGNIFIER, Item.SAW, Item.CIGARETTES, Item.IMMUNITY]
+GIFT_ITEMS = [Item.MAGNET, Item.SHAKEDOWN, Item.GEIGER, Item.POISON, Item.PASSPORT, Item.TERMS]
 N_GIFT_TARGETS = 4                      # relative offsets r = 1..4 (never self)
 GIFT_N = N_GIFT_TARGETS * len(GIFT_ITEMS)
 ACTION_N_SOCIAL = BASE_N + GIFT_N       # 39 + 24 = 63

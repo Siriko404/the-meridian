@@ -1,13 +1,13 @@
 """Per-seat view serializer — the ONLY game state a client ever receives.
 
-Public info + that seat's own hand + its own Magnifier peek + its own legal
-actions. The full GameState (other players' hands, the shell order) is never
+Public info + that seat's own hand + its own Geiger peek + its own legal
+actions. The full GameState (other players' hands, the bullet order) is never
 serialized. Faithful to game_guide "Information & Visibility".
 """
 from social_roulette.engine.state import player_by_id
 from social_roulette.engine.actions import Shoot, UseItem, Flip, legal_actions
 
-ITEMS = ["BEER", "HANDCUFFS", "MAGNIFIER", "SAW", "CIGARETTES", "IMMUNITY"]
+ITEMS = ["MAGNET", "SHAKEDOWN", "GEIGER", "POISON", "PASSPORT", "TERMS"]
 
 
 def _title(name):
@@ -66,7 +66,7 @@ def seat_view(state, seat, ex, feed=None, seating=None):
         "item_counts": counts,
         # NO persistent chamber counts — game_guide:159 announces total/live ONCE at load, then
         # players track depletion from memory. Counts ride the announce/reload EVENTS only.
-        "peek": ex["known_next_shell"],
+        "peek": ex["known_next_bullet"],
         "current": state.current_id,
         "winner": state.winner,
         "legal": legal,

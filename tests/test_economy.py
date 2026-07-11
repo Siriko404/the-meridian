@@ -13,38 +13,38 @@ def mkstate():
 
 def test_pay_burns_overpay():
     s = mkstate()
-    s.players[0].inventory = {Item.IMMUNITY: 1}
-    pay_cost(s, 0, 5, [Item.IMMUNITY])
+    s.players[0].inventory = {Item.TERMS: 1}
+    pay_cost(s, 0, 5, [Item.TERMS])
     assert s.players[0].inventory == {}
 
 
 def test_pay_rejects_insufficient():
     s = mkstate()
-    s.players[0].inventory = {Item.BEER: 1}
+    s.players[0].inventory = {Item.MAGNET: 1}
     with pytest.raises(Exception):
-        pay_cost(s, 0, 5, [Item.BEER])
+        pay_cost(s, 0, 5, [Item.MAGNET])
 
 
 def test_flip_other_costs_5_toggles_grants_discount():
     s = mkstate()
-    s.players[0].inventory = {Item.MAGNIFIER: 1}
+    s.players[0].inventory = {Item.GEIGER: 1}
     before = s.players[1].team
-    flip_team(s, 0, 1, [Item.MAGNIFIER])
+    flip_team(s, 0, 1, [Item.GEIGER])
     assert s.players[1].team != before and s.players[1].flipback_discount is True
 
 
 def test_flipback_costs_4_consumes_discount():
     s = mkstate()
     s.players[1].flipback_discount = True
-    s.players[1].inventory = {Item.BEER: 1}
-    flip_team(s, 1, 1, [Item.BEER])
+    s.players[1].inventory = {Item.MAGNET: 1}
+    flip_team(s, 1, 1, [Item.MAGNET])
     assert s.players[1].flipback_discount is False
 
 
 def test_flip_own_no_discount_costs_5():
     s = mkstate()
-    s.players[1].inventory = {Item.MAGNIFIER: 1}
-    flip_team(s, 1, 1, [Item.MAGNIFIER])
+    s.players[1].inventory = {Item.GEIGER: 1}
+    flip_team(s, 1, 1, [Item.GEIGER])
     assert s.players[1].flipback_discount is False
 
 
@@ -55,9 +55,9 @@ def test_fine_cheapest_burns_lowest_value_item():
     from social_roulette.engine.state import player_by_id
     s = new_game(5, seed=0)
     p = player_by_id(s, 0)
-    p.inventory = {Item.IMMUNITY: 1, Item.BEER: 1}          # 6 vs 4
-    assert fine_cheapest(s, 0) == Item.BEER
-    assert p.inventory == {Item.IMMUNITY: 1}
+    p.inventory = {Item.TERMS: 1, Item.MAGNET: 1}          # 6 vs 4
+    assert fine_cheapest(s, 0) == Item.MAGNET
+    assert p.inventory == {Item.TERMS: 1}
     assert s.use_counts == {}                                # cap-free
 
 
@@ -68,9 +68,9 @@ def test_fine_cheapest_tie_break_uses_state_rng_and_none_when_broke():
     from social_roulette.engine.state import player_by_id
     s = new_game(5, seed=3)
     p = player_by_id(s, 0)
-    p.inventory = {Item.BEER: 1, Item.HANDCUFFS: 1}          # both 4 pts — tie
+    p.inventory = {Item.MAGNET: 1, Item.SHAKEDOWN: 1}          # both 4 pts — tie
     fined = fine_cheapest(s, 0)
-    assert fined in (Item.BEER, Item.HANDCUFFS)
+    assert fined in (Item.MAGNET, Item.SHAKEDOWN)
     assert sum(p.inventory.values()) == 1
     p.inventory = {}
     assert fine_cheapest(s, 0) is None
@@ -84,10 +84,10 @@ def test_swap_both_at_cap_same_type_succeeds():
     from social_roulette.engine.state import player_by_id
     s = new_game(5, seed=0)
     a, b = player_by_id(s, 0), player_by_id(s, 1)
-    a.inventory = {Item.SAW: 3}
-    b.inventory = {Item.SAW: 3}
-    swap(s, 0, 1, [Item.SAW], [Item.SAW])            # post-swap = pre-swap: legal
-    assert a.inventory == {Item.SAW: 3} and b.inventory == {Item.SAW: 3}
+    a.inventory = {Item.POISON: 3}
+    b.inventory = {Item.POISON: 3}
+    swap(s, 0, 1, [Item.POISON], [Item.POISON])            # post-swap = pre-swap: legal
+    assert a.inventory == {Item.POISON: 3} and b.inventory == {Item.POISON: 3}
 
 
 def test_swap_unowned_give_rejected():
@@ -98,11 +98,11 @@ def test_swap_unowned_give_rejected():
     import pytest
     s = new_game(5, seed=0)
     a, b = player_by_id(s, 0), player_by_id(s, 1)
-    a.inventory = {Item.BEER: 1}
-    b.inventory = {Item.SAW: 1}
+    a.inventory = {Item.MAGNET: 1}
+    b.inventory = {Item.POISON: 1}
     with pytest.raises(ValueError):
-        swap(s, 0, 1, [Item.SAW], [])                 # a gives a SAW it does not own
-    assert a.inventory == {Item.BEER: 1} and b.inventory == {Item.SAW: 1}
+        swap(s, 0, 1, [Item.POISON], [])                 # a gives a POISON it does not own
+    assert a.inventory == {Item.MAGNET: 1} and b.inventory == {Item.POISON: 1}
 
 
 def test_swap_cap_break_rejected():
@@ -113,11 +113,11 @@ def test_swap_cap_break_rejected():
     import pytest
     s = new_game(5, seed=0)
     a, b = player_by_id(s, 0), player_by_id(s, 1)
-    a.inventory = {Item.SAW: 3}
-    b.inventory = {Item.SAW: 1, Item.BEER: 1}
-    with pytest.raises(ValueError):                   # a would end at 4 SAW (type cap)
-        swap(s, 0, 1, [], [Item.SAW])
-    a.inventory = {Item.BEER: 3, Item.SAW: 3, Item.MAGNIFIER: 2}   # 8 total
+    a.inventory = {Item.POISON: 3}
+    b.inventory = {Item.POISON: 1, Item.MAGNET: 1}
+    with pytest.raises(ValueError):                   # a would end at 4 POISON (type cap)
+        swap(s, 0, 1, [], [Item.POISON])
+    a.inventory = {Item.MAGNET: 3, Item.POISON: 3, Item.GEIGER: 2}   # 8 total
     with pytest.raises(ValueError):                   # a would end at 9 (total cap)
-        swap(s, 0, 1, [], [Item.BEER])
-    assert b.inventory == {Item.SAW: 1, Item.BEER: 1}  # untouched by failed swaps
+        swap(s, 0, 1, [], [Item.MAGNET])
+    assert b.inventory == {Item.POISON: 1, Item.MAGNET: 1}  # untouched by failed swaps

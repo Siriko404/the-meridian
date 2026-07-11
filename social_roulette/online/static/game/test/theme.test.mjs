@@ -4,21 +4,23 @@ import { createRequire } from "node:module";
 const THEME = createRequire(import.meta.url)("../js/theme.js");   // UMD module.exports branch
 
 test("all six engine enums are mapped to ratified names", () => {
-  const want = { CIGARETTES: "PASSPORT", IMMUNITY: "BLACKMAIL", MAGNIFIER: "SPYCAM",
-                 SAW: "POISON", BEER: "MAGNET", HANDCUFFS: "SEDATIVE" };
+  const want = { PASSPORT: "PASSPORT", TERMS: "TERMS", GEIGER: "GEIGER",
+                 POISON: "POISON", MAGNET: "MAGNET", SHAKEDOWN: "SHAKEDOWN" };
   for (const [k, v] of Object.entries(want)) assert.equal(THEME.ITEMS[k].name, v);
 });
 
 test("points match the public POINT_VALUE table (game_guide:110)", () => {
-  const pts = { CIGARETTES: 6, IMMUNITY: 6, MAGNIFIER: 5, SAW: 5, BEER: 4, HANDCUFFS: 4 };
+  const pts = { PASSPORT: 6, TERMS: 6, GEIGER: 5, POISON: 5, MAGNET: 4, SHAKEDOWN: 4 };
   for (const [k, v] of Object.entries(pts)) assert.equal(THEME.ITEMS[k].pts, v);
 });
 
-test("teams: RED = bloc A white/4px, BLUE = bloc B black/2px", () => {
+test("teams: hairline frames (seat-card v2, 2026-07-10) — A full alpha, B half", () => {
   assert.equal(THEME.TEAMS.RED.plate, 0xffffff);
-  assert.equal(THEME.TEAMS.RED.tk, 4);
+  assert.equal(THEME.TEAMS.RED.tk, 1);
+  assert.equal(THEME.TEAMS.RED.fa, 1);
   assert.equal(THEME.TEAMS.BLUE.plate, 0x000000);
-  assert.equal(THEME.TEAMS.BLUE.tk, 2);
+  assert.equal(THEME.TEAMS.BLUE.tk, 1);
+  assert.equal(THEME.TEAMS.BLUE.fa, 0.5);
 });
 
 test("seatName: roster (string keys) wins, truncated 8 upper; bots get codenames", () => {

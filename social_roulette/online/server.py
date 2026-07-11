@@ -1,4 +1,4 @@
-"""Async FastAPI shell around the sync Room core.
+"""Async FastAPI bullet around the sync Room core.
 
 One asyncio.Lock per room serializes all mutations of that room's Room object
 (no two client messages mutate one GameState concurrently). A human that drops

@@ -3,7 +3,7 @@ from social_roulette.engine.engine import new_game, step
 from social_roulette.engine.actions import Speak
 from social_roulette.rl.obs import encode_obs, OBS_DIM, MSG_K, MSG_FEATURES
 
-EX = {"known_next_shell": "unknown", "announced_total": 10, "announced_live": 6}
+EX = {"known_next_bullet": "unknown", "announced_total": 10, "announced_live": 6}
 
 
 def test_obs_dim_includes_message_window():

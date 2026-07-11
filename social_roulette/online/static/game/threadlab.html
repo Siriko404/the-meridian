@@ -40,15 +40,15 @@
       { id: 3, team: "BLUE", lives: 3, alive: true, handcuffed: false, immune_from: [] },
       { id: 4, team: "RED",  lives: 1, alive: true, handcuffed: false, immune_from: [] },
     ],
-    your_hand: { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1 }, item_counts: {}, peek: "unknown",
+    your_hand: { MAGNET: 1, SHAKEDOWN: 1, GEIGER: 1 }, item_counts: {}, peek: "unknown",
   };
   const ROSTER = { "0": "S.S." };
-  const ORDER = ["BEER", "HANDCUFFS", "MAGNIFIER", "SAW", "CIGARETTES", "IMMUNITY"];
+  const ORDER = ["MAGNET", "SHAKEDOWN", "GEIGER", "POISON", "PASSPORT", "TERMS"];
   let scene = null;
   const name = (id) => THEME.seatName(id, ROSTER);
   const iname = (en) => THEME.ITEMS[en].name;
-  const OWN = { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1, SAW: 0, CIGARETTES: 0, IMMUNITY: 0 };
-  const SEALED = { MAGNIFIER: true };                          // demo: SPYCAM used up table-wide
+  const OWN = { MAGNET: 1, SHAKEDOWN: 1, GEIGER: 1, POISON: 0, PASSPORT: 0, TERMS: 0 };
+  const SEALED = { GEIGER: true };                          // demo: GEIGER used up table-wide
   const FOES = [1, 3], MATES = [2, 4];
 
   /* ---- shared thread driver (mirrors the future main.js wiring) ---- */
@@ -93,7 +93,7 @@
       th.list("KIT", "YOUR KIT · 3/8", rows);
       th.onRow = async (i) => {
         const en = rows[i].en;
-        if (en === "HANDCUFFS") {                              // targeted item → white pulse
+        if (en === "SHAKEDOWN") {                              // targeted item → white pulse
           const id = await th.pickSeat("item", [1, 3, 4], iname(en) + " — TAP A PLAYER");   // anyone but
           // you; seat 2 already SEDATED (engine: non-self, no stacking)
           if (id == null) return;
@@ -224,8 +224,8 @@
   }
   function ledger() {                                          // ONE screen, no taps: LIVE · TO USE columns
     const th = openTh("LEDGER", "✕ CLOSE");
-    const LIVE = { BEER: 3, HANDCUFFS: 2, MAGNIFIER: 2, SAW: 1, CIGARETTES: 3, IMMUNITY: 0 };
-    const USES = { BEER: 4, HANDCUFFS: 6, MAGNIFIER: 0, SAW: 6, CIGARETTES: 2, IMMUNITY: 6 };
+    const LIVE = { MAGNET: 3, SHAKEDOWN: 2, GEIGER: 2, POISON: 1, PASSPORT: 3, TERMS: 0 };
+    const USES = { MAGNET: 4, SHAKEDOWN: 6, GEIGER: 0, POISON: 6, PASSPORT: 2, TERMS: 6 };
     const rows = [];
     ORDER.forEach((en) => {
       rows.push({ label: iname(en), still: true, bright: LIVE[en] > 0, dim: LIVE[en] === 0 });
@@ -240,7 +240,7 @@
     th.show(() => {
       const rows = [
         { info: true, label: "THEY GIVE: 2 MAGNET" },
-        { info: true, label: "THEY WANT: 1 SPYCAM" },
+        { info: true, label: "THEY WANT: 1 GEIGER" },
         { info: true, label: "OFFERS MAY BLUFF — SETTLEMENT VERIFIES" },
         { dot: true },
         { label: "✓ ACCEPT", bright: true }, { label: "✕ DECLINE" }];

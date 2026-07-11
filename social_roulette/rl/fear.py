@@ -73,7 +73,7 @@ def behavior_vs_fear(model_path, fears=(0.0, 0.75, 1.5, 2.25, 3.0), n=400, seed_
                     e = json.loads(r["extra"]) if r["extra"] else {}
                     if e.get("self"):
                         self_shots += 1
-                elif r["type"] == "item_used" and r["item"] == "CIGARETTES":
+                elif r["type"] == "item_used" and r["item"] == "PASSPORT":
                     heals += 1
         rows.append({"fear": f, "self_shot_rate": round(self_shots / max(shots, 1), 3),
                      "heal_per_game": round(heals / n, 3), "winrate": round(wins / n, 3)})

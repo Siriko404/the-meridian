@@ -4,7 +4,7 @@ One row per event. Common columns are queryable; type-specific fields live in
 the `extra` JSON column so NEW event types never break the schema.
 """
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2   # v2 (2026-07-10): column `shell` -> `bullet`; item enums renamed to final names
 
 # event types
 MATCH_START = "match_start"
@@ -24,4 +24,4 @@ TRADE = "trade"            # v2: settled offer/accept swap
 MATCH_END = "match_end"
 
 COLUMNS = ["match_id", "seq", "turn", "actor", "type", "target",
-           "item", "shell", "damage", "killed", "extra"]
+           "item", "bullet", "damage", "killed", "extra"]

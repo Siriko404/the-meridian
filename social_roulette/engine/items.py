@@ -25,38 +25,38 @@ def _consume(state, p, item):
 
 def apply_item(state, player_id, item, target_id=None):
     p = player_by_id(state, player_id)
-    if item == Item.CIGARETTES:
+    if item == Item.PASSPORT:
         if p.lives >= MAX_LIVES:
-            raise ValueError("cigarettes unusable at max life")
+            raise ValueError("passport unusable at max life")
         p.lives += 1
         _consume(state, p, item)
         return {"healed": 1}
-    if item == Item.MAGNIFIER:
+    if item == Item.GEIGER:
         _consume(state, p, item)
         return {"peek": state.chamber.current()}
-    if item == Item.SAW:
+    if item == Item.POISON:
         if state.saw_used_this_turn:
-            raise ValueError("saw already used this turn")
+            raise ValueError("poison already used this turn")
         state.saw_active = True
         state.saw_used_this_turn = True
         _consume(state, p, item)
         return {"saw": True}
-    if item == Item.BEER:
-        shell = state.chamber.current()
-        if shell is not None:
-            del state.chamber.shells[state.chamber.pos]
+    if item == Item.MAGNET:
+        bullet = state.chamber.current()
+        if bullet is not None:
+            del state.chamber.bullets[state.chamber.pos]
         _consume(state, p, item)
-        return {"discarded": shell, "emptied": state.chamber.is_empty()}
-    if item == Item.IMMUNITY:
+        return {"discarded": bullet, "emptied": state.chamber.is_empty()}
+    if item == Item.TERMS:
         if target_id is None or target_id == player_id:
-            raise ValueError("immunity needs non-self target")
+            raise ValueError("terms need non-self target")
         t = player_by_id(state, target_id)
         if player_id in t.immunity_against:
-            raise ValueError("immunity already placed by this caster")
+            raise ValueError("terms already placed by this caster")
         t.immunity_against.add(player_id)
         _consume(state, p, item)
         return {"immunity_on": target_id}
-    if item == Item.HANDCUFFS:
+    if item == Item.SHAKEDOWN:
         if target_id is None or target_id == player_id:
             raise ValueError("handcuffs need non-self target")
         t = player_by_id(state, target_id)

@@ -17,17 +17,17 @@ class Player:
 
 @dataclass
 class Chamber:
-    shells: list
+    bullets: list
     pos: int = 0
 
     def remaining(self):
-        return self.shells[self.pos:]
+        return self.bullets[self.pos:]
 
     def current(self):
-        return self.shells[self.pos] if self.pos < len(self.shells) else None
+        return self.bullets[self.pos] if self.pos < len(self.bullets) else None
 
     def is_empty(self):
-        return self.pos >= len(self.shells)
+        return self.pos >= len(self.bullets)
 
 
 @dataclass

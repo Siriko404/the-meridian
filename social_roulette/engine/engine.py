@@ -52,7 +52,7 @@ def take_shot(state, shooter_id, target_id):
         player_by_id(state, target_id).alive = False
         victim = player_by_id(state, target_id)
         victim.inventory = {}                       # guide:69 — items burned
-        for p in state.players:                     # guide:69 — their placed Immunity expires
+        for p in state.players:                     # guide:69 — their placed Terms expires
             p.immunity_against.discard(target_id)
         state.order = [pid for pid in order_before if pid != target_id]
         reload_on_death(state)
@@ -108,7 +108,7 @@ def step(state, player_id, action):
         if cap_reached(state, action.item):
             raise ValueError("consumption cap reached")
         ev = apply_item(state, player_id, action.item, action.target_id)
-        if action.item == Item.BEER and state.chamber.is_empty():
+        if action.item == Item.MAGNET and state.chamber.is_empty():
             ev["draws"] = reload_on_empty(state)
         return ev
     if isinstance(action, Flip):

@@ -2,12 +2,12 @@ from enum import Enum, auto
 
 
 class Item(Enum):
-    BEER = auto()
-    HANDCUFFS = auto()
-    MAGNIFIER = auto()
-    SAW = auto()
-    CIGARETTES = auto()
-    IMMUNITY = auto()
+    MAGNET = auto()
+    SHAKEDOWN = auto()
+    GEIGER = auto()
+    POISON = auto()
+    PASSPORT = auto()
+    TERMS = auto()
 
 
 class Team(Enum):
@@ -15,26 +15,26 @@ class Team(Enum):
     BLUE = auto()
 
 
-class Shell(Enum):
+class Bullet(Enum):
     LIVE = auto()
     BLANK = auto()
 
 
 POINT_VALUE = {
-    Item.IMMUNITY: 6,
-    Item.CIGARETTES: 6,
-    Item.MAGNIFIER: 5,
-    Item.SAW: 5,
-    Item.BEER: 4,
-    Item.HANDCUFFS: 4,
+    Item.TERMS: 6,
+    Item.PASSPORT: 6,
+    Item.GEIGER: 5,
+    Item.POISON: 5,
+    Item.MAGNET: 4,
+    Item.SHAKEDOWN: 4,
 }
 ITEM_TABLE = {
-    1: Item.BEER,
-    2: Item.HANDCUFFS,
-    3: Item.MAGNIFIER,
-    4: Item.SAW,
-    5: Item.CIGARETTES,
-    6: Item.IMMUNITY,
+    1: Item.MAGNET,
+    2: Item.SHAKEDOWN,
+    3: Item.GEIGER,
+    4: Item.POISON,
+    5: Item.PASSPORT,
+    6: Item.TERMS,
 }
 MAX_PER_TYPE = 3
 MAX_TOTAL = 8

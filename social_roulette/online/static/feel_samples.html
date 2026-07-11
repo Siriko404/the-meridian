@@ -111,7 +111,7 @@ function build(reg){
 
   async function dealBeat(kind, my){
     const die = el(".die"), c1 = card.querySelectorAll(".cardp")[0], c2 = card.querySelectorAll(".cardp")[1];
-    c1.textContent = "MAGNIFIER"; c2.textContent = "BEER";
+    c1.textContent = "GEIGER"; c2.textContent = "MAGNET";
     sub("DEALER · DRAW 2");
     if (kind === "crisp"){ die.style.opacity = 1;
       for (const v of [3,6,2,5]) { die.textContent = v; await wait(90); if (my !== epoch) return; }
@@ -134,7 +134,7 @@ function build(reg){
   async function run(){
     if (running) epoch++;
     running = true; const my = ++epoch;
-    reset(); el(".ft .st").textContent = live ? "this loop: LIVE shell" : "this loop: BLANK";
+    reset(); el(".ft .st").textContent = live ? "this loop: LIVE bullet" : "this loop: BLANK";
     const inner = el(".inner"), shooter = 1, target = 3;
     await wait(500); if (my !== epoch) return;
 

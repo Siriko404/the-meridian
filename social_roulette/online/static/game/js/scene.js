@@ -4,7 +4,7 @@
  * slashes, the 5th CROSSES them (closed gate = the win-watch state); <=2 burns red.
  * Stick motion = PEN (ratified): draw-stroke in · snap out · slash close + pulse.
  * Turn = stroke brightness, never weight. Red 0xc8102e = DANGER ONLY (spec §8 list).
- * The center dial is a SEAT dial — one bore per seat, never tracks shells (a11). */
+ * The center dial is a SEAT dial — one bore per seat, never tracks bullets (a11). */
 (function (global) {
   "use strict";
   const W = 390, H = 844, RED = 0xc8102e, WHITE = 0xffffff;
@@ -586,7 +586,7 @@
       this._arrowTo(id);
       return this.w(280);
     }
-    async shellEject() {                                      // M22: from the dial's CENTER AXIS (a11)
+    async bulletEject() {                                      // M22: from the dial's CENTER AXIS (a11)
       const sh = this.add.rectangle(CX, CY, 8, 18, 0xffffff).setDepth(15);
       await new Promise((r) => this.tweens.add({ targets: sh, x: W + 40, y: CY - 160, angle: 260,
         duration: 600, ease: "Quad.easeOut", onComplete: r }));
@@ -670,7 +670,7 @@
     }
     async announceHold(total, live) {                          // M3 — once, ~5s total, then never again (#3b=A)
       this.dim(true);
-      const msg = total + " SHELLS · " + live + " LIVE";
+      const msg = total + " BULLETS · " + live + " LIVE";
       const t = this.add.text(W / 2, 200, "", style(24)).setOrigin(0.5)
         .setResolution(2).setDepth(19);
       await this.decode(t, msg, 700);

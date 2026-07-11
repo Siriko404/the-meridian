@@ -19,13 +19,13 @@ def test_offer_accept_settles_swap():
     r, t = clockroom()
     seat = r.current
     mate = _teammate(r, seat)
-    player_by_id(r.state, seat).inventory = {Item.BEER: 1}
-    player_by_id(r.state, mate).inventory = {Item.SAW: 1}
-    r.trade_offer(seat, mate, ["BEER"], ["SAW"])
+    player_by_id(r.state, seat).inventory = {Item.MAGNET: 1}
+    player_by_id(r.state, mate).inventory = {Item.POISON: 1}
+    r.trade_offer(seat, mate, ["MAGNET"], ["POISON"])
     assert r.pending_offer["from"] == seat
     r.trade_respond(mate, True)
-    assert player_by_id(r.state, seat).inventory == {Item.SAW: 1}
-    assert player_by_id(r.state, mate).inventory == {Item.BEER: 1}
+    assert player_by_id(r.state, seat).inventory == {Item.POISON: 1}
+    assert player_by_id(r.state, mate).inventory == {Item.MAGNET: 1}
     assert r.pending_offer is None
 
 
@@ -34,10 +34,10 @@ def test_bluffed_offer_cancels_with_no_movement():
     seat = r.current
     mate = _teammate(r, seat)
     player_by_id(r.state, seat).inventory = {}
-    player_by_id(r.state, mate).inventory = {Item.SAW: 1}
-    r.trade_offer(seat, mate, ["BEER"], ["SAW"])       # bluff: no beer owned
+    player_by_id(r.state, mate).inventory = {Item.POISON: 1}
+    r.trade_offer(seat, mate, ["MAGNET"], ["POISON"])       # bluff: no beer owned
     r.trade_respond(mate, True)
-    assert player_by_id(r.state, mate).inventory == {Item.SAW: 1}
+    assert player_by_id(r.state, mate).inventory == {Item.POISON: 1}
     assert r.pending_offer is None
 
 
@@ -48,14 +48,14 @@ def test_trade_ops_never_replay_stale_events():
     r, t = clockroom()
     seat = r.current
     mate = _teammate(r, seat)
-    player_by_id(r.state, seat).inventory = {Item.BEER: 1}
+    player_by_id(r.state, seat).inventory = {Item.MAGNET: 1}
     assert any(e["type"] == "announce" for e in r.last_events)   # opening announce pending
-    r.trade_offer(seat, mate, ["BEER"], [])
+    r.trade_offer(seat, mate, ["MAGNET"], [])
     assert r.last_events == []                                   # must NOT rebroadcast it
     assert r.events_for(mate) == []
     r.trade_withdraw(seat)
     assert r.last_events == []
-    r.trade_offer(seat, mate, ["BEER"], [])
+    r.trade_offer(seat, mate, ["MAGNET"], [])
     r.trade_respond(mate, False)
     assert r.last_events == []
     assert r.events_for(seat) == [{"type": "trade_private", "kind": "declined"}]
@@ -68,14 +68,14 @@ def test_offer_gates_and_lifecycle():
     enemy = next(p.id for p in r.state.players
                  if p.alive and p.team != player_by_id(r.state, seat).team)
     with pytest.raises(IllegalAction):
-        r.trade_offer(seat, enemy, ["BEER"], [])       # not a teammate
-    r.trade_offer(seat, mate, ["BEER"], [])
+        r.trade_offer(seat, enemy, ["MAGNET"], [])       # not a teammate
+    r.trade_offer(seat, mate, ["MAGNET"], [])
     with pytest.raises(IllegalAction):
-        r.trade_offer(seat, mate, ["SAW"], [])         # one pending max
+        r.trade_offer(seat, mate, ["POISON"], [])         # one pending max
     r.trade_withdraw(seat)
     assert r.pending_offer is None
-    r.trade_offer(seat, mate, ["BEER"], [])
+    r.trade_offer(seat, mate, ["MAGNET"], [])
     r.proceed(seat)                                    # talk ends -> offer expires
     assert r.pending_offer is None
     with pytest.raises(IllegalAction):
-        r.trade_offer(seat, mate, ["BEER"], [])        # decision phase: no offers
+        r.trade_offer(seat, mate, ["MAGNET"], [])        # decision phase: no offers

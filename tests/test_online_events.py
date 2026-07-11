@@ -1,6 +1,6 @@
 """Event-stream contract: Room.apply must expose the animatable events that
 happened during the action (+ any bot turns it triggered), and NEVER leak
-hidden info (shell order, foreign peeks) through them."""
+hidden info (bullet order, foreign peeks) through them."""
 from social_roulette.online.room import Room
 
 
@@ -17,7 +17,7 @@ def test_first_view_carries_only_the_announce():
 
 def test_human_shot_emits_shot_event():
     """A human Shoot yields a 'shot' event carrying the public outcome
-    (fired shell / damage / killed) — everything a client needs to animate."""
+    (fired bullet / damage / killed) — everything a client needs to animate."""
     r = Room(human_seats={0}, seed=0)        # seat 0 human, rest bots
     assert r.current == 0
     r.proceed(0)                             # leave talk: index 0 == Shoot(self) is decision-only
@@ -26,13 +26,13 @@ def test_human_shot_emits_shot_event():
     assert shots, "human shot must emit a 'shot' event"
     s = shots[0]
     assert s["actor"] == 0
-    assert s["shell"] in ("LIVE", "BLANK")
+    assert s["bullet"] in ("LIVE", "BLANK")
     assert isinstance(s["killed"], bool)
 
 
 def test_events_never_leak_hidden_state():
     """Streamed events expose only public animation fields — no recorder `extra`
-    blob (which can carry a Magnifier peek) and no shell-order array."""
+    blob (which can carry a Geiger peek) and no bullet-order array."""
     r = Room(human_seats={0}, seed=0)
     for _ in range(200):
         if r.winner is not None:
@@ -43,11 +43,11 @@ def test_events_never_leak_hidden_state():
             r.apply(0, 0)
         for e in r.last_events:
             assert "extra" not in e                             # no raw extra blob (no peek leak)
-            assert "shells" not in e                            # no shell order
+            assert "bullets" not in e                            # no bullet order
             # "seq" keys the per-seat draw enrichment (events_for pops it before a client sees it);
             # it is a public recorder row index, never hidden state.
             assert set(e).issubset(
-                {"type", "actor", "target", "shell", "damage", "killed", "item", "total", "live", "seq"})
+                {"type", "actor", "target", "bullet", "damage", "killed", "item", "total", "live", "seq"})
 
 
 def test_new_event_methods_emit_valid_rows():
@@ -55,13 +55,13 @@ def test_new_event_methods_emit_valid_rows():
     from social_roulette.observe import events as E
     import json
     r = Recorder("m1")
-    r.fine(3, 2, "BEER")
+    r.fine(3, 2, "MAGNET")
     r.skip(4, 1)
-    r.draw(5, {0: {"attempted": ["SAW"], "received": []}})
-    r.trade(6, 0, 2, ["BEER"], ["SAW"])
+    r.draw(5, {0: {"attempted": ["POISON"], "received": []}})
+    r.trade(6, 0, 2, ["MAGNET"], ["POISON"])
     types = [row["type"] for row in r.rows]
     assert types == [E.FINE, E.SKIP, E.DRAW, E.TRADE]
-    assert r.rows[0]["actor"] == 2 and json.loads(r.rows[0]["extra"])["item"] == "BEER"
+    assert r.rows[0]["actor"] == 2 and json.loads(r.rows[0]["extra"])["item"] == "MAGNET"
     assert r.rows[1]["target"] == 1
-    assert "SAW" in r.rows[2]["extra"]
-    assert json.loads(r.rows[3]["extra"]) == {"give": ["BEER"], "want": ["SAW"]}
+    assert "POISON" in r.rows[2]["extra"]
+    assert json.loads(r.rows[3]["extra"]) == {"give": ["MAGNET"], "want": ["POISON"]}

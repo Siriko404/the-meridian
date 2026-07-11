@@ -16,7 +16,7 @@ from . import events as E
 SCHEMA = pa.schema([
     ("match_id", pa.string()), ("seq", pa.int32()), ("turn", pa.int32()),
     ("actor", pa.int16()), ("type", pa.string()), ("target", pa.int16()),
-    ("item", pa.string()), ("shell", pa.string()), ("damage", pa.int16()),
+    ("item", pa.string()), ("bullet", pa.string()), ("damage", pa.int16()),
     ("killed", pa.bool_()), ("extra", pa.string()),
 ])
 

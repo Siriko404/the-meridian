@@ -5,18 +5,18 @@ from social_roulette.engine.constants import Item
 
 def test_flip_with_chosen_payment():
     """The player CHOOSES which items pay the flip; the engine only checks the total
-    covers the cost. Auto-cheapest would spend the SAW (5); the choice keeps it."""
+    covers the cost. Auto-cheapest would spend the POISON (5); the choice keeps it."""
     r = Room(human_seats={0, 1, 2, 3, 4}, seed=0)
     seat = r.current
     tgt = next(t for t in range(5) if t != seat)
-    r.state.players[seat].inventory = {Item.BEER: 1, Item.HANDCUFFS: 1, Item.SAW: 1}
+    r.state.players[seat].inventory = {Item.MAGNET: 1, Item.SHAKEDOWN: 1, Item.POISON: 1}
     r.proceed(seat)                                  # flips are decision-only (§4.1) — enter decision
     with pytest.raises(IllegalAction):
-        r.flip(seat, tgt, ["BEER"])                  # 4 < 5 → rejected, nothing spent
+        r.flip(seat, tgt, ["MAGNET"])                  # 4 < 5 → rejected, nothing spent
     before = r.state.players[tgt].team
-    r.flip(seat, tgt, ["BEER", "HANDCUFFS"])         # 8 ≥ 5, the player's picked items
+    r.flip(seat, tgt, ["MAGNET", "SHAKEDOWN"])         # 8 ≥ 5, the player's picked items
     assert r.state.players[tgt].team != before
-    assert Item.SAW in r.state.players[seat].inventory   # kept — choice honored, not auto-cheapest
+    assert Item.POISON in r.state.players[seat].inventory   # kept — choice honored, not auto-cheapest
 
 
 def test_all_bots_reaches_winner():

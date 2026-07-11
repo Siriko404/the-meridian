@@ -29,9 +29,9 @@ def test_proceed_moves_to_decision_actor_only():
 
 def test_self_blank_bonus_goes_straight_to_decision():
     r, t = clockroom()
-    from social_roulette.engine.constants import Shell
+    from social_roulette.engine.constants import Bullet
     seat = r.current
-    r.state.chamber.shells[r.state.chamber.pos] = Shell.BLANK
+    r.state.chamber.bullets[r.state.chamber.pos] = Bullet.BLANK
     r.proceed(seat)
     i = next(a["i"] for a in r.view(seat)["legal"] if a["kind"] == "shoot" and a["target"] == seat)
     r.apply(seat, i)
@@ -54,7 +54,7 @@ def test_decision_deadline_fines_then_auto_shoots():
     seat = r.current
     player_by_id(r.state, seat).inventory = {}
     from social_roulette.engine.constants import Item
-    player_by_id(r.state, seat).inventory = {Item.BEER: 1}
+    player_by_id(r.state, seat).inventory = {Item.MAGNET: 1}
     r.proceed(seat)
     t[0] = r.phase_ends_at + 0.1
     assert r.on_deadline() is True                       # fine
@@ -108,11 +108,11 @@ def test_item_use_during_decision_keeps_phase_and_deadline():
     from social_roulette.engine.state import player_by_id
     r, t = clockroom()
     seat = r.current
-    player_by_id(r.state, seat).inventory = {Item.MAGNIFIER: 1}
+    player_by_id(r.state, seat).inventory = {Item.GEIGER: 1}
     r.proceed(seat)
     ends = r.phase_ends_at
     g0 = r.gen
-    r.apply(seat, _item_index(r, seat, "MAGNIFIER"))
+    r.apply(seat, _item_index(r, seat, "GEIGER"))
     assert r.phase == "decision"                 # NOT dropped back to a fresh talk
     assert r.phase_ends_at == ends               # window not reset/extended
     assert r.gen == g0 + 1                        # exactly one gen bump
@@ -124,27 +124,27 @@ def test_item_use_during_talk_keeps_talk_deadline():
     from social_roulette.engine.state import player_by_id
     r, t = clockroom()
     seat = r.current
-    player_by_id(r.state, seat).inventory = {Item.MAGNIFIER: 1}
+    player_by_id(r.state, seat).inventory = {Item.GEIGER: 1}
     ends = r.phase_ends_at
     g0 = r.gen
-    r.apply(seat, _item_index(r, seat, "MAGNIFIER"))
+    r.apply(seat, _item_index(r, seat, "GEIGER"))
     assert r.phase == "talk"
     assert r.phase_ends_at == ends
     assert r.gen == g0 + 1
 
 
 def test_magnet_reload_during_decision_keeps_phase_and_deadline():
-    # C1: a MAGNET (Beer) that empties the chamber reloads but must NOT extend the window.
-    from social_roulette.engine.constants import Item, Shell
+    # C1: a MAGNET (Magnet) that empties the chamber reloads but must NOT extend the window.
+    from social_roulette.engine.constants import Item, Bullet
     from social_roulette.engine.state import player_by_id
     r, t = clockroom()
     seat = r.current
-    player_by_id(r.state, seat).inventory = {Item.BEER: 1}
+    player_by_id(r.state, seat).inventory = {Item.MAGNET: 1}
     r.proceed(seat)
-    r.state.chamber.shells[:] = [Shell.BLANK]
+    r.state.chamber.bullets[:] = [Bullet.BLANK]
     r.state.chamber.pos = 0
     ends = r.phase_ends_at
-    r.apply(seat, _item_index(r, seat, "BEER"))
+    r.apply(seat, _item_index(r, seat, "MAGNET"))
     assert any(e["type"] == "reload" for e in r.last_events)   # reload really fired
     assert r.phase == "decision"
     assert r.phase_ends_at == ends
@@ -157,13 +157,13 @@ def test_flip_gated_to_decision_phase():
     r, t = clockroom()
     seat = r.current
     tgt = next(x for x in range(5) if x != seat)
-    player_by_id(r.state, seat).inventory = {Item.BEER: 1, Item.HANDCUFFS: 1}
+    player_by_id(r.state, seat).inventory = {Item.MAGNET: 1, Item.SHAKEDOWN: 1}
     with pytest.raises(IllegalAction):
-        r.flip(seat, tgt, ["BEER", "HANDCUFFS"])   # still in talk → rejected
+        r.flip(seat, tgt, ["MAGNET", "SHAKEDOWN"])   # still in talk → rejected
     r.proceed(seat)
     ends = r.phase_ends_at
     before = r.state.players[tgt].team
-    r.flip(seat, tgt, ["BEER", "HANDCUFFS"])        # decision → succeeds
+    r.flip(seat, tgt, ["MAGNET", "SHAKEDOWN"])        # decision → succeeds
     assert r.state.players[tgt].team != before
     assert r.phase == "decision"                    # flip does not re-begin the phase (C1)
     assert r.phase_ends_at == ends
@@ -175,8 +175,8 @@ def test_view_carries_increasing_gen():
     from social_roulette.engine.state import player_by_id
     r, t = clockroom()
     seat = r.current
-    player_by_id(r.state, seat).inventory = {Item.MAGNIFIER: 1}
+    player_by_id(r.state, seat).inventory = {Item.GEIGER: 1}
     r.proceed(seat)
     g0 = r.view(seat)["gen"]
-    r.apply(seat, _item_index(r, seat, "MAGNIFIER"))
+    r.apply(seat, _item_index(r, seat, "GEIGER"))
     assert r.view(seat)["gen"] > g0

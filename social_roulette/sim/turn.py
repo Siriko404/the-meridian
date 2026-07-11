@@ -10,14 +10,14 @@ extras_map:        {seat_id: Extras} — every seat re-syncs announced counts af
                    each sub-action (a reload changes the chamber for everyone).
 """
 from social_roulette.engine.engine import step
-from social_roulette.engine.constants import Shell, Item
+from social_roulette.engine.constants import Bullet, Item
 from social_roulette.engine.state import living_ids, player_by_id
 from social_roulette.engine.actions import legal_actions, Shoot, Flip, Speak, Trade
 from social_roulette.engine.endgame import legal_targets
 
 
 class Extras:
-    """Per-seat observable memory (announced chamber counts + a known peeked shell)."""
+    """Per-seat observable memory (announced chamber counts + a known peeked bullet)."""
     def __init__(self):
         self.known = "unknown"
         self.total = 0
@@ -29,8 +29,8 @@ class Extras:
         ch = state.chamber
         if ch is not self._lc:
             self._lc = ch
-            self.total = len(ch.shells)
-            self.live = sum(1 for s in ch.shells if s == Shell.LIVE)
+            self.total = len(ch.bullets)
+            self.live = sum(1 for s in ch.bullets if s == Bullet.LIVE)
             self.known = "unknown"
             self._lp = ch.pos
         elif ch.pos != self._lp:
@@ -39,10 +39,10 @@ class Extras:
 
     def peek(self, state):
         c = state.chamber.current()
-        self.known = "live" if c == Shell.LIVE else ("blank" if c == Shell.BLANK else "unknown")
+        self.known = "live" if c == Bullet.LIVE else ("blank" if c == Bullet.BLANK else "unknown")
 
     def d(self):
-        return {"known_next_shell": self.known, "announced_total": self.total, "announced_live": self.live}
+        return {"known_next_bullet": self.known, "announced_total": self.total, "announced_live": self.live}
 
 
 def random_policy(state, pid, extras):
@@ -50,7 +50,7 @@ def random_policy(state, pid, extras):
 
 
 def _sanv(v):
-    if isinstance(v, (Shell, Item)):
+    if isinstance(v, (Bullet, Item)):
         return v.name
     if isinstance(v, dict):
         return {k: _sanv(x) for k, x in v.items()}
@@ -87,7 +87,7 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
             saw = state.saw_active
             ev = step(state, pid, a)
             if rec:
-                rec.shot(turn_idx, pid, a.target_id, ev["shell"].name, ev["damage"], ev["killed"], saw)
+                rec.shot(turn_idx, pid, a.target_id, ev["bullet"].name, ev["damage"], ev["killed"], saw)
             _rec_draws(rec, turn_idx, ev)
             shot_done = True
             break
@@ -109,7 +109,7 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
             if rec:
                 rec.gift(turn_idx, pid, to, [it.name for it in a.items])
         else:
-            is_mag = a.item == Item.MAGNIFIER
+            is_mag = a.item == Item.GEIGER
             res = step(state, pid, a)
             if is_mag:
                 ex.peek(state)
@@ -123,7 +123,7 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
         saw = state.saw_active
         ev = step(state, pid, Shoot(tgt))
         if rec:
-            rec.shot(turn_idx, pid, tgt, ev["shell"].name, ev["damage"], ev["killed"], saw)
+            rec.shot(turn_idx, pid, tgt, ev["bullet"].name, ev["damage"], ev["killed"], saw)
         _rec_draws(rec, turn_idx, ev)
 
     dead = sorted(alive_before - living_ids(state))
@@ -131,8 +131,8 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
         for d in dead:
             rec.elimination(turn_idx, d, pid)
         if state.chamber is not ch_before and state.winner is None:
-            live = sum(1 for s in state.chamber.shells if s == Shell.LIVE)
-            rec.reload(turn_idx, "death" if dead else "empty", len(state.chamber.shells), live)
+            live = sum(1 for s in state.chamber.bullets if s == Bullet.LIVE)
+            rec.reload(turn_idx, "death" if dead else "empty", len(state.chamber.bullets), live)
         if state.bonus_pending and state.current_id == pid:
             rec.bonus(turn_idx, pid)
     if state.last_skipped and rec:

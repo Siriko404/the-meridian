@@ -6,7 +6,7 @@ from social_roulette.online.server import app
 def test_full_game_over_ws_no_leak():
     """Drive a whole game through the real WS server as seat 0 (rest bots);
     assert it reaches a winner, streams animatable events, and never leaks a
-    foreign hand or the hidden shell ORDER. (The single JUST-FIRED shell IS
+    foreign hand or the hidden bullet ORDER. (The single JUST-FIRED bullet IS
     public per game_guide 'Information & Visibility' and rides the event stream.)"""
     c = TestClient(app)
     with c.websocket_connect("/ws") as ws:
@@ -19,13 +19,13 @@ def test_full_game_over_ws_no_leak():
                 ws.send_json({"type": "start"})
             elif m["type"] == "view":
                 blob = json.dumps(m)
-                assert "shells" not in blob                           # hidden shell ORDER never sent
+                assert "bullets" not in blob                           # hidden bullet ORDER never sent
                 assert "inventory" not in blob                        # no foreign hands
                 assert "chamber" not in m                             # no persistent running count (game_guide:159)
                 for e in m.get("events", []):
-                    assert "extra" not in e                           # no raw extra (Magnifier peek) leak
+                    assert "extra" not in e                           # no raw extra (Geiger peek) leak
                     if e["type"] == "shot":
-                        assert e["shell"] in ("LIVE", "BLANK")
+                        assert e["bullet"] in ("LIVE", "BLANK")
                         saw_shot_event = True
                 if m["current"] == m["you"] and m["winner"] is None:
                     if m.get("phase") == "talk":
@@ -118,7 +118,7 @@ def test_trade_offer_rejected_outside_talk_over_ws():
                 if m.get("phase") == "talk":
                     ws.send_json({"type": "proceed"})
                 elif m.get("phase") == "decision":
-                    ws.send_json({"type": "trade_offer", "to": 1, "give": ["BEER"], "want": []})
+                    ws.send_json({"type": "trade_offer", "to": 1, "give": ["MAGNET"], "want": []})
             elif m["type"] == "error":
                 got_error = True                     # decision phase / bot teammate — rejected
                 break

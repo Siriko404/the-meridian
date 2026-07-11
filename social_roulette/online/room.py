@@ -8,13 +8,13 @@ so they are unit-testable without a socket.
 Every apply() also records the animatable EVENTS it caused (the human's own
 action + any bot turns it triggered) into `last_events`: the client replays
 them, then settles to the new per-seat view. Events carry only PUBLIC fields
-(fired shell, damage, death, flip) — never the hidden shell order or a peek.
+(fired bullet, damage, death, flip) — never the hidden bullet order or a peek.
 """
 import json
 import time
 
 from social_roulette.engine.engine import new_game, step as engine_step
-from social_roulette.engine.constants import Item, Shell
+from social_roulette.engine.constants import Item, Bullet
 from social_roulette.engine.actions import legal_actions, Shoot, Flip
 from social_roulette.engine.state import player_by_id, living_ids
 from social_roulette.engine.economy import fine_cheapest, swap
@@ -23,8 +23,8 @@ from social_roulette.observe.recorder import Recorder
 from social_roulette.online.view import seat_view
 
 # public animation fields kept from a recorder row (drop `extra` — it can carry a
-# Magnifier peek — and the bookkeeping columns the client never animates).
-_ANIM_KEYS = ("type", "actor", "target", "shell", "damage", "killed", "item")
+# Geiger peek — and the bookkeeping columns the client never animates).
+_ANIM_KEYS = ("type", "actor", "target", "bullet", "damage", "killed", "item")
 
 
 def _anim(row):
@@ -211,8 +211,8 @@ class Room:
 
     def _announce(self):
         ch = self.state.chamber
-        return {"type": "announce", "total": len(ch.shells),
-                "live": sum(1 for s in ch.shells if s == Shell.LIVE)}
+        return {"type": "announce", "total": len(ch.bullets),
+                "live": sum(1 for s in ch.bullets if s == Bullet.LIVE)}
 
     @property
     def winner(self):
@@ -250,7 +250,7 @@ class Room:
         """Per-seat enrichment of the shared public `last_events`: a draw event gains
         THIS seat's own refill; a settled trade gains its items ONLY for the two
         parties; and a declined/cancelled offer surfaces a private note to the parties.
-        Never leaks another seat's hand or the shell order."""
+        Never leaks another seat's hand or the bullet order."""
         out = []
         for e in self.last_events:
             e = dict(e)
@@ -336,14 +336,14 @@ class Room:
         if isinstance(action, Shoot):
             saw = self.state.saw_active
             ev = engine_step(self.state, seat, action)
-            self.rec.shot(self._turn, seat, action.target_id, ev["shell"].name,
+            self.rec.shot(self._turn, seat, action.target_id, ev["bullet"].name,
                           ev["damage"], ev["killed"], saw)
             for d in sorted(alive_before - living_ids(self.state)):
                 self.rec.elimination(self._turn, d, seat)
             if self.state.chamber is not ch_before and self.state.winner is None:
-                live = sum(1 for s in self.state.chamber.shells if s == Shell.LIVE)
+                live = sum(1 for s in self.state.chamber.bullets if s == Bullet.LIVE)
                 self.rec.reload(self._turn, "death" if len(living_ids(self.state)) < len(alive_before) else "empty",
-                                len(self.state.chamber.shells), live)
+                                len(self.state.chamber.bullets), live)
             self._record_draws(ev)
             self._drain_skips()
         elif isinstance(action, Flip):
@@ -354,14 +354,14 @@ class Room:
         else:                                       # UseItem (Trade/Speak impossible: social/comms disabled)
             it = getattr(action, "item", None)
             ev = engine_step(self.state, seat, action)
-            if it == Item.MAGNIFIER:
+            if it == Item.GEIGER:
                 self.extras[seat].peek(self.state)
-            elif it == Item.BEER:
-                self.extras[seat].known = "unknown"     # the peeked shell was ejected → clear the stale peek
+            elif it == Item.MAGNET:
+                self.extras[seat].known = "unknown"     # the peeked bullet was ejected → clear the stale peek
             self.rec.item_used(self._turn, seat, action.item.name, action.target_id, {})
-            if self.state.chamber is not ch_before and self.state.winner is None:   # Beer emptied it → reload
-                live = sum(1 for s in self.state.chamber.shells if s == Shell.LIVE)
-                self.rec.reload(self._turn, "empty", len(self.state.chamber.shells), live)
+            if self.state.chamber is not ch_before and self.state.winner is None:   # Magnet emptied it → reload
+                live = sum(1 for s in self.state.chamber.bullets if s == Bullet.LIVE)
+                self.rec.reload(self._turn, "empty", len(self.state.chamber.bullets), live)
             self._record_draws(ev)
             self._drain_skips()
 

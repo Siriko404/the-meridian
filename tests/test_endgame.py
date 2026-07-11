@@ -1,4 +1,4 @@
-from social_roulette.engine.constants import Item, Team, Shell
+from social_roulette.engine.constants import Item, Team, Bullet
 from social_roulette.engine.state import Player, Chamber, can_receive, inventory_total
 
 
@@ -10,15 +10,15 @@ def mkp(i=0, **kw):
 
 
 def test_can_receive_caps():
-    p = mkp(inventory={Item.BEER: 3})
-    assert can_receive(p, Item.BEER) is False and can_receive(p, Item.SAW) is True
-    p.inventory = {Item.BEER: 3, Item.SAW: 3, Item.MAGNIFIER: 2}
-    assert inventory_total(p) == 8 and can_receive(p, Item.HANDCUFFS) is False
+    p = mkp(inventory={Item.MAGNET: 3})
+    assert can_receive(p, Item.MAGNET) is False and can_receive(p, Item.POISON) is True
+    p.inventory = {Item.MAGNET: 3, Item.POISON: 3, Item.GEIGER: 2}
+    assert inventory_total(p) == 8 and can_receive(p, Item.SHAKEDOWN) is False
 
 
 def test_chamber_basics():
-    c = Chamber(shells=[Shell.LIVE, Shell.BLANK], pos=0)
-    assert c.current() == Shell.LIVE and not c.is_empty()
+    c = Chamber(bullets=[Bullet.LIVE, Bullet.BLANK], pos=0)
+    assert c.current() == Bullet.LIVE and not c.is_empty()
     c.pos = 2
     assert c.is_empty() and c.current() is None
 
@@ -31,7 +31,7 @@ def test_new_game_shape():
     s = new_game(5, seed=1)
     assert len(s.players) == 5 and all(p.lives == 3 for p in s.players)
     assert all(sum(p.inventory.values()) == 3 for p in s.players)
-    assert sum(1 for x in s.chamber.shells if x == Shell.LIVE) > 5 and s.current_id == s.order[0]
+    assert sum(1 for x in s.chamber.bullets if x == Bullet.LIVE) > 5 and s.current_id == s.order[0]
 
 
 def test_team_odd_seat_coinflips_across_seeds():
@@ -44,8 +44,8 @@ def test_team_odd_seat_coinflips_across_seeds():
 
 def test_step_beer_empty_reloads_midturn():
     s = new_game(5, seed=2)
-    s.players[s.current_id].inventory = {Item.BEER: 1}
-    s.chamber.shells = [s.chamber.shells[0]]
+    s.players[s.current_id].inventory = {Item.MAGNET: 1}
+    s.chamber.bullets = [s.chamber.bullets[0]]
     s.chamber.pos = 0
-    step(s, s.current_id, UseItem(Item.BEER))
+    step(s, s.current_id, UseItem(Item.MAGNET))
     assert not s.chamber.is_empty()

@@ -3,12 +3,12 @@ from social_roulette.engine.rng import SeededRng
 
 
 def test_constants_match_spec():
-    assert {i.name for i in C.Item} == {"BEER", "HANDCUFFS", "MAGNIFIER", "SAW", "CIGARETTES", "IMMUNITY"}
-    assert C.ITEM_TABLE == {1: C.Item.BEER, 2: C.Item.HANDCUFFS, 3: C.Item.MAGNIFIER,
-                            4: C.Item.SAW, 5: C.Item.CIGARETTES, 6: C.Item.IMMUNITY}
-    assert C.POINT_VALUE[C.Item.IMMUNITY] == 6 and C.POINT_VALUE[C.Item.CIGARETTES] == 6
-    assert C.POINT_VALUE[C.Item.MAGNIFIER] == 5 and C.POINT_VALUE[C.Item.SAW] == 5
-    assert C.POINT_VALUE[C.Item.BEER] == 4 and C.POINT_VALUE[C.Item.HANDCUFFS] == 4
+    assert {i.name for i in C.Item} == {"MAGNET", "SHAKEDOWN", "GEIGER", "POISON", "PASSPORT", "TERMS"}
+    assert C.ITEM_TABLE == {1: C.Item.MAGNET, 2: C.Item.SHAKEDOWN, 3: C.Item.GEIGER,
+                            4: C.Item.POISON, 5: C.Item.PASSPORT, 6: C.Item.TERMS}
+    assert C.POINT_VALUE[C.Item.TERMS] == 6 and C.POINT_VALUE[C.Item.PASSPORT] == 6
+    assert C.POINT_VALUE[C.Item.GEIGER] == 5 and C.POINT_VALUE[C.Item.POISON] == 5
+    assert C.POINT_VALUE[C.Item.MAGNET] == 4 and C.POINT_VALUE[C.Item.SHAKEDOWN] == 4
     assert (C.MAX_PER_TYPE, C.MAX_TOTAL, C.START_LIVES, C.MAX_LIVES, C.MIN_PLAYERS) == (3, 8, 3, 5, 5)
 
 

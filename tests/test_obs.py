@@ -4,7 +4,7 @@ from social_roulette.engine.engine import new_game
 from social_roulette.engine.constants import Item
 from social_roulette.rl.obs import encode_obs, OBS_DIM
 
-EXTRAS = {"known_next_shell": "unknown", "announced_total": 10, "announced_live": 6}
+EXTRAS = {"known_next_bullet": "unknown", "announced_total": 10, "announced_live": 6}
 
 
 def test_obs_shape_and_dtype():
@@ -26,12 +26,12 @@ def test_obs_reflects_own_inventory():
     s = new_game(5, seed=1)
     base = encode_obs(s, 0, EXTRAS).copy()
     s.players[0].inventory = dict(s.players[0].inventory)
-    s.players[0].inventory[Item.SAW] = s.players[0].inventory.get(Item.SAW, 0) + 1
+    s.players[0].inventory[Item.POISON] = s.players[0].inventory.get(Item.POISON, 0) + 1
     assert not np.array_equal(encode_obs(s, 0, EXTRAS), base)
 
 
 def test_obs_peek_slot_changes():
     s = new_game(5, seed=1)
-    a = encode_obs(s, 0, {**EXTRAS, "known_next_shell": "unknown"})
-    b = encode_obs(s, 0, {**EXTRAS, "known_next_shell": "live"})
+    a = encode_obs(s, 0, {**EXTRAS, "known_next_bullet": "unknown"})
+    b = encode_obs(s, 0, {**EXTRAS, "known_next_bullet": "live"})
     assert not np.array_equal(a, b)

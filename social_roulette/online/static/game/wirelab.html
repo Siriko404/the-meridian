@@ -76,17 +76,17 @@
       phase: "talk", phase_ends_at: now + (o.secs != null ? o.secs : 47), server_now: now,
       bonus: false, extra_turn: false, saw_active: false, teams_active: true,
       flipback_discount: false, use_counts: {}, use_limit: 6, feed: [], players,
-      your_hand: { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1 },
-      item_counts: { BEER: 3, HANDCUFFS: 2, MAGNIFIER: 2, SAW: 1, CIGARETTES: 3, IMMUNITY: 2 },
+      your_hand: { MAGNET: 1, SHAKEDOWN: 1, GEIGER: 1 },
+      item_counts: { MAGNET: 3, SHAKEDOWN: 2, GEIGER: 2, POISON: 1, PASSPORT: 3, TERMS: 2 },
       peek: "unknown", legal: o.legal || [],
     }, o.over || {});
   }
   const L_ITEMS = [                                            // legal entries (hand above)
-    { kind: "item", item: "BEER", target: null, i: 0 },
-    { kind: "item", item: "HANDCUFFS", target: 1, i: 1 },
-    { kind: "item", item: "HANDCUFFS", target: 3, i: 2 },
-    { kind: "item", item: "HANDCUFFS", target: 4, i: 3 },
-    { kind: "item", item: "MAGNIFIER", target: null, i: 4 },
+    { kind: "item", item: "MAGNET", target: null, i: 0 },
+    { kind: "item", item: "SHAKEDOWN", target: 1, i: 1 },
+    { kind: "item", item: "SHAKEDOWN", target: 3, i: 2 },
+    { kind: "item", item: "SHAKEDOWN", target: 4, i: 3 },
+    { kind: "item", item: "GEIGER", target: null, i: 4 },
   ];
   const L_DEC = [
     { kind: "shoot", target: 0, i: 10 }, { kind: "shoot", target: 1, i: 11 },
@@ -221,7 +221,7 @@
       await filmTap("teammates-dead", () => openHub("onAction"));
       await abort();
       push(view({ legal: L_ITEMS,
-        over: { pending_offer: { from: 0, to: 2, give: ["BEER"], want: ["MAGNIFIER"] } } }));
+        over: { pending_offer: { from: 0, to: 2, give: ["MAGNET"], want: ["GEIGER"] } } }));
       await sleep(800);
       await filmTap("withdraw-menu", () => openHub("onAction"));
       await filmTap("withdraw-tap", () => row(1));             // sends trade_withdraw
@@ -230,8 +230,8 @@
     /* 3 — kit: mixed states (sealed + full-cover dims), no-target confirm, STAND DOWN home */
     await step("kit", async () => {
       push(view({ legal: L_ITEMS, myLives: 5,
-        over: { your_hand: { BEER: 1, HANDCUFFS: 1, MAGNIFIER: 1, CIGARETTES: 1 },
-          use_counts: { MAGNIFIER: 6 } } }));
+        over: { your_hand: { MAGNET: 1, SHAKEDOWN: 1, GEIGER: 1, PASSPORT: 1 },
+          use_counts: { GEIGER: 6 } } }));
       await sleep(800);
       await openHub("onAction"); await sleep(800);
       await filmTap("kit-open", () => row(0));
@@ -263,14 +263,14 @@
       await filmTap("want-x1", async () => { await row(2); await row(1); });
       await filmTap("send", () => row(7));                     // SEND OFFER
       push(view({ legal: L_ITEMS,
-        over: { pending_offer: { from: 0, to: 2, give: ["BEER", "BEER"], want: ["MAGNIFIER"] } } }));
+        over: { pending_offer: { from: 0, to: 2, give: ["MAGNET", "MAGNET"], want: ["GEIGER"] } } }));
       await film("after-send");                                // board settles clean, no ghost beats
     });
 
     /* 6 — incoming offer (auto-arrives) */
     await step("respond", async () => {
       push(view({ over: { current: 2,
-        pending_offer: { from: 2, to: 0, give: ["BEER", "BEER"], want: ["MAGNIFIER"] } } }));
+        pending_offer: { from: 2, to: 0, give: ["MAGNET", "MAGNET"], want: ["GEIGER"] } } }));
       await film("arrive");
       await filmTap("accept", () => row(4));                   // sends trade_respond
     });
@@ -284,7 +284,7 @@
       await filmTap("shoot-standdown", () => row(2));          // STAND DOWN → root
       await filmTap("pay-open", async () => { await row(1); await seat(1); });
       await filmTap("pay-4of5", () => row(0));                 // MAGNET 4/5 — short
-      await filmTap("pay-9of5", () => row(2));                 // +SPYCAM — overpay armed
+      await filmTap("pay-9of5", () => row(2));                 // +GEIGER — overpay armed
       await filmTap("pay-standdown", () => row(8));            // ✕ STAND DOWN → DECIDE
       await abort();
     });
@@ -314,13 +314,13 @@
     await step("cascade", async () => {
       push(view({ secs: 40,
         events: [
-          { type: "shot", actor: 0, target: 3, shell: "LIVE", damage: 1 },
-          { type: "item", actor: 1, target: 4, item: "HANDCUFFS" },
-          { type: "item", actor: 3, target: 0, item: "IMMUNITY" },
-          { type: "item", actor: 2, target: null, item: "CIGARETTES" },
+          { type: "shot", actor: 0, target: 3, bullet: "LIVE", damage: 1 },
+          { type: "item", actor: 1, target: 4, item: "SHAKEDOWN" },
+          { type: "item", actor: 3, target: 0, item: "TERMS" },
+          { type: "item", actor: 2, target: null, item: "PASSPORT" },
           { type: "flip", actor: 0, target: 1 },
           { type: "skip", target: 2 },
-          { type: "shot", actor: 2, target: 4, shell: "LIVE", damage: 1 },
+          { type: "shot", actor: 2, target: 4, bullet: "LIVE", damage: 1 },
           { type: "elimination", target: 4 },
           { type: "reload", total: 6, live: 3 },
         ],
@@ -340,7 +340,7 @@
     const has = (f, p) => (SENT[f] || []).some(p);
     chk(has("rootvar", (m) => m.type === "trade_withdraw"), "withdraw-tap sent trade_withdraw");
     chk(has("sedative", (m) => m.type === "action" && m.i === 3),
-      "sedative EXECUTE sent action i=3 (HANDCUFFS → id4)");
+      "sedative EXECUTE sent action i=3 (SHAKEDOWN → id4)");
     chk(has("offer", (m) => m.type === "trade_offer" && m.to === 2
       && (m.give || []).length === 2 && (m.want || []).length === 1),
       "SEND OFFER sent trade_offer to=2 give×2 want×1");

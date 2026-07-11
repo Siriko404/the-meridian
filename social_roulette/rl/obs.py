@@ -5,7 +5,7 @@ from social_roulette.engine.state import player_by_id
 from social_roulette.engine.endgame import teams_active
 from social_roulette.comms.vocab import ACT_N
 
-ITEMS = [Item.BEER, Item.HANDCUFFS, Item.MAGNIFIER, Item.SAW, Item.CIGARETTES, Item.IMMUNITY]
+ITEMS = [Item.MAGNET, Item.SHAKEDOWN, Item.GEIGER, Item.POISON, Item.PASSPORT, Item.TERMS]
 N_SLOTS = 5
 PER_SLOT = 8       # alive, is_self, is_ally, is_enemy, lives, handcuffed, learner_immunized_them, they_immunized_learner
 GLOBALS = 22       # own_lives(1) own_inv(6) flipback(1) peek(3) item_counts(6) ann_total(1) ann_live(1) fired(1) saw(1) bonus(1)
@@ -41,7 +41,7 @@ def encode_obs(state, learner_id, extras):
     vec.append(me.lives / MAX_LIVES)
     vec += [me.inventory.get(it, 0) / 3.0 for it in ITEMS]
     vec.append(1.0 if me.flipback_discount else 0.0)
-    vec += _peek_onehot(extras["known_next_shell"])
+    vec += _peek_onehot(extras["known_next_bullet"])
     counts = {it: 0 for it in ITEMS}
     for p in state.players:
         for it, c in p.inventory.items():

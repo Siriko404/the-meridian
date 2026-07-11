@@ -64,7 +64,7 @@
     el(root, "hand").innerHTML = items.length
       ? items.map(([t, c]) => `<div class="card"><div class="t">${t}</div><div class="c">${c}</div></div>`).join("")
       : '<div class="card empty">NO ITEMS</div>';
-    el(root, "peek").textContent = v.peek && v.peek !== "unknown" ? `NEXT SHELL: ${v.peek.toUpperCase()}` : "";
+    el(root, "peek").textContent = v.peek && v.peek !== "unknown" ? `NEXT BULLET: ${v.peek.toUpperCase()}` : "";
     const turn = el(root, "turn"), label = v.winner != null ? "" : (v.current === v.you ? "YOUR TURN" : `P${v.current}'S TURN`);
     if (turn.dataset.label !== label) { turn.dataset.label = label; if (label) decoder(turn, label, { dur: 620 }); else turn.textContent = ""; }
   }
@@ -83,7 +83,7 @@
     decoder(t, text, { dur: 440 });
     _tt = setTimeout(() => { t.style.transition = "opacity .6s"; t.style.opacity = "0"; }, hold || 1500);
   }
-  const announce = (root, e) => toast(root, `${e.total} SHELLS · ${e.live} LIVE`, 5000);
+  const announce = (root, e) => toast(root, `${e.total} BULLETS · ${e.live} LIVE`, 5000);
 
   /* SLOW, LABELLED, IN-ORDER cascade so a human can follow who did what after their shot */
   const DUR = { shot: 1500, item: 1200, elimination: 1400, reload: 1700, flip: 1200, announce: 5000 };
@@ -92,10 +92,10 @@
     _skip = false; events = events || [];
     const order = (endView && endView.order) || (endView && endView.players.map((p) => p.id)) || [0, 1, 2, 3, 4];
     for (const e of events) {
-      if (e.type === "announce" || e.type === "reload") { toast(root, `${e.total} SHELLS · ${e.live} LIVE`, DUR.announce); await wait(DUR.announce); }
+      if (e.type === "announce" || e.type === "reload") { toast(root, `${e.total} BULLETS · ${e.live} LIVE`, DUR.announce); await wait(DUR.announce); }
       else if (e.type === "shot") {
         dotTo(root, order, e.actor); await wait(340);              // dot glides to the shooter first
-        const live = e.shell === "LIVE", center = el(root, "center");
+        const live = e.bullet === "LIVE", center = el(root, "center");
         const tgt = e.actor === e.target ? "SELF" : `P${e.target}`;
         toast(root, `P${e.actor} → ${tgt} · ${live ? "BANG" : "CLICK"}`, DUR.shot);
         if (live) {
@@ -106,7 +106,7 @@
       }
       else if (e.type === "item") {
         dotTo(root, order, e.actor);
-        const msg = e.item === "BEER" ? `P${e.actor} · BEER — SHELL OUT`
+        const msg = e.item === "MAGNET" ? `P${e.actor} · MAGNET — BULLET OUT`
           : `P${e.actor} · ${e.item}${e.target != null ? " → P" + e.target : ""}`;
         toast(root, msg, DUR.item);
         await wait(DUR.item);

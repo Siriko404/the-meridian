@@ -83,7 +83,7 @@ class SocialRouletteSelfPlayEnv(gym.Env):
 
     def step(self, idx):
         action = ActionCodec.decode(int(idx), self.state, self.learner_id)
-        is_mag = getattr(action, "item", None) == Item.MAGNIFIER
+        is_mag = getattr(action, "item", None) == Item.GEIGER
         engine_step(self.state, self.learner_id, action)
         if is_mag:
             self._extras[self.learner_id].peek(self.state)

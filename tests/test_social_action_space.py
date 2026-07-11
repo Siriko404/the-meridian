@@ -35,9 +35,9 @@ def test_mask_includes_legal_gift_and_shoot_only_excludes():
     g.social_enabled = True
     g.current_id = 0
     mate = next(p.id for p in g.players if p.id != 0 and p.team == g.players[0].team)
-    player_by_id(g, 0).inventory = {Item.BEER: 1}
+    player_by_id(g, 0).inventory = {Item.MAGNET: 1}
     player_by_id(g, mate).inventory = {}
     mask = SocialActionCodec.legal_mask(g, 0, shoot_only=False)
     assert mask.shape == (ACTION_N_SOCIAL,)
-    assert mask[SocialActionCodec._index_of(Trade(mate, [Item.BEER]), 0)]
+    assert mask[SocialActionCodec._index_of(Trade(mate, [Item.MAGNET]), 0)]
     assert not SocialActionCodec.legal_mask(g, 0, shoot_only=True)[BASE_N:].any()

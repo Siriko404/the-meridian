@@ -5,10 +5,10 @@ from social_roulette.engine.constants import Item
 from social_roulette.online.view import seat_view, action_label
 from social_roulette.engine.actions import Shoot, UseItem, Flip
 
-EX = {"known_next_shell": "unknown", "announced_total": 10, "announced_live": 6}
+EX = {"known_next_bullet": "unknown", "announced_total": 10, "announced_live": 6}
 
 
-def test_view_hides_other_hands_and_shell_order():
+def test_view_hides_other_hands_and_bullet_order():
     g = new_game(5, 0)
     g.current_id = 0
     v = seat_view(g, 0, EX)
@@ -19,14 +19,14 @@ def test_view_hides_other_hands_and_shell_order():
     blob = json.dumps(v)
     assert "LIVE" not in blob and "BLANK" not in blob
     # chamber counts are NEVER persistently sent (announced via events only, game_guide:159)
-    assert "shells" not in v and "chamber" not in v
+    assert "bullets" not in v and "chamber" not in v
 
 
 def test_view_shows_only_own_peek():
     g = new_game(5, 0)
     g.current_id = 0
     seen = dict(EX)
-    seen["known_next_shell"] = "live"
+    seen["known_next_bullet"] = "live"
     assert seat_view(g, 0, seen)["peek"] == "live"
     assert seat_view(g, 0, EX)["peek"] == "unknown"
 
@@ -41,6 +41,6 @@ def test_view_legal_only_on_your_turn():
 def test_action_label():
     g = new_game(5, 0)
     assert action_label(g, Shoot(3)) == "Shoot P3"
-    assert action_label(g, UseItem(Item.CIGARETTES)) == "Use Cigarettes"
-    assert action_label(g, UseItem(Item.IMMUNITY, 2)) == "Immunity on P2"
+    assert action_label(g, UseItem(Item.PASSPORT)) == "Use Passport"
+    assert action_label(g, UseItem(Item.TERMS, 2)) == "Terms on P2"
     assert action_label(g, Flip(2)) == "Flip P2"

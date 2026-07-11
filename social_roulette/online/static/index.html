@@ -46,7 +46,7 @@ const app = document.getElementById("app");
 let ws, token = localStorage.token || null, host = false;
 let queue = [], busy = false, started = false, ended = false, endWinner = null;
 let curView = null, sel = null;             // sel: null | {menu} | {verb:'shoot'|'flip'} | {verb:'item',item} | {pay:{target,cost,chosen}}
-const POINTS = { IMMUNITY: 6, CIGARETTES: 6, MAGNIFIER: 5, SAW: 5, BEER: 4, HANDCUFFS: 4 };  // public (game_guide:110)
+const POINTS = { TERMS: 6, PASSPORT: 6, GEIGER: 5, POISON: 5, MAGNET: 4, SHAKEDOWN: 4 };  // public (game_guide:110)
 
 const el = id => document.getElementById(id);
 const send = m => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(m)); };

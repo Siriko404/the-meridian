@@ -15,10 +15,10 @@ class Recorder:
         self._seq = 0
 
     def _emit(self, type, turn=None, actor=None, target=None, item=None,
-              shell=None, damage=None, killed=None, extra=None):
+              bullet=None, damage=None, killed=None, extra=None):
         self.rows.append({
             "match_id": self.match_id, "seq": self._seq, "turn": turn, "actor": actor,
-            "type": type, "target": target, "item": item, "shell": shell,
+            "type": type, "target": target, "item": item, "bullet": bullet,
             "damage": damage, "killed": killed,
             "extra": json.dumps(extra, separators=(",", ":")) if extra is not None else None,
         })
@@ -42,8 +42,8 @@ class Recorder:
         self._emit(E.FLIP, turn=turn, actor=actor, target=target,
                    extra={"paid": paid, "new_team": new_team})
 
-    def shot(self, turn, actor, target, shell, damage, killed, saw):
-        self._emit(E.SHOT, turn=turn, actor=actor, target=target, shell=shell,
+    def shot(self, turn, actor, target, bullet, damage, killed, saw):
+        self._emit(E.SHOT, turn=turn, actor=actor, target=target, bullet=bullet,
                    damage=damage, killed=killed, extra={"saw": saw, "self": actor == target})
 
     def bonus(self, turn, actor):

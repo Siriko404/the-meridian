@@ -10,7 +10,7 @@ from enum import IntEnum
 class Act(IntEnum):
     SHOOT_INTENT = 0
     GANG_UP = 1
-    NEXT_SHELL = 2
+    NEXT_BULLET = 2
     TRUCE = 3
     AGREE = 4
 
@@ -23,7 +23,7 @@ def _build_table():
     t = []
     for a in (Act.SHOOT_INTENT, Act.GANG_UP):
         t += [(a, w, None) for w in _WHO]
-    t += [(Act.NEXT_SHELL, None, v) for v in (1, 0)]   # live, blank
+    t += [(Act.NEXT_BULLET, None, v) for v in (1, 0)]   # live, blank
     t += [(Act.TRUCE, w, None) for w in _WHO]
     t += [(Act.AGREE, None, None)]
     return t
@@ -44,8 +44,8 @@ def render(act, who_name, value):
         return f"I'll shoot {who_name}"
     if a == Act.GANG_UP:
         return f"everyone shoot {who_name}"
-    if a == Act.NEXT_SHELL:
-        return f"next shell is {'live' if value else 'blank'}"
+    if a == Act.NEXT_BULLET:
+        return f"next bullet is {'live' if value else 'blank'}"
     if a == Act.TRUCE:
         return f"truce, {who_name}"
     return "agreed"

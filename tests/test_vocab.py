@@ -11,12 +11,12 @@ def test_table_covers_expected_acts():
     acts = [t[0] for t in SPEAK_TABLE]
     assert acts.count(Act.SHOOT_INTENT) == 4
     assert acts.count(Act.GANG_UP) == 4
-    assert acts.count(Act.NEXT_SHELL) == 2
+    assert acts.count(Act.NEXT_BULLET) == 2
     assert acts.count(Act.TRUCE) == 4
     assert acts.count(Act.AGREE) == 1
 
 
 def test_render_examples():
     assert render(Act.SHOOT_INTENT, "Wolf", None) == "I'll shoot Wolf"
-    assert render(Act.NEXT_SHELL, None, 1) == "next shell is live"
+    assert render(Act.NEXT_BULLET, None, 1) == "next bullet is live"
     assert render(Act.AGREE, None, None) == "agreed"

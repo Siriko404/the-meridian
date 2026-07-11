@@ -28,24 +28,24 @@ def test_trade_event_public_strips_and_parties_enriched():
     mate = next(p.id for p in r.state.players
                 if p.id != seat and p.alive and p.team == me.team)
     bystander = next(p.id for p in r.state.players if p.id not in (seat, mate))
-    player_by_id(r.state, seat).inventory = {Item.BEER: 1}
-    player_by_id(r.state, mate).inventory = {Item.SAW: 1}
-    r.trade_offer(seat, mate, ["BEER"], ["SAW"])
+    player_by_id(r.state, seat).inventory = {Item.MAGNET: 1}
+    player_by_id(r.state, mate).inventory = {Item.POISON: 1}
+    r.trade_offer(seat, mate, ["MAGNET"], ["POISON"])
     r.trade_respond(mate, True)
     pub = [e for e in r.events_for(bystander) if e["type"] == "trade"][0]
     assert "items" not in pub and "give" not in json.dumps(pub)
     mine = [e for e in r.events_for(seat) if e["type"] == "trade"][0]
-    assert mine["items"] == {"give": ["BEER"], "want": ["SAW"]}
+    assert mine["items"] == {"give": ["MAGNET"], "want": ["POISON"]}
 
 
-def test_no_foreign_hand_or_shell_order_in_any_view_or_events():
+def test_no_foreign_hand_or_bullet_order_in_any_view_or_events():
     r, t = clockroom()
 
     def sweep():
         for seat in range(5):
             blob = json.dumps({"v": r.view(seat), "e": r.events_for(seat)})
-            assert "shells" not in blob
-            assert "Shell.LIVE" not in blob and "Shell.BLANK" not in blob
+            assert "bullets" not in blob
+            assert "Bullet.LIVE" not in blob and "Bullet.BLANK" not in blob
             # a draw event may only ever carry THIS seat's own refill, never another's
             for e in r.events_for(seat):
                 if e.get("type") == "draw":

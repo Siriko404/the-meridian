@@ -3,7 +3,7 @@ from social_roulette.rl.obs import OBS_DIM
 from social_roulette.rl.social_obs import (
     social_encode_obs, memory_features, SOCIAL_OBS_DIM, MEM_DIM, HARM_SCALE)
 
-EX = {"known_next_shell": "unknown", "announced_total": 0, "announced_live": 0}
+EX = {"known_next_bullet": "unknown", "announced_total": 0, "announced_live": 0}
 
 
 def test_social_obs_dim():

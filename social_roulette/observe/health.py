@@ -8,7 +8,7 @@ import statistics
 
 from . import store
 
-_MECHANICS = ["self_shot", "SAW", "BEER", "IMMUNITY", "HANDCUFFS", "flip",
+_MECHANICS = ["self_shot", "POISON", "MAGNET", "TERMS", "SHAKEDOWN", "flip",
               "elimination", "reload_empty", "reload_death", "bonus"]
 
 

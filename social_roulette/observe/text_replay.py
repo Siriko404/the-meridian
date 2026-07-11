@@ -30,8 +30,8 @@ def render(rows):
             out.append(f"        FLIPS s{r['target']} -> {ex['new_team']}  (paid {ex['paid']})")
         elif ty == "shot":
             who = "SELF" if ex.get("self") else f"s{r['target']}"
-            res = (f"LIVE \U0001f4a5 -{r['damage']}" if r["damage"] else f"{r['shell']} click")
-            saw = " [SAW x2]" if ex.get("saw") else ""
+            res = (f"LIVE \U0001f4a5 -{r['damage']}" if r["damage"] else f"{r['bullet']} click")
+            saw = " [POISON x2]" if ex.get("saw") else ""
             out.append(f"        SHOOTS {who}: {res}{saw}")
         elif ty == "bonus":
             out.append(f"        ↺ earns bonus turn (self-blank)")

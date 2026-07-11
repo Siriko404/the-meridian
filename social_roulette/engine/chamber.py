@@ -1,4 +1,4 @@
-from .constants import Shell, LIVE_FRACTION_MIN, LIVE_FRACTION_MAX
+from .constants import Bullet, LIVE_FRACTION_MIN, LIVE_FRACTION_MAX
 from .state import Chamber
 
 
@@ -11,7 +11,7 @@ def load_chamber(rng, living_count, max_redos=1000):
             total += max(d1, d2)
             live += min(d1, d2)
         if LIVE_FRACTION_MIN <= live / total <= LIVE_FRACTION_MAX:
-            shells = [Shell.LIVE] * live + [Shell.BLANK] * (total - live)
-            rng.shuffle(shells)
-            return Chamber(shells=shells, pos=0)
+            bullets = [Bullet.LIVE] * live + [Bullet.BLANK] * (total - live)
+            rng.shuffle(bullets)
+            return Chamber(bullets=bullets, pos=0)
     raise RuntimeError("load_chamber: could not satisfy invariants")
