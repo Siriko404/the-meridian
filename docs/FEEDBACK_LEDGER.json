@@ -34,8 +34,9 @@
     "status": "IN PROGRESS 2026-07-10",
     "yardstick": "per-item card (moves/seen/answer/when/price/frequency) + 10 kit tests (fun/fair/buildable/safe) + 4 depth tests (1-sentence, use-hurts, >=2 timings, named combo) + sim referee (mechanics only, humans judge social)",
     "gates": ["1 skeleton DONE", "2 slots DONE", "3 specials DONE", "4 names DONE", "5 prices DONE (swap committed ce4d7b7)", "6 interaction sweep DONE (rulings 1-6)", "7 sim PENDING (after implementation)"],
-    "implementation_progress": "ALL LANDED + DEPLOYED 2026-07-10: renames b3b5273/3bdaca9, prices ce4d7b7, GEIGER 07ac358, POISON 70507ef, MAGNET reveal 58d489f, SHAKEDOWN tax a61f38f, specials server 3d35f7d, specials UI 097d72d. Full-stack ws smoke passed (DRAGNET round-trip). 257 py + 6 node tests green. Remaining: E win-cond sim (#6).",
-    "pending_ui_gates": "poisoned-victim seat chip design (lab sample -> user ratifies) / special icons 22/26/33 are DRAFTS (gallery gate) / film-discipline pass over the new beats (tax, tick, aiming, seize) not yet run — user live-testing first / specials NOT tradable yet (offer system extension deferred, spec debt)",
+    "implementation_progress": "ALL LANDED + DEPLOYED + CURL-CONFIRMED 2026-07-10 @ 962bd3a: renames b3b5273/3bdaca9, prices ce4d7b7, GEIGER 07ac358, POISON 70507ef, MAGNET reveal 58d489f, SHAKEDOWN tax a61f38f, specials server 3d35f7d, specials UI 097d72d, speclab visual-audit fixes 962bd3a. Full-stack ws smoke passed (DRAGNET round-trip). 257 py + 6 node tests green. Remaining: E win-cond sim (#6).",
+    "speclab_audit": "speclab.html = 16-step ratification lab (W1-W6 warrant, D1-D3 dragnet, H1-H6 handler; actor/victim/table chairs). Self-audit 2026-07-10 found+fixed 4 defects: ledger overflow -> one ruled row per item; kit+specials too tall (clock collision) -> SPECIALS sub-page; SEIZE button hub collision -> (66,668) above the dock rail; pick-note copy clipped -> shortened. USER RATIFICATION OF THE 16 STEPS STILL PENDING.",
+    "pending_ui_gates": "USER: play live + ratify speclab 16 steps / poisoned-victim seat chip design (lab sample -> user ratifies) / special icons 22/26/33 are DRAFTS (gallery gate) / film-discipline pass over the new beats (tax, tick, aiming, seize) not yet run / specials NOT tradable yet (offer system extension deferred, spec debt)",
     "skeleton": "6 slots, one per axis (life/info/chamber/aggression/tempo/shield); ladder 6/6-5/5-4/4 = HYPOTHESIS until gate 5",
     "slots_decided": {
       "1 life": "PASSPORT unchanged: +1 cover, locked at max 5. Name stays (user).",
@@ -91,6 +92,8 @@
     "servers": "game: ./.venv/Scripts/python -m uvicorn social_roulette.online.server:app --port 8000 ; devcap sink: ./.venv/Scripts/python _devcap.py (:8017, needed by capture/runner)",
     "tests": "./.venv/Scripts/python -m pytest -q (243) ; node social_roulette/online/static/game/test/net.test.mjs (2)",
     "film": "http://127.0.0.1:8000/static/game/runner.html?list=board,... poll title ALLDONE; audits+sheets in %TEMP%/sr_devcap",
+    "speclab": "http://127.0.0.1:8000/static/game/speclab.html — tap = next step; window.__lab.go(n) jumps",
+    "occluded_audit_trick": "Chrome hidden => rAF frozen => menus never decode. Inject: window.__pump=(n)=>{const g=window.__scene.game;let t=performance.now();for(let k=0;k<n;k++){t+=16.7;g.loop.step(t);}}; then __lab.go(n); __pump(150); screenshot.",
     "never_touch": ["HowToRun.txt", "docs/LEGAL_RISK_AUDIT.md"]
   }
 }

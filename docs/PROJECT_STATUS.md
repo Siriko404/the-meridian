@@ -1,16 +1,21 @@
 # Social Roulette — Project Status (resume anchor)
 
-**Updated:** 2026-07-10 · **Branch:** master == uiv2-client @ `2d81a9c`, both pushed · Read this first after any context reset.
+**Updated:** 2026-07-10 (late) · **Branch:** master == uiv2-client @ `962bd3a`, both pushed, DEPLOY CURL-CONFIRMED LIVE · Read this first after any context reset.
 
-## ═══ HANDOFF 2026-07-10 — FEEDBACK BATCH IN FLIGHT ═══
-- **READ `docs/FEEDBACK_LEDGER.json` SECOND** — it is the systematic ledger for the active
-  feedback batch: all 21 items with status/commits, EXACT ratified design parameters
-  (seat card v2: punch dots / pulse A / glyph chips / frame-width plates), session laws
-  (labs = localhost only, self-audit before presenting, confirm deploys via curl), and the
-  ratified work order: item-redesign session → rename sweep → win-cond simulation.
-- LIVE today: timer-deadline fix · cap ×1.0 · sedative teammate ban · CANVAS renderer
-  default (phone FPS fix) · READ=1.6 beat pacing · seat card v2 (`2d81a9c`).
-- Dev servers: game :8000 · devcap sink :8017 (film runner needs it).
+## ═══ HANDOFF 2026-07-10 — ITEM REDESIGN SHIPPED ═══
+- **READ `docs/FEEDBACK_LEDGER.json` SECOND** — the systematic ledger: all 21 feedback items,
+  the COMPLETE itemsession record (final kit PASSPORT/GEIGER/MAGNET/POISON/SHAKEDOWN/TERMS +
+  specials WARRANT/DRAGNET/HANDLER, every ruling, prices, gate-6 edge rules), session laws,
+  implementation commits, and pending gates.
+- **SHIPPED + LIVE today (12 commits, 257 py + 6 node green):** full rename sweep (enums,
+  bullets, pistol, cover) · price swap · GEIGER census · POISON tick (+ corpse-turn bugfix) ·
+  MAGNET private reveal (+ FIX: live item beats never played) · SHAKEDOWN turn-tax (new "tax"
+  phase) · specials rail + bot 5s aiming window + all UI · speclab visual audit (4 defects fixed).
+- **NEXT (ratified order):** user plays live + ratifies `speclab.html` steps → E win-cond sim
+  (#6) → re-prioritize items 9/16/20/21. Pending gates in ledger `pending_ui_gates`.
+- Dev servers: game :8000 · devcap sink :8017 · labs incl. NEW `speclab.html` (16 steps).
+- **Occluded-window audit trick:** game clock freezes when Chrome is hidden — inject
+  `window.__pump = ...game.loop.step(t)` frames manually, then screenshot (in ledger env).
 - **Everything BELOW this block is history** (07-09 and older). Where older text says
   "ACTIVE NOW" or "REMAINS", the ledger overrides it. Old open items (bot trade-answers
   server gap, give-summary row, icon drafts, winner-face edge-bleed) are still open but
