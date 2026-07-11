@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 records/
 records_demo/
+social_roulette/online/data/
 node_modules/
 package-lock.json
 _devcap.py
