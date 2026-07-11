@@ -605,8 +605,8 @@
     setPoisonChip(on) { if (this.poisonChip) this.poisonChip.setVisible(!!on); }
     setSeize(on, cb) {                                        // C2 - the HANDLER button
       if (!this.seizeBtn) {
-        const c = this.add.container(W / 2 - 120, 776).setDepth(9).setVisible(false);
-        c.add(this.add.circle(0, 0, 26, 0x000000).setStrokeStyle(2, WHITE, 0.95)
+        const c = this.add.container(66, 668).setDepth(9).setVisible(false);    // above the dock rail, clear of every hub
+        c.add(this.add.circle(0, 0, 24, 0x000000).setStrokeStyle(2, WHITE, 0.95)
           .setInteractive().on("pointerdown", () => this._onSeize && this._onSeize()));
         c.add(this.add.text(0, 0, "SEIZE\nSHOT", style(10)).setOrigin(0.5).setResolution(2)
           .setAlign("center"));

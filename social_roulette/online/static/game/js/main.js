@@ -271,32 +271,19 @@
           bright: ok, dim: !ok };
       });
       const sp = curView.your_specials || {};
+      const spTotal = ["WARRANT", "DRAGNET", "HANDLER"].reduce((a, k) => a + (sp[k] || 0), 0);
       const canSp = myTurn() && (curView.phase === "talk" || curView.phase === "decision");
-      rows.push({ dot: true });
-      ["WARRANT", "DRAGNET", "HANDLER"].forEach((k) => {
-        const n = sp[k] || 0;
-        rows.push({ sp: k, label: THEME.SPECIALS[k].name, badge: "×" + n,
-          sub: THEME.SPECIALS[k].blurb,
-          bright: n > 0 && canSp && k !== "HANDLER", dim: n === 0 });
-      });
+      rows.push({ dot: true },
+        { spmenu: true, label: "SPECIALS", badge: "×" + spTotal,
+          sub: "ONE-SHOT POWERS — NOT CURRENCY, NEVER FINED",
+          bright: spTotal > 0 && canSp, dim: spTotal === 0 });
       t.list("KIT", "YOUR KIT · " + total + "/" + THEME.MAX_TOTAL, rows);
       t.onRow = async (i) => {
         if (!t.alive()) return;
-        if (rows[i].sp) {
-          const k = rows[i].sp, n = (curView.your_specials || {})[k] || 0;
-          if (k === "HANDLER" || n === 0 || !canSp) return;          // handler is reactive-only
-          if (k === "DRAGNET") {
-            await t.lock(i);
-            if (t.alive()) confirmStep("CALL A DRAGNET", THEME.SPECIALS.DRAGNET.blurb,
-              () => { seenDragnet = false; net.send({ type: "special", kind: "DRAGNET" }); });
-            return;
-          }
-          const others = curView.players.filter((p) => p.alive && p.id !== curView.you).map((p) => p.id);
-          const id = await t.pickSeat("item", others, "WARRANT — TAP A PLAYER TO SEARCH");
-          if (id == null || !t.alive()) return;
+        if (rows[i].spmenu) {
+          if (rows[i].dim) return;
           await t.lock(i);
-          if (t.alive()) confirmStep("SEARCH " + THEME.seatName(id, roster), THEME.SPECIALS.WARRANT.blurb,
-            () => net.send({ type: "special", kind: "WARRANT", target: id }));
+          if (t.alive()) specialsStep(canSp);
           return;
         }
         const en = rows[i].en;
@@ -313,6 +300,35 @@
         await t.lock(i);
         if (t.alive()) confirmStep(iname(en) + " → " + THEME.seatName(id, roster), THEME.ITEMS[en].blurb,
           () => sendAction(a.i));
+      };
+    });
+  }
+  function specialsStep(canSp) {
+    const t = th, sp = curView.your_specials || {};
+    t.show(() => {
+      const rows = ["WARRANT", "DRAGNET", "HANDLER"].map((k) => {
+        const n = sp[k] || 0;
+        return { sp: k, label: THEME.SPECIALS[k].name, badge: "×" + n,
+          sub: THEME.SPECIALS[k].blurb,
+          bright: n > 0 && canSp && k !== "HANDLER", dim: n === 0 };
+      });
+      t.list("SP", "CALLS TO A HIGHER POWER", rows);
+      t.onRow = async (i) => {
+        if (!t.alive()) return;
+        const k = rows[i].sp, n = sp[k] || 0;
+        if (k === "HANDLER" || n === 0 || !canSp) return;            // handler is reactive-only
+        if (k === "DRAGNET") {
+          await t.lock(i);
+          if (t.alive()) confirmStep("CALL A DRAGNET", THEME.SPECIALS.DRAGNET.blurb,
+            () => { seenDragnet = false; net.send({ type: "special", kind: "DRAGNET" }); });
+          return;
+        }
+        const others = curView.players.filter((p) => p.alive && p.id !== curView.you).map((p) => p.id);
+        const id = await t.pickSeat("item", others, "WARRANT — TAP A PLAYER");
+        if (id == null || !t.alive()) return;
+        await t.lock(i);
+        if (t.alive()) confirmStep("SEARCH " + THEME.seatName(id, roster), THEME.SPECIALS.WARRANT.blurb,
+          () => net.send({ type: "special", kind: "WARRANT", target: id }));
       };
     });
   }
@@ -405,17 +421,15 @@
   function ledgerThread() {
     openTh("LEDGER", "✕ CLOSE");
     const v = curView, rows = [];
-    ORDER.forEach((en) => {
-      const live = (v.item_counts || {})[en] || 0;
-      const use = Math.max(0, (v.use_limit || 0) - ((v.use_counts || {})[en] || 0));
-      rows.push({ label: iname(en), still: true, bright: live > 0, dim: live === 0 });
-      rows.push({ split: [live + " LIVE", use + " TO USE"], tight: true });
+    ORDER.forEach((en) => {                                           // ONE ruled row per item —
+      const live = (v.item_counts || {})[en] || 0;                    // the specials section made the
+      const use = Math.max(0, (v.use_limit || 0) - ((v.use_counts || {})[en] || 0));  // 2-row layout overflow
+      rows.push({ split: [iname(en) + " ×" + live, use + " TO USE"] });
     });
     rows.push({ dot: true });
     ["WARRANT", "DRAGNET", "HANDLER"].forEach((k) => {                // user 2026-07-10: live, NO cap
       const live = (v.special_counts || {})[k] || 0;
-      rows.push({ label: THEME.SPECIALS[k].name, still: true, bright: live > 0, dim: live === 0 });
-      rows.push({ split: [live + " LIVE", "NO LIMIT"], tight: true });
+      rows.push({ split: [THEME.SPECIALS[k].name + " ×" + live, "NO LIMIT"] });
     });
     const t = th;
     t.show(() => { t.list("i", "", rows); t.onRow = null; });
@@ -491,7 +505,7 @@
     openTh("HANDLER");
     const t = th;
     t.show(async () => {
-      const id = await t.pickSeat("shoot", pick.ids, "THEIR SHOT, YOUR CALL — TAP THE TARGET");
+      const id = await t.pickSeat("shoot", pick.ids, "THEIR SHOT — TAP THE TARGET");
       if (id == null || !t.alive()) return;
       closeTh();
       net.send({ type: "handler_shot", target: id });

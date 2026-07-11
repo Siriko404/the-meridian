@@ -1,0 +1,19 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>SPECIALS — every step, every perspective</title>
+<style>
+  html,body{margin:0;padding:0;background:#000;height:100svh;overflow:hidden;position:fixed;inset:0;width:100%}
+  #stage{width:min(100vw,440px);height:100svh;margin:0 auto}
+  canvas{image-rendering:pixelated}
+  #hud{position:fixed;top:4px;left:50%;transform:translateX(-50%);z-index:10;color:#0f0;
+    font:bold 12px Consolas,monospace;background:#000;padding:2px 10px;border:1px solid #0f0;white-space:nowrap}
+</style></head><body>
+<div id="stage"></div><div id="hud">TAP = NEXT STEP</div>
+<script src="/static/vendor/phaser.min.js"></script>
+<script>
+  for (const f of ["theme", "dice", "net", "scene", "choreo"])
+    document.write('<script src="/static/game/js/' + f + '.js?v=' + Date.now() + '"><\/script>');
+</script>
+<script>document.write('<script src="/static/game/speclab.js?v=' + Date.now() + '"><\/script>')</script>
+</body></html>
