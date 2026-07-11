@@ -182,6 +182,12 @@
       } else if (e.type === "trade" || e.type === "gift") {
         await scene.dialTo(e.actor);                          // trades are legal ONLY on the actor's
         await tradeBeat(scene, e, prev, view, roster);        // turn (engine) — show it (M26)
+      } else if (e.type === "searched") {                  // WARRANT victim (private, anonymous)
+        await scene.toast(e.taken
+          ? "YOUR KIT WAS SEARCHED \u00B7 YOUR " + (THEME.ITEMS[e.taken] || THEME.SPECIALS[e.taken] || { name: e.taken }).name + " IS GONE"
+          : "YOUR KIT WAS SEARCHED", 2000);
+      } else if (e.type === "ridden") {                     // HANDLER victim (private, anonymous)
+        await scene.toast("A HIGHER POWER HOLDS YOUR TRIGGER", 1800);
       } else if (e.type === "trade_private") {
         await scene.toast(e.kind === "cancelled"
           ? "TRADE CANCELLED — A PARTY LACKED THE GOODS" : "OFFER DECLINED", 1800);

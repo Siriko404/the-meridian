@@ -18,6 +18,12 @@
     RED:  { name: "AGENCY NORTH", plate: 0xffffff, text: "#000000", tk: 1, fa: 1 },
     BLUE: { name: "AGENCY SOUTH", plate: 0x000000, text: "#ffffff", tk: 1, fa: 0.5 },
   };
+  // one-shot specials (0 pts, second rail). Icons are DRAFT indices - gallery gate.
+  const SPECIALS = {
+    WARRANT: { name: "WARRANT", icon: 22, blurb: "SEARCH ONE KIT - TAKE ONE THING" },
+    DRAGNET: { name: "DRAGNET", icon: 26, blurb: "SEE EVERY KIT - ONCE" },
+    HANDLER: { name: "HANDLER", icon: 33, blurb: "SEIZE SOMEONE'S SHOT - ONCE" },
+  };
   const CODENAMES = ["V.K.", "C.W.", "J.L.", "N.D.", "W.N.", "H.Y.", "M.T.", "P.K."];  // bots wear monograms too
   const ICON = { revolver: 0, heart: 20, ledger: 37, briefcase: 40, envelope: 14,
                  poison: 11, phone: 38 };
@@ -28,7 +34,7 @@
     const n = roster && (roster[seat] != null ? roster[seat] : roster[String(seat)]);
     return n ? String(n).slice(0, 8).toUpperCase() : CODENAMES[seat % CODENAMES.length];
   }
-  const THEME = { ITEMS, TEAMS, CODENAMES, ICON, MAX_COVER, MAX_PER_TYPE, MAX_TOTAL,
+  const THEME = { ITEMS, SPECIALS, TEAMS, CODENAMES, ICON, MAX_COVER, MAX_PER_TYPE, MAX_TOTAL,
                   itemName, seatName, CREDITS: "ART: JJ99 · DARKMOONFIRE" };
   global.THEME = THEME;
   if (typeof module !== "undefined" && module.exports) module.exports = THEME;

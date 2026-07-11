@@ -294,7 +294,7 @@
       const TALK = 60, DEC = 30, TOTAL = TALK + DEC;          // paints its burn-circle immediately
       let left = null;
       if (o.phase === "talk" && o.secs != null) left = DEC + Math.min(o.secs, TALK);
-      else if ((o.phase === "decision" || o.phase === "tax") && o.secs != null) left = Math.min(o.secs, DEC);
+      else if ((o.phase === "decision" || o.phase === "tax" || o.phase === "aiming") && o.secs != null) left = Math.min(o.secs, DEC);
       if (left != null) {
         const red = left <= DEC, col = red ? RED : WHITE;     // last 30s = red
         const fw = this._bar.w * (left / TOTAL);
@@ -603,6 +603,18 @@
       }
     }
     setPoisonChip(on) { if (this.poisonChip) this.poisonChip.setVisible(!!on); }
+    setSeize(on, cb) {                                        // C2 - the HANDLER button
+      if (!this.seizeBtn) {
+        const c = this.add.container(W / 2 - 120, 776).setDepth(9).setVisible(false);
+        c.add(this.add.circle(0, 0, 26, 0x000000).setStrokeStyle(2, WHITE, 0.95)
+          .setInteractive().on("pointerdown", () => this._onSeize && this._onSeize()));
+        c.add(this.add.text(0, 0, "SEIZE\nSHOT", style(10)).setOrigin(0.5).setResolution(2)
+          .setAlign("center"));
+        this.seizeBtn = c;
+      }
+      this._onSeize = cb;
+      this.seizeBtn.setVisible(!!on);
+    }
     equalizePlates() {                                        // M27 — team semantics visibly end
       this.seats.forEach((s) => {
         if (!s.dead) this.repaintPlate(s, s.nameT.text, "bare");   // carriers vanish with the teams

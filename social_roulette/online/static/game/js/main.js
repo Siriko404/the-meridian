@@ -138,9 +138,15 @@
     $("chatin").disabled = !chatOk;
     $("chatin").placeholder = chatOk ? "say something…" : "SILENCE.";
     buildFace();
+    scene.setSeize(!!curView.handler_available && !over, () => {
+      if (!busy && curView.handler_available) net.send({ type: "handler_seize" });
+    });
     const po = curView.pending_offer;                                // incoming offer → the sheet ARRIVES
     if (po && po.to === curView.you) respondThread(po);              // (rides the view: reconnect-safe)
     if (curView.phase === "tax" && myTurn()) taxThread();            // B3: the shakedown sheet arrives
+    if (curView.warrant_pick) warrantSheet(curView.warrant_pick);    // your open warrant (reconnect-safe)
+    else if (curView.handler_pick) handlerPickSheet(curView.handler_pick);
+    else if (curView.dragnet_report && !seenDragnet) dragnetSheet(curView.dragnet_report);
   }
 
   function buildFace() {                                             // the center hub's face
@@ -205,9 +211,11 @@
               : { label: "TRADE", trade: canTrade, dim: !canTrade, sub: "PRIVATE OFFER TO A TEAMMATE" },
           { label: "PROCEED", bright: true, go: true, sub: "GO SILENT — DECIDE" }];
       } else {
+        const ridden = !!curView.ridden;
         rows = [
-          { label: "SHOOT", shoot: kinds.has("shoot"), bright: kinds.has("shoot"),
-            dim: !kinds.has("shoot"), sub: "PICK A TARGET — OR YOURSELF" },
+          { label: "SHOOT", shoot: kinds.has("shoot") && !ridden, bright: kinds.has("shoot") && !ridden,
+            dim: !kinds.has("shoot") || ridden,
+            sub: ridden ? "YOUR HANDS MOVE ON THEIR OWN" : "PICK A TARGET — OR YOURSELF" },
           { label: "FLIP", flip: kinds.has("flip"), dim: !kinds.has("flip"), sub: "BUY A CHANGE OF LOYALTY" },
           { label: "ITEM", kit: kinds.has("item"), dim: !kinds.has("item"), sub: "OPEN YOUR KIT" }];
       }
@@ -262,9 +270,35 @@
           sub: THEME.ITEMS[en].blurb + (left > 0 ? "" : " · SEALED"),
           bright: ok, dim: !ok };
       });
+      const sp = curView.your_specials || {};
+      const canSp = myTurn() && (curView.phase === "talk" || curView.phase === "decision");
+      rows.push({ dot: true });
+      ["WARRANT", "DRAGNET", "HANDLER"].forEach((k) => {
+        const n = sp[k] || 0;
+        rows.push({ sp: k, label: THEME.SPECIALS[k].name, badge: "×" + n,
+          sub: THEME.SPECIALS[k].blurb,
+          bright: n > 0 && canSp && k !== "HANDLER", dim: n === 0 });
+      });
       t.list("KIT", "YOUR KIT · " + total + "/" + THEME.MAX_TOTAL, rows);
       t.onRow = async (i) => {
         if (!t.alive()) return;
+        if (rows[i].sp) {
+          const k = rows[i].sp, n = (curView.your_specials || {})[k] || 0;
+          if (k === "HANDLER" || n === 0 || !canSp) return;          // handler is reactive-only
+          if (k === "DRAGNET") {
+            await t.lock(i);
+            if (t.alive()) confirmStep("CALL A DRAGNET", THEME.SPECIALS.DRAGNET.blurb,
+              () => { seenDragnet = false; net.send({ type: "special", kind: "DRAGNET" }); });
+            return;
+          }
+          const others = curView.players.filter((p) => p.alive && p.id !== curView.you).map((p) => p.id);
+          const id = await t.pickSeat("item", others, "WARRANT — TAP A PLAYER TO SEARCH");
+          if (id == null || !t.alive()) return;
+          await t.lock(i);
+          if (t.alive()) confirmStep("SEARCH " + THEME.seatName(id, roster), THEME.SPECIALS.WARRANT.blurb,
+            () => net.send({ type: "special", kind: "WARRANT", target: id }));
+          return;
+        }
         const en = rows[i].en;
         const entries = curView.legal.filter((a) => a.kind === "item" && a.item === en);
         const nt = entries.find((a) => a.target == null);
@@ -377,6 +411,12 @@
       rows.push({ label: iname(en), still: true, bright: live > 0, dim: live === 0 });
       rows.push({ split: [live + " LIVE", use + " TO USE"], tight: true });
     });
+    rows.push({ dot: true });
+    ["WARRANT", "DRAGNET", "HANDLER"].forEach((k) => {                // user 2026-07-10: live, NO cap
+      const live = (v.special_counts || {})[k] || 0;
+      rows.push({ label: THEME.SPECIALS[k].name, still: true, bright: live > 0, dim: live === 0 });
+      rows.push({ split: [live + " LIVE", "NO LIMIT"], tight: true });
+    });
     const t = th;
     t.show(() => { t.list("i", "", rows); t.onRow = null; });
   }
@@ -402,6 +442,59 @@
         closeTh();
         net.send({ type: "trade_respond", accept: ok });
       };
+    });
+  }
+
+  /* ---- C3: specials sheets ---- */
+  let seenDragnet = false;
+  function warrantSheet(pick) {
+    openTh("WARRANT");
+    const t = th;
+    t.show(() => {
+      const rows = [{ info: true, label: "SEARCHING " + THEME.seatName(pick.target, roster) + " — TAKE ONE" }, { dot: true }];
+      Object.entries(pick.hand || {}).forEach(([en, c]) => {
+        if (c > 0) rows.push({ nm: en, label: iname(en), badge: "×" + c, bright: true,
+          sub: THEME.ITEMS[en].blurb });
+      });
+      Object.entries(pick.specials || {}).forEach(([k, c]) => {
+        if (c > 0) rows.push({ nm: k, label: THEME.SPECIALS[k].name, badge: "×" + c, bright: true,
+          sub: THEME.SPECIALS[k].blurb });
+      });
+      rows.push({ dot: true }, { nm: "", label: "TAKE NOTHING", down: true, sub: "WALK AWAY" });
+      t.list("TAKE", "", rows);
+      t.onRow = async (i) => {
+        if (!t.alive() || rows[i].nm == null) return;
+        await t.lock(i);
+        if (!t.alive()) return;
+        closeTh();
+        net.send({ type: "warrant_take", name: rows[i].nm });
+      };
+    });
+  }
+  function dragnetSheet(report) {
+    seenDragnet = true;
+    openTh("DRAGNET REPORT", "✕ CLOSE");
+    const t = th;
+    t.show(() => {
+      const rows = [{ info: true, label: "EVERY KIT ON THE TRAIN — SPECIALS STAY DARK" }, { dot: true }];
+      Object.entries(report || {}).forEach(([pid, hand]) => {
+        const inv = Object.entries(hand || {}).filter(([, c]) => c > 0)
+          .map(([en, c]) => iname(en) + "×" + c).join(" · ") || "EMPTY-HANDED";
+        rows.push({ label: THEME.seatName(+pid, roster), still: true, bright: true });
+        rows.push({ info: true, label: inv, tight: true });
+      });
+      t.list("i", "", rows);
+      t.onRow = null;
+    });
+  }
+  function handlerPickSheet(pick) {
+    openTh("HANDLER");
+    const t = th;
+    t.show(async () => {
+      const id = await t.pickSeat("shoot", pick.ids, "THEIR SHOT, YOUR CALL — TAP THE TARGET");
+      if (id == null || !t.alive()) return;
+      closeTh();
+      net.send({ type: "handler_shot", target: id });
     });
   }
 
@@ -491,6 +584,10 @@
       return "ONE AGENCY HOLDS THE TRAIN — TURN SOMEONE, OR FACE THE GUN";   // M27b
     if (v.phase === "tax" && v.current === v.you)
       return "SHAKEDOWN — BUY YOUR TURN BACK, OR SIT IT OUT";
+    if (v.phase === "aiming")
+      return THEME.seatName(v.current, roster) + " IS TAKING AIM\u2026";
+    if (v.ridden && v.current === v.you)
+      return "YOUR HANDS MOVE ON THEIR OWN — THE SHOT IS NOT YOURS";
     return "";
   }
   function tick() {
@@ -503,7 +600,7 @@
       name: curView.winner != null ? "" :
         (mine ? "YOUR TURN · " : "") + THEME.seatName(curView.current, roster),
       bonus: curView.bonus,
-      invert: (curView.phase === "decision" || curView.phase === "tax") && curView.winner == null,
+      invert: (curView.phase === "decision" || curView.phase === "tax" || curView.phase === "aiming") && curView.winner == null,
       note: computeNote(curView),
     });
   }

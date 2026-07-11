@@ -98,6 +98,18 @@ Each item is used on your own turn and has both an **effect** and a **point valu
 - A "use" is counted the **moment you commit the item** (Poison activated, Terms placed) — even if it later whiffs (Poison on a blank, an untriggered Terms).
 - **Sacrificing an item as currency does NOT count** toward its cap.
 
+### Specials — Calling a Higher Power
+
+Every player is dealt **all three specials at game start**. They are **never drawn or recharged** — once used, gone. Worth **0 points**: they can never be spent, fined, or counted against inventory caps. **Tradable**, usable on **anyone** (teammates included). A corpse's unused specials **burn**.
+
+**Every special is anonymous** — the table never officially learns who used one. The public ledger shows only how many of each remain in play.
+
+| Special | Effect |
+|---------|--------|
+| **Warrant** | Search one player's kit — you privately see **everything** they hold (items AND specials) and **take one thing** of your choice. The victim learns they were searched and what vanished — never by whom. |
+| **Dragnet** | Privately see **every player's items**. Specials stay dark — only a search reveals those. |
+| **Handler** | During **any** player's decision phase (bot turns pause ~5s to aim), seize their shot: their targeting locks, they are told a higher power holds their trigger — never who — and **you pick the target under their constraints** (their team wall, Terms on them, self included). The shot looks like their own choice to everyone else. The clock is untouched; a timeout follows the normal timeout law. |
+
 ---
 
 ## Economy — Items Are the Currency
