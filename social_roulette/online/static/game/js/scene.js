@@ -293,11 +293,14 @@
       this._bandO = o;                                        // remembered — a menu opening mid-tick
       const TALK = 60, DEC = 30, TOTAL = TALK + DEC;          // paints its burn-circle immediately
       let left = null;
-      if (o.phase === "talk" && o.secs != null) left = DEC + Math.min(o.secs, TALK);
-      else if ((o.phase === "decision" || o.phase === "tax" || o.phase === "aiming") && o.secs != null) left = Math.min(o.secs, DEC);
+      // HONEST digits (timer-freeze class, 2026-07-11): the server pads phase_ends_at
+      // with a beat grace — clamping here pinned the display at 0:30/1:30, frozen, for
+      // the whole grace. Digits now count the real remaining; only the bar GEOMETRY caps.
+      if (o.phase === "talk" && o.secs != null) left = DEC + o.secs;
+      else if ((o.phase === "decision" || o.phase === "tax" || o.phase === "aiming") && o.secs != null) left = o.secs;
       if (left != null) {
-        const red = left <= DEC, col = red ? RED : WHITE;     // last 30s = red
-        const fw = this._bar.w * (left / TOTAL);
+        const red = o.invert || left <= DEC, col = red ? RED : WHITE;  // decision family is ALWAYS red
+        const fw = this._bar.w * (Math.min(left, TOTAL) / TOTAL);
         const bx = this._bar.x, by = this._bar.y;
         const g = this.barHatch.setVisible(true);
         g.clear();
@@ -324,10 +327,10 @@
       if (th && th._clock) {                                   // the player ALWAYS sees the timer
         if (left == null || th._picking) th._clock.cont.setVisible(false);  // (during a seat-pick
         else {                                                 // the duck reveals the big bar instead)
-          const red = left <= DEC, col = red ? RED : WHITE;
+          const red = o.invert || left <= DEC, col = red ? RED : WHITE;
           th._clock.cont.setVisible(true);
           const g = th._clock.g, SEG = 24, R = 20;
-          const lit = Math.ceil((left / TOTAL) * SEG);
+          const lit = Math.ceil((Math.min(left, TOTAL) / TOTAL) * SEG);
           g.clear();
           for (let k = 0; k < SEG; k++) {                      // pixel-faceted ring of chords;
             const a0 = -Math.PI / 2 + (k * 2 * Math.PI) / SEG + 0.06;   // burned segments go dark

@@ -46,7 +46,9 @@
     } else if (m.type === "view") {
       roster = m.roster || roster;
       seizeInFlight = false;                  // any fresh state settles the seize silently
-      queue.push({ events: accept(m) ? (m.events || []) : [], view: m });
+      // anchor the countdown at ARRIVAL — anchoring at drain time (after queued beats
+      // played) ran the clock seconds ahead, then re-anchors jumped it (timer-freeze class)
+      queue.push({ events: accept(m) ? (m.events || []) : [], view: m, left: NET.countdown(m) });
       bootGame(); drain();
     } else if (m.type === "chat") {
       const log = $("chatlog");
@@ -98,14 +100,15 @@
   async function drain() {
     if (busy || !scene) return;
     busy = true;
-    if (queue.some((it) => it.events && it.events.length))     // beats NEVER play under an open menu
+    if (queue.some((it) => it.events && it.events.length)) {   // beats NEVER play under an open menu
       closeTh();                                               // (ratified law — tr_race)
-    scene.setBand({ phase: null });                            // timers stand down while beats play
+      scene.setBand({ phase: null });                          // timers stand down while beats play —
+    }                                                          // a beatless refresh must not blink the band
     while (queue.length) {
       const it = queue.shift();
       const prev = curView;
       curView = it.view;
-      leftFn = NET.countdown(curView);
+      leftFn = it.left || NET.countdown(curView);
       if (firstView) {
         firstView = false;
         const ann = (it.events || []).find((e) => e.type === "announce");
