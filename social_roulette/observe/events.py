@@ -18,10 +18,11 @@ RELOAD = "reload"
 MESSAGE = "message"        # future: emoji comms (schema ready, unused in Stage 1)
 GIFT = "gift"              # Stage 5: an item handed to a teammate (costly signal)
 FINE = "fine"              # v2: timeout fine (public copy names no item)
-SKIP = "skip"              # v2: a handcuffed seat was skipped at turn advance
+SKIP = "skip"              # v2: a shaken seat was skipped at turn advance
 DRAW = "draw"              # v2: reload refill draws (per-seat enrichment)
 TRADE = "trade"            # v2: settled offer/accept swap
 TICK = "tick"              # v3: poison tick fired at the poisoner's turn start (or their death)
+TAX = "tax"                # v3: shakedown resolved (tier 6 full / 4 silent / 0 skip)
 MATCH_END = "match_end"
 
 COLUMNS = ["match_id", "seq", "turn", "actor", "type", "target",

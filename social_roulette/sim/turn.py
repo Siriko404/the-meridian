@@ -12,7 +12,7 @@ extras_map:        {seat_id: Extras} — every seat re-syncs announced counts af
 from social_roulette.engine.engine import step
 from social_roulette.engine.constants import Bullet, Item
 from social_roulette.engine.state import living_ids, player_by_id
-from social_roulette.engine.actions import legal_actions, Shoot, Flip, Speak, Trade
+from social_roulette.engine.actions import legal_actions, Shoot, Flip, Speak, Trade, PayTax
 from social_roulette.engine.endgame import legal_targets
 
 
@@ -95,6 +95,16 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0):
     shot_done = False
     for _ in range(40):
         a = policy(state, pid, ex)
+        if isinstance(a, PayTax):
+            res = step(state, pid, a)
+            if rec:
+                rec.tax(turn_idx, pid, a.tier)
+            for e in extras_map.values():
+                e.sync(state)
+            if state.current_id != pid or state.winner is not None:
+                shot_done = True                 # tier 0: the turn is gone — no fallback shot
+                break
+            continue
         if isinstance(a, Shoot):
             armed = state.poison_armed
             ev = step(state, pid, a)

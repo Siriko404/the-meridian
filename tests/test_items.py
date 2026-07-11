@@ -55,7 +55,7 @@ def test_place_immunity_handcuffs_and_no_stack():
     s.players[0].inventory = {Item.TERMS: 1, Item.SHAKEDOWN: 1}
     I.apply_item(s, 0, Item.TERMS, target_id=1)
     I.apply_item(s, 0, Item.SHAKEDOWN, target_id=2)
-    assert 0 in s.players[1].immunity_against and s.players[2].handcuffed is True
+    assert 0 in s.players[1].immunity_against and s.players[2].shaken is True
     s.players[0].inventory = {Item.SHAKEDOWN: 1}
     with pytest.raises(Exception):
         I.apply_item(s, 0, Item.SHAKEDOWN, target_id=2)

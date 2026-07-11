@@ -64,9 +64,9 @@ def apply_item(state, player_id, item, target_id=None):
         if target_id is None or target_id == player_id:
             raise ValueError("handcuffs need non-self target")
         t = player_by_id(state, target_id)
-        if t.handcuffed:
-            raise ValueError("already handcuffed (no stacking)")
-        t.handcuffed = True
+        if t.shaken:
+            raise ValueError("already shaken (no stacking)")
+        t.shaken = True
         _consume(state, p, item)
-        return {"handcuffed": target_id}
+        return {"shaken": target_id}
     raise ValueError(f"unknown item {item}")

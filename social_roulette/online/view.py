@@ -5,7 +5,7 @@ actions. The full GameState (other players' hands, the bullet order) is never
 serialized. Faithful to game_guide "Information & Visibility".
 """
 from social_roulette.engine.state import player_by_id
-from social_roulette.engine.actions import Shoot, UseItem, Flip, legal_actions
+from social_roulette.engine.actions import Shoot, UseItem, Flip, PayTax, legal_actions
 
 ITEMS = ["MAGNET", "SHAKEDOWN", "GEIGER", "POISON", "PASSPORT", "TERMS"]
 
@@ -15,6 +15,8 @@ def _title(name):
 
 
 def action_label(state, action):
+    if isinstance(action, PayTax):
+        return {6: "Pay 6 - full turn", 4: "Pay 4 - silent turn"}.get(action.tier, "Skip the turn")
     if isinstance(action, Shoot):
         return "Shoot yourself" if action.target_id == state.current_id else f"Shoot P{action.target_id}"
     if isinstance(action, UseItem):
@@ -35,6 +37,8 @@ def action_shape(action):
         return {"kind": "item", "item": action.item.name, "target": action.target_id}
     if isinstance(action, Flip):
         return {"kind": "flip", "item": None, "target": action.target_id}
+    if isinstance(action, PayTax):
+        return {"kind": "tax", "item": None, "target": None, "tier": action.tier}
     return {"kind": "other", "item": None, "target": None}
 
 
@@ -43,7 +47,7 @@ def seat_view(state, seat, ex, feed=None, seating=None):
     # immune_from = the caster ids this player is BARRED from shooting (public, like flips).
     # P1.immune_from=[3] renders "P3" above P1 → P3 put immunity on P1; clears when P1 shoots.
     players = [{"id": p.id, "team": p.team.name, "cover": p.cover, "alive": p.alive,
-                "handcuffed": p.handcuffed, "poisoned": p.poison_tick is not None,
+                "shaken": p.shaken, "poisoned": p.poison_tick is not None,
                 "immune_from": sorted(p.immunity_against)}
                for p in state.players]
     counts = {it: 0 for it in ITEMS}

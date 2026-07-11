@@ -26,12 +26,16 @@ def test_beer_emptying_chamber_returns_draws():
     assert ev["emptied"] is True and "draws" in ev and len(ev["draws"]) == 5
 
 
-def test_skip_logged_when_handcuff_clears():
+def test_shaken_arrival_opens_tax_and_unpaid_skip_is_logged():
+    from social_roulette.engine.engine import step
+    from social_roulette.engine.actions import PayTax
     s = new_game(5, seed=0)
     order = s.order
     cur = s.current_id
     nxt = order[(order.index(cur) + 1) % len(order)]
-    player_by_id(s, nxt).handcuffed = True
+    player_by_id(s, nxt).shaken = True
     _set_turn_to(s, nxt)
+    assert s.current_id == nxt and s.tax_pending is True
+    assert player_by_id(s, nxt).shaken is False
+    step(s, nxt, PayTax(0))
     assert s.last_skipped == [nxt]
-    assert player_by_id(s, nxt).handcuffed is False

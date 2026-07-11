@@ -4,7 +4,7 @@ from social_roulette.engine.state import Player, Chamber, can_receive, inventory
 
 def mkp(i=0, **kw):
     d = dict(id=i, team=Team.RED, cover=3, alive=True, inventory={}, immunity_against=set(),
-             handcuffed=False, flipback_discount=False)
+             shaken=False, flipback_discount=False)
     d.update(kw)
     return Player(**d)
 

@@ -7,7 +7,7 @@ from social_roulette.comms.vocab import ACT_N
 
 ITEMS = [Item.MAGNET, Item.SHAKEDOWN, Item.GEIGER, Item.POISON, Item.PASSPORT, Item.TERMS]
 N_SLOTS = 5
-PER_SLOT = 9       # alive, is_self, is_ally, is_enemy, cover, handcuffed, poisoned, learner_immunized_them, they_immunized_learner
+PER_SLOT = 9       # alive, is_self, is_ally, is_enemy, cover, shaken, poisoned, learner_immunized_them, they_immunized_learner
 GLOBALS = 22       # own_cover(1) own_inv(6) flipback(1) scan(3) item_counts(6) ann_total(1) ann_live(1) fired(1) poison_armed(1) bonus(1)
 MSG_K = 8          # last-K messages heard
 MSG_FEATURES = 5   # has, speaker_rel, act, target_rel, value (re-relativized per listener)
@@ -37,7 +37,7 @@ def encode_obs(state, learner_id, extras):
             1.0 if is_ally else 0.0,
             1.0 if is_enemy else 0.0,
             p.cover / MAX_COVER,
-            1.0 if p.handcuffed else 0.0,
+            1.0 if p.shaken else 0.0,
             1.0 if p.poison_tick is not None else 0.0,
             1.0 if learner_id in p.immunity_against else 0.0,
             1.0 if k in me.immunity_against else 0.0,

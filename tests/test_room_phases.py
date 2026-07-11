@@ -180,3 +180,28 @@ def test_view_carries_increasing_gen():
     g0 = r.view(seat)["gen"]
     r.apply(seat, _item_index(r, seat, "GEIGER"))
     assert r.view(seat)["gen"] > g0
+
+
+def test_tax_phase_gates_and_resolves():
+    """B3: a shaken human's turn opens in the 'tax' phase; paying 4 drops them
+    straight into a SILENT decision; timeout in tax = skip."""
+    from social_roulette.engine.constants import Item as It
+    r, t = clockroom()
+    seat = r.current
+    order = r.state.order
+    nxt = order[(order.index(seat) + 1) % len(order)]
+    r.state.players[nxt].shaken = True
+    r.state.players[nxt].inventory = {It.TERMS: 1}          # exactly the 4-tier
+    # current shoots self on a blank-forced path: just deadline through the turn
+    t[0] = r.phase_ends_at + 0.1; r.on_deadline()           # talk -> decision
+    while r.current == seat and r.winner is None:           # fines then auto-shoot
+        t[0] = r.phase_ends_at + 0.1
+        r.on_deadline()
+    if r.winner is not None or r.current != nxt:
+        return                                              # seed path diverged (kill/reload) - covered elsewhere
+    assert r.phase == "tax"
+    v = r.view(nxt)
+    kinds = {(a["kind"], a.get("tier")) for a in v["legal"]}
+    assert ("tax", 0) in kinds and ("tax", 4) in kinds and ("tax", 6) not in kinds
+    r.pay_tax(nxt, 4, ["TERMS"])
+    assert r.phase == "decision" and r.state.tax_silent is True and r.current == nxt

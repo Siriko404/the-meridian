@@ -4,10 +4,10 @@ from .rng import SeededRng
 from .chamber import load_chamber
 from .shooting import resolve_shot
 from .items import apply_item, cap_reached
-from .economy import flip_team
+from .economy import flip_team, pay_cost
 from .reload import reload_on_empty, reload_on_death, draw_items_for_all
 from .endgame import assert_legal_shot, winner, next_living_after
-from .actions import UseItem, Flip, Trade, Shoot, EndSubactions, Speak
+from .actions import UseItem, Flip, Trade, Shoot, EndSubactions, Speak, PayTax
 
 
 def _process_death(state, victim_id):
@@ -49,6 +49,7 @@ def _fire_ticks(state, poisoner_id):
 
 def _on_turn_start(state, pid):
     state.poison_used_this_turn = False
+    state.tax_silent = False
     state.msgs_this_turn = 0
     _fire_ticks(state, pid)
 
@@ -63,12 +64,10 @@ def _set_turn_to(state, start_id):
         if not p.alive:                          # a tick corpse — pass on
             cur = next_living_after(state.order, living, cur)
             continue
-        if p.handcuffed:
-            state.last_skipped.append(cur)
-            p.handcuffed = False
-            cur = next_living_after(state.order, living, cur)
-            continue
         state.current_id = cur
+        if p.shaken:                             # B3: the tax gates the turn — no auto-skip
+            p.shaken = False
+            state.tax_pending = True
         _on_turn_start(state, cur)               # fires ticks — a SELF-poisoned cur can die here
         if state.winner is not None or player_by_id(state, cur).alive:
             return
@@ -140,6 +139,23 @@ def new_game(num_players, seed):
 
 
 def step(state, player_id, action):
+    if isinstance(action, PayTax):
+        if not (state.tax_pending and state.current_id == player_id):
+            raise ValueError("no tax to pay")
+        if action.tier == 0:
+            state.tax_pending = False
+            state.last_skipped.append(player_id)
+            _advance_turn(state, player_id)
+            state.winner = winner(state)
+            return {"tax": "skip"}
+        if action.tier not in (4, 6):
+            raise ValueError("tax tier must be 0, 4 or 6")
+        pay_cost(state, player_id, action.tier, action.sacrifice)
+        state.tax_pending = False
+        state.tax_silent = (action.tier == 4)
+        return {"tax": action.tier}
+    if state.tax_pending and state.current_id == player_id:
+        raise ValueError("resolve the shakedown first")
     if isinstance(action, Shoot):
         return take_shot(state, player_id, action.target_id)
     if isinstance(action, UseItem):

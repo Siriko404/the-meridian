@@ -66,7 +66,7 @@ The chamber reloads whenever it **empties — for any reason.**
 - Play then continues from the **next living seat after the killer**; the dead player leaves the rotation.
 - All **item consumption caps reset.**
 - **Items are drawn only if the chamber also emptied** (e.g. the kill was the last bullet). A mid-chamber kill just reshuffles — no item draw.
-- The dead player's items are **burned.** Of the tokens they had placed on others: their **Terms expires** (it protected them); their **Shakedown stays** (the target still skips).
+- The dead player's items are **burned.** Of the tokens they had placed on others: their **Terms expires** (it protected them); their **Shakedown stays** (the target's next turn is still taxed).
 
 > `live > players` is guaranteed **only at load.** Magnet can drop live to or below the player count mid-chamber.
 
@@ -85,7 +85,7 @@ Each item is used on your own turn and has both an **effect** and a **point valu
 | **Geiger** | Privately learn **how many of the next 2 bullets are live** (0, 1, or 2) — never which. With 1 bullet left it reports on that 1. A re-scan of the unchanged window repeats the same report. |
 | **Poison** | Your next shot is poisoned: a **live** hit costs the victim **1 cover now + 1 more when your turn comes around again**. There is **no cure** — healing restores cover but never removes the pending hit. A **blank wastes it**. Max one Poison per turn; a victim carries at most **one** pending hit; if the poisoner dies first, the hit lands **immediately**; a poison kill grants **no extra turn**. |
 | **Magnet** | Discard the current bullet and draw the next. **The discarded bullet is removed for good** (the chamber shrinks). Magnet the last bullet → chamber empties → reload → you still take your shot from the new chamber. |
-| **Shakedown** | Place on one player — they **skip their next turn.** Only **one Shakedown at a time** per target (a second while one is active does nothing). **Never on a teammate** while teams are active (2026-07-10). |
+| **Shakedown** | Place on one player — their next turn is **taxed**: at its start they choose to **pay 6 pts for a full turn**, **pay 4 pts for a silent turn** (items + flip + shoot; no talk, no trades — bonus-turn rights), or **pay nothing and skip**. Payments burn items, overpay included. Timing out unpaid = skip. Only **one Shakedown at a time** per target. **Never on a teammate** while teams are active. |
 
 ### Item-Use Rules
 - Items are used **only on your own turn** (talk or decision phase, and bonus turns). **No reactive use.**
@@ -125,7 +125,7 @@ Items double as currency. To pay for an action, you **sacrifice items** whose co
 - You may flip **anyone** — yourself or another player. **Unlimited** flips, as long as you can pay.
 - Flips happen **on your own turn.**
 - A flip is **not permanent** — the new color holds until someone flips that player again.
-- **Flip-back discount:** if your color was flipped by someone else, you may flip back for **4 pts** — but only on your **next turn that you can actually act** (a Shakedown-skipped turn does not consume the window). Pass an actionable turn without using it and the discount is gone.
+- **Flip-back discount:** if your color was flipped by someone else, you may flip back for **4 pts** — but only on your **next turn that you can actually act** (a turn skipped to an unpaid Shakedown does not consume the window). Pass an actionable turn without using it and the discount is gone.
 
 **Why flip?** It removes the "no shooting teammates" wall. Flip a teammate to enemy color to shoot them; or flip an opponent onto your color to protect them temporarily.
 

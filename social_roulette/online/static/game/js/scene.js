@@ -203,7 +203,7 @@
       const bx = s.x - 39 - 5 - 8;                            // 5px gap — the leftmost ring seat
                                                               // (x≈60) stays on-screen
       let cy = s.y - 22;
-      if (p.handcuffed) {                                     // bare glyphs, no boxes (ratified)
+      if (p.shaken) {                                     // bare glyphs, no boxes (ratified)
         g.lineStyle(2, WHITE, 1).strokeCircle(bx, cy, 7);
         g.lineBetween(bx - 5, cy + 5, bx + 5, cy - 5);
         cy += 25;                                             // air between the chips
@@ -294,7 +294,7 @@
       const TALK = 60, DEC = 30, TOTAL = TALK + DEC;          // paints its burn-circle immediately
       let left = null;
       if (o.phase === "talk" && o.secs != null) left = DEC + Math.min(o.secs, TALK);
-      else if (o.phase === "decision" && o.secs != null) left = Math.min(o.secs, DEC);
+      else if ((o.phase === "decision" || o.phase === "tax") && o.secs != null) left = Math.min(o.secs, DEC);
       if (left != null) {
         const red = left <= DEC, col = red ? RED : WHITE;     // last 30s = red
         const fw = this._bar.w * (left / TOTAL);

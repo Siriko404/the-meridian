@@ -1,17 +1,20 @@
 import hashlib
 
 from social_roulette.engine.engine import new_game, step, take_shot
-from social_roulette.engine.actions import legal_actions, Shoot
+from social_roulette.engine.actions import legal_actions, Shoot, PayTax
 from social_roulette.engine.endgame import legal_targets
 
 
 def take_random_turn(state, pid, max_sub=40):
-    """Play one full turn for pid: random legal sub-actions until a shot commits."""
+    """Play one full turn for pid: random legal sub-actions until a shot commits
+    (or the turn is lost to an unpaid shakedown)."""
     for _ in range(max_sub):
         action = state.rng.choice(legal_actions(state, pid))
         if isinstance(action, Shoot):
             return take_shot(state, pid, action.target_id)
         step(state, pid, action)
+        if isinstance(action, PayTax) and (state.current_id != pid or state.winner is not None):
+            return None                          # tier 0: skipped — the turn is gone
     return take_shot(state, pid, state.rng.choice(legal_targets(state, pid)))
 
 
@@ -22,7 +25,8 @@ def play_game(num_players, seed, max_turns=20000):
     while state.winner is None and turns < max_turns:
         pid = state.current_id
         ev = take_random_turn(state, pid)
-        h.update(repr((pid, ev["bullet"].name, ev["damage"], ev["killed"])).encode())
+        if ev is not None:
+            h.update(repr((pid, ev["bullet"].name, ev["damage"], ev["killed"])).encode())
         turns += 1
     if state.winner is None:
         raise RuntimeError("game did not terminate")

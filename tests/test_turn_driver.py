@@ -64,11 +64,19 @@ def test_kill_and_emptied_draws_items():
     assert sum(sum(p.inventory.values()) for p in s.players) >= before and s.chamber.pos == 0
 
 
-def test_handcuff_skipped_on_advance():
-    s = mk(5, [Bullet.BLANK], teams=ENEMY5)
-    s.players[1].handcuffed = True
+def test_shaken_player_holds_turn_taxed_and_can_skip():
+    """B3: a shaken seat is no longer auto-skipped — their turn STARTS taxed;
+    tier 0 (no pay) then skips them onward."""
+    from social_roulette.engine.engine import step
+    from social_roulette.engine.actions import PayTax, legal_actions
+    s = mk(5, [Bullet.BLANK, Bullet.BLANK], teams=ENEMY5)
+    s.players[1].shaken = True
     take_shot(s, 0, 2)
-    assert s.current_id == 2 and s.players[1].handcuffed is False
+    assert s.current_id == 1 and s.players[1].shaken is False and s.tax_pending is True
+    acts = legal_actions(s, 1)
+    assert all(isinstance(a, PayTax) for a in acts)          # the tax gates everything
+    step(s, 1, PayTax(0))
+    assert s.current_id == 2 and s.tax_pending is False and 1 in s.last_skipped
 
 
 def test_illegal_shot_raises():
@@ -96,3 +104,26 @@ def test_self_poison_tick_at_own_turn_start_passes_turn_on():
     from social_roulette.engine.state import player_by_id as _pbi
     assert s.current_id != 2 and _pbi(s, s.current_id).alive
     assert (2, 2, True) in s.last_ticks
+
+
+def test_tax_pay_tiers_and_overpay_burn():
+    from social_roulette.engine.engine import step
+    from social_roulette.engine.actions import PayTax
+    from social_roulette.engine.constants import Item
+    from social_roulette.engine.state import player_by_id as pbi
+    # pay 6 -> full turn (talk rights); overpay burns (9 pts for a 6 tax)
+    s = mk(5, [Bullet.BLANK, Bullet.BLANK], teams=ENEMY5)
+    s.players[1].shaken = True
+    s.players[1].inventory = {Item.GEIGER: 1, Item.MAGNET: 1}     # 5 + 4 = 9
+    take_shot(s, 0, 2)
+    step(s, 1, PayTax(6, [Item.GEIGER, Item.MAGNET]))
+    p = pbi(s, 1)
+    assert s.current_id == 1 and s.tax_pending is False and s.tax_silent is False
+    assert p.inventory == {}                                       # no refunds
+    # pay 4 -> SILENT turn
+    s = mk(5, [Bullet.BLANK, Bullet.BLANK], teams=ENEMY5)
+    s.players[1].shaken = True
+    s.players[1].inventory = {Item.TERMS: 1}                       # exactly 4
+    take_shot(s, 0, 2)
+    step(s, 1, PayTax(4, [Item.TERMS]))
+    assert s.current_id == 1 and s.tax_silent is True

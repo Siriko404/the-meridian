@@ -32,6 +32,12 @@ class Shoot:
 
 
 @dataclass
+class PayTax:
+    tier: int                       # 6 = full turn, 4 = silent turn, 0 = skip
+    sacrifice: list = field(default_factory=list)
+
+
+@dataclass
 class EndSubactions:
     pass
 
@@ -60,6 +66,14 @@ def cheapest_payment(player, cost):
 
 def legal_actions(state, player_id):
     p = player_by_id(state, player_id)
+    if state.tax_pending and state.current_id == player_id:
+        # a SHAKEDOWN gates the whole turn: resolve the tax first (B3)
+        acts = [PayTax(0)]
+        for tier in (4, 6):
+            pay = cheapest_payment(p, tier)
+            if pay is not None:
+                acts.append(PayTax(tier, pay))
+        return acts
     acts = [Shoot(t) for t in legal_targets(state, player_id)]
     others = [q.id for q in living_players(state) if q.id != player_id]
     for it in list(p.inventory):
@@ -81,7 +95,7 @@ def legal_actions(state, player_id):
             from .endgame import teams_active
             for o in others:
                 q = player_by_id(state, o)
-                if q.handcuffed:
+                if q.shaken:
                     continue
                 if teams_active(state) and q.team == p.team:   # no sedating teammates (2026-07-10)
                     continue
@@ -90,7 +104,7 @@ def legal_actions(state, player_id):
         pay = cheapest_payment(p, 4 if (q.id == player_id and p.flipback_discount) else 5)
         if pay is not None:
             acts.append(Flip(q.id, pay))
-    if state.comms_enabled and not state.bonus_pending and state.msgs_this_turn < MSG_CAP:
+    if state.comms_enabled and not state.bonus_pending and not state.tax_silent and state.msgs_this_turn < MSG_CAP:
         from social_roulette.comms.vocab import SPEAK_TABLE
         n = len(state.players)
         for act, who_rel, value in SPEAK_TABLE:
@@ -98,7 +112,7 @@ def legal_actions(state, player_id):
             if target is not None and not player_by_id(state, target).alive:
                 continue
             acts.append(Speak(act, target, value))
-    if state.social_enabled and not state.bonus_pending:
+    if state.social_enabled and not state.bonus_pending and not state.tax_silent:
         for it in list(p.inventory):
             for q in others:
                 mate = player_by_id(state, q)

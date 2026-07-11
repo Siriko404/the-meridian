@@ -6,7 +6,7 @@
   // ratified (or swapped) at the Task-5 gallery gate via the icon strip in moments.html.
   const ITEMS = {
     PASSPORT:  { name: "PASSPORT",  icon: 37, pts: 6, blurb: "+1 COVER" },
-    SHAKEDOWN: { name: "SHAKEDOWN", icon: 2,  pts: 6, blurb: "TARGET SKIPS A TURN" },
+    SHAKEDOWN: { name: "SHAKEDOWN", icon: 2,  pts: 6, blurb: "TAX THEIR TURN: PAY 6/4 OR SIT OUT" },
     GEIGER:    { name: "GEIGER",    icon: 8,  pts: 5, blurb: "HOW MANY OF NEXT 2 ARE LIVE" },
     POISON:    { name: "POISON",    icon: 11, pts: 5, blurb: "LIVE HIT BLEEDS +1 LATER" },
     MAGNET:    { name: "MAGNET",    icon: 5,  pts: 4, blurb: "EJECT CURRENT BULLET" },

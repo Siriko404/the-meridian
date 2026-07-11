@@ -15,7 +15,7 @@ import time
 
 from social_roulette.engine.engine import new_game, step as engine_step
 from social_roulette.engine.constants import Item, Bullet
-from social_roulette.engine.actions import legal_actions, Shoot, Flip
+from social_roulette.engine.actions import legal_actions, Shoot, Flip, PayTax
 from social_roulette.engine.state import player_by_id, living_ids
 from social_roulette.engine.economy import fine_cheapest, swap
 from social_roulette.sim.turn import take_policy_turn, random_policy, Extras
@@ -36,6 +36,9 @@ def _anim(row):
         return {"type": "reload", "total": ex.get("new_total"), "live": ex.get("new_live")}
     if t == "fine":
         return {"type": "fine", "actor": row["actor"]}                # public: NO item (D14)
+    if t == "tax":
+        ex = json.loads(row["extra"]) if row.get("extra") else {}
+        return {"type": "tax", "actor": row["actor"], "tier": ex.get("tier")}
     if t == "draw":
         return {"type": "draw", "seq": row["seq"]}                    # seq keys the per-seat enrichment lookup
     out = {k: row[k] for k in _ANIM_KEYS if k in ("type", "actor") or row.get(k) is not None}
@@ -53,7 +56,7 @@ class IllegalAction(Exception):
 class Room:
     TALK_S = 60.0
     DECISION_S = 30.0
-    _PHASE_KINDS = {"talk": {"item"}, "decision": {"item", "flip", "shoot"}}
+    _PHASE_KINDS = {"talk": {"item"}, "decision": {"item", "flip", "shoot"}, "tax": {"tax"}}
 
     def __init__(self, human_seats, seed, num_players=5, now_fn=time.time):
         self.now = now_fn
@@ -101,8 +104,13 @@ class Room:
             self.phase = None
             self.phase_ends_at = None
             return
-        dur = self.DECISION_S if self.state.bonus_pending else self.TALK_S
-        self.phase = "decision" if self.state.bonus_pending else "talk"
+        if self.state.tax_pending:                     # B3: resolve the shakedown first
+            self.phase = "tax"
+            self.phase_ends_at = self.now() + self._grace() + self.DECISION_S
+            return
+        silent = self.state.bonus_pending or self.state.tax_silent
+        dur = self.DECISION_S if silent else self.TALK_S
+        self.phase = "decision" if silent else "talk"
         self.phase_ends_at = self.now() + self._grace() + dur
 
     def can_chat(self, seat):
@@ -136,6 +144,17 @@ class Room:
             self.last_events = []
             return True
         seat = self.state.current_id
+        if self.phase == "tax":
+            n0 = len(self.rec.rows)
+            self._emit_human_action(seat, PayTax(0))       # timeout = unpaid = skip
+            for e in self.extras.values():
+                e.sync(self.state)
+            self._run_bots()
+            self._drain_skips()
+            self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
+            self._derive_extra_turn()
+            self._begin_phase_for_current()
+            return True
         fined = fine_cheapest(self.state, seat)
         if fined is not None:
             self.gen += 1
@@ -162,7 +181,8 @@ class Room:
         if isinstance(action, _Trade):
             return False                                  # humans trade via offers only (a20)
         kind = ("shoot" if isinstance(action, Shoot) else
-                "flip" if isinstance(action, Flip) else "item")
+                "flip" if isinstance(action, Flip) else
+                "tax" if isinstance(action, PayTax) else "item")
         return kind in self._PHASE_KINDS.get(self.phase, set())
 
     def trade_offer(self, seat, to, give, want):
@@ -305,7 +325,7 @@ class Room:
         # path). A non-turn-ending action (item use, incl. a MAGNET reload) must NOT re-begin
         # the phase — that would drop DECISION back to a fresh 60s TALK (§4.1/§4.3). Re-begin
         # only when the delta actually ended the turn; otherwise just bump gen once.
-        if self.winner is not None or any(e.get("type") == "shot" for e in self.last_events):
+        if self.winner is not None or any(e.get("type") in ("shot", "tax") for e in self.last_events):
             self._begin_phase_for_current()
         else:
             self.gen += 1
@@ -340,6 +360,31 @@ class Room:
         self._derive_extra_turn()
         self.gen += 1                 # a flip never ends the turn → never re-begin the phase (C1/§4.1)
 
+    def pay_tax(self, seat, tier, item_names):
+        """Resolve your shakedown with a CHOSEN payment (tier 6/4) or skip (0)."""
+        if self.winner is not None or seat != self.state.current_id:
+            raise IllegalAction("not your turn")
+        if self.phase != "tax":
+            raise IllegalAction("no shakedown to settle")
+        try:
+            sacrifice = [Item[n] for n in item_names or []]
+        except KeyError:
+            raise IllegalAction("bad payment item")
+        self._trade_result = None
+        self._last_trade_items = None
+        n0 = len(self.rec.rows)
+        try:
+            self._emit_human_action(seat, PayTax(int(tier), sacrifice))
+        except ValueError as e:
+            raise IllegalAction(str(e))
+        for e in self.extras.values():
+            e.sync(self.state)
+        self._run_bots()
+        self._drain_skips()
+        self.last_events = [_anim(r) for r in self.rec.rows[n0:]]
+        self._derive_extra_turn()
+        self._begin_phase_for_current()
+
     def _emit_human_action(self, seat, action):
         """Step the engine for the human's one committed action and record the
         matching event(s), mirroring take_policy_turn's per-sub-action emission."""
@@ -361,6 +406,10 @@ class Room:
                                 len(self.state.chamber.bullets), live)
             self._record_draws(ev)
             self._drain_skips()
+        elif isinstance(action, PayTax):
+            engine_step(self.state, seat, action)
+            self.rec.tax(self._turn, seat, action.tier)
+            self._drain_skips()                             # tier 0 logs the skip
         elif isinstance(action, Flip):
             tgt = action.target_id
             engine_step(self.state, seat, action)
@@ -400,7 +449,7 @@ class Room:
         self.state.last_ticks.clear()
 
     def _drain_skips(self):
-        """A handcuffed seat skipped at turn-advance is a PUBLIC event — flush the
+        """A shaken seat skipped at turn-advance is a PUBLIC event — flush the
         engine's buffer into skip rows (chronologically after the action that caused it)."""
         for pid in self.state.last_skipped:
             self.rec.skip(self._turn, pid)

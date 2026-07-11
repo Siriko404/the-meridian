@@ -15,7 +15,7 @@ def test_view_hides_other_hands_and_bullet_order():
     assert isinstance(v["your_hand"], dict)
     for p in v["players"]:
         assert "inventory" not in p and "hand" not in p and "items" not in p
-        assert set(p.keys()) <= {"id", "team", "cover", "alive", "handcuffed", "poisoned", "immune_from"}
+        assert set(p.keys()) <= {"id", "team", "cover", "alive", "shaken", "poisoned", "immune_from"}
     blob = json.dumps(v)
     assert "LIVE" not in blob and "BLANK" not in blob
     # chamber counts are NEVER persistently sent (announced via events only, game_guide:159)

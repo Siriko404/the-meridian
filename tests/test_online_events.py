@@ -47,7 +47,7 @@ def test_events_never_leak_hidden_state():
             # "seq" keys the per-seat draw enrichment (events_for pops it before a client sees it);
             # it is a public recorder row index, never hidden state.
             assert set(e).issubset(
-                {"type", "actor", "target", "bullet", "damage", "killed", "item", "total", "live", "seq"})
+                {"type", "actor", "target", "bullet", "damage", "killed", "item", "total", "live", "seq", "tier"})
 
 
 def test_new_event_methods_emit_valid_rows():

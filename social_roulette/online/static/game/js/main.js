@@ -129,7 +129,9 @@
     scene.onAction = over ? null : () => {
       if (busy) return;
       const po = curView.pending_offer;                              // an unanswered offer owns the hub
-      if (po && po.to === curView.you) respondThread(po); else moveThread();
+      if (po && po.to === curView.you) respondThread(po);
+      else if (curView.phase === "tax" && myTurn()) taxThread();
+      else moveThread();
     };
     scene.onPhone = () => $("chatsheet").classList.toggle("on");
     const chatOk = curView.phase === "talk" && meAlive() && curView.winner == null;
@@ -138,6 +140,7 @@
     buildFace();
     const po = curView.pending_offer;                                // incoming offer → the sheet ARRIVES
     if (po && po.to === curView.you) respondThread(po);              // (rides the view: reconnect-safe)
+    if (curView.phase === "tax" && myTurn()) taxThread();            // B3: the shakedown sheet arrives
   }
 
   function buildFace() {                                             // the center hub's face
@@ -402,6 +405,72 @@
     });
   }
 
+  /* ---- B3: the SHAKEDOWN sheet — pay 6 (full), pay 4 (silent), or sit out ---- */
+  function taxThread() {
+    const tiers = new Set((curView.legal || []).filter((a) => a.kind === "tax").map((a) => a.tier));
+    openTh("SHAKEDOWN");
+    const t = th;
+    t.show(() => {
+      const rows = [
+        { info: true, label: "YOU ARE BEING SHAKEN DOWN" },
+        { dot: true },
+        { tier: 6, label: "PAY 6 — FULL TURN", bright: tiers.has(6), dim: !tiers.has(6),
+          sub: "TALK, TRADE, EVERYTHING" },
+        { tier: 4, label: "PAY 4 — SILENT TURN", bright: tiers.has(4), dim: !tiers.has(4),
+          sub: "ITEMS + FLIP + SHOOT — NO TALK, NO TRADES" },
+        { tier: 0, label: "SIT IT OUT", down: true, sub: "PAY NOTHING — SKIP THE TURN" }];
+      t.list("TAX", "", rows);
+      t.onRow = async (i) => {
+        if (!t.alive()) return;
+        const r = rows[i];
+        if (r.tier == null) return;
+        if (r.tier === 0) {
+          await t.lock(i);
+          if (!t.alive()) return;
+          closeTh(); wait();
+          net.send({ type: "tax", tier: 0, items: [] });
+          return;
+        }
+        if (!tiers.has(r.tier)) return;
+        await t.lock(i);
+        if (t.alive()) taxPayStep(r.tier);
+      };
+    });
+  }
+  function taxPayStep(tier) {
+    const t = th, chosen = {};
+    const render = () => {
+      const avail = curView.your_hand || {};
+      const total = ORDER.reduce((s2, en) => s2 + (chosen[en] || 0) * THEME.ITEMS[en].pts, 0);
+      const rows = ORDER.map((en) => ({ en,
+        label: iname(en) + " · " + THEME.ITEMS[en].pts + " PTS",
+        badge: chosen[en] ? "PAY ×" + chosen[en] : "×" + (avail[en] || 0),
+        bright: !!chosen[en], dim: (avail[en] || 0) === 0 }));
+      rows.push({ dot: true },
+        { pay: true, label: "✓ PAY " + total + "/" + tier + " PTS",
+          bright: total >= tier, dim: total < tier, sub: "OVERPAY IS SPENT — NO CHANGE" },
+        { label: "◂ BACK", down: true });
+      t.swap("PAY", "SETTLE THE SHAKEDOWN — TAP ITEMS", rows);
+      t.onRow = async (i) => {
+        if (!t.alive()) return;
+        if (rows[i].down) { t.homeTo(); return; }
+        if (rows[i].pay) {
+          if (rows[i].dim) return;
+          await t.lock(i);
+          if (!t.alive()) return;
+          const items = ORDER.flatMap((en) => Array(chosen[en] || 0).fill(en));
+          closeTh(); wait();
+          net.send({ type: "tax", tier, items });
+          return;
+        }
+        const en = rows[i].en;
+        chosen[en] = ((chosen[en] || 0) + 1) % (((curView.your_hand || {})[en] || 0) + 1);
+        render();
+      };
+    };
+    t.show(render);
+  }
+
   function cancelSel() {
     noteOverride = null;
     scene.clearTargets(); scene.seatGlow([], false); closeTh();
@@ -420,6 +489,8 @@
     const living = v.players.filter((p) => p.alive);
     if (v.teams_active && living.length >= 3 && new Set(living.map((p) => p.team)).size === 1)
       return "ONE AGENCY HOLDS THE TRAIN — TURN SOMEONE, OR FACE THE GUN";   // M27b
+    if (v.phase === "tax" && v.current === v.you)
+      return "SHAKEDOWN — BUY YOUR TURN BACK, OR SIT IT OUT";
     return "";
   }
   function tick() {
@@ -432,7 +503,7 @@
       name: curView.winner != null ? "" :
         (mine ? "YOUR TURN · " : "") + THEME.seatName(curView.current, roster),
       bonus: curView.bonus,
-      invert: curView.phase === "decision" && curView.winner == null,
+      invert: (curView.phase === "decision" || curView.phase === "tax") && curView.winner == null,
       note: computeNote(curView),
     });
   }

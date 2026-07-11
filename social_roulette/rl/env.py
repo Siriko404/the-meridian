@@ -46,6 +46,18 @@ class SocialRouletteSingleEnv(gym.Env):
         return {"scan_live": self._scan[0], "scan_of": self._scan[1],
                 "announced_total": self._ann_total, "announced_live": self._ann_live}
 
+    def _pre_obs(self):
+        for _ in range(100):
+            if self.state.winner is not None or not self._learner().alive:
+                return
+            if self.state.current_id != self.learner_id:
+                self._run_opponents()
+                continue
+            if self.state.tax_pending:
+                _auto_resolve_tax(self.state, self.learner_id)
+                continue
+            return
+
     def _obs(self):
         return encode_obs(self.state, self.learner_id, self._extras())
 
@@ -81,6 +93,7 @@ class SocialRouletteSingleEnv(gym.Env):
         self._last_chamber = None
         self._on_chamber_change()
         self._run_opponents()
+        self._pre_obs()
         return self._obs(), self._info()
 
     def step(self, idx):
@@ -93,4 +106,16 @@ class SocialRouletteSingleEnv(gym.Env):
         if not self._terminal() and self.state.current_id != self.learner_id:
             self._run_opponents()
         terminated = self._terminal()
+        self._pre_obs()
         return self._obs(), self._reward(), terminated, False, self._info()
+
+def _auto_resolve_tax(state, learner_id):
+    """RL codec carries no PayTax action (ledger ruling: auto-rule). Greedy: keep
+    the turn silently for 4 if affordable, else skip."""
+    from social_roulette.engine.actions import PayTax, cheapest_payment, legal_actions as _la
+    from social_roulette.engine.engine import step as _step
+    from social_roulette.engine.state import player_by_id as _pbi
+    while (state.winner is None and state.tax_pending
+           and state.current_id == learner_id and _pbi(state, learner_id).alive):
+        pay = cheapest_payment(_pbi(state, learner_id), 4)
+        _step(state, learner_id, PayTax(4, pay) if pay is not None else PayTax(0))

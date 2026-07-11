@@ -74,6 +74,9 @@ class Recorder:
     def tick(self, turn, poisoner, victim, killed):
         self._emit(E.TICK, turn=turn, actor=poisoner, target=victim, damage=1, killed=killed)
 
+    def tax(self, turn, actor, tier):
+        self._emit(E.TAX, turn=turn, actor=actor, extra={"tier": tier})
+
     def trade(self, turn, actor, target, give, want):
         self._emit(E.TRADE, turn=turn, actor=actor, target=target,
                    extra={"give": give, "want": want})

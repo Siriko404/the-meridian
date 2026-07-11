@@ -11,7 +11,7 @@ class Player:
     alive: bool
     inventory: dict
     immunity_against: set
-    handcuffed: bool
+    shaken: bool            # a SHAKEDOWN is placed on me; my next turn starts taxed
     flipback_discount: bool
     poison_tick: int = None    # poisoner pid whose next turn-start costs me 1 cover; max ONE (no stacking)
 
@@ -54,12 +54,14 @@ class GameState:
     winner: int = None
     messages: list = field(default_factory=list)
     msgs_this_turn: int = 0
+    tax_pending: bool = False     # current player must resolve their SHAKEDOWN before acting
+    tax_silent: bool = False      # paid 4: this turn has bonus-turn rights (no talk/trade)
     comms_enabled: bool = False   # Stage 3 opt-in; off => no Speak in legal_actions
     social_enabled: bool = False  # Stage 5 opt-in; off => no Trade/gift in legal_actions
     # Stage 5 interaction memory (objective public record; each seat reads its own row):
     harm: dict = field(default_factory=dict)   # (victim_id, actor_id) -> cumulative damage taken from actor
     help: dict = field(default_factory=dict)   # (receiver_id, giver_id) -> cumulative gift point-value received
-    last_skipped: list = field(default_factory=list)  # pids skipped by handcuff at turn advance
+    last_skipped: list = field(default_factory=list)  # pids who skipped (tax unpaid / timeout)
     last_ticks: list = field(default_factory=list)    # (victim, poisoner, killed) fired at turn advance / a death
 
 

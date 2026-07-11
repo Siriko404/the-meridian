@@ -143,7 +143,7 @@
         if (e.item === "MAGNET") lastBeer = e.actor;
         await scene.dialTo(e.actor);                          // the arrow OWNS every beat's actor
         if (e.item === "SHAKEDOWN" && work[e.target] != null) {
-          work[e.target].handcuffed = true; paint(e.target);  // SEDATED chip lands with the beat
+          work[e.target].shaken = true; paint(e.target);  // SEDATED chip lands with the beat
         } else if (e.item === "TERMS" && work[e.target] != null) {
           work[e.target].immune_from.push(e.actor); paint(e.target);
         } else if (e.item === "PASSPORT" && work[e.actor] != null) {
@@ -171,8 +171,13 @@
           paint(e.target);
         }
         await scene.w(900);
+      } else if (e.type === "tax") {                       // B3 — the shakedown settles
+        await scene.dialTo(e.actor);
+        await scene.toast(e.tier === 6 ? nm(e.actor, roster) + " PAID IN FULL"
+          : e.tier === 4 ? nm(e.actor, roster) + " PAID FOR SILENCE"
+          : nm(e.actor, roster) + " COULDN'T PAY", 1500);
       } else if (e.type === "skip") {
-        if (work[e.target]) { work[e.target].handcuffed = false; paint(e.target); }
+        if (work[e.target]) { work[e.target].shaken = false; paint(e.target); }
         await scene.skipBeat(e.target, roster);               // M23 beat
       } else if (e.type === "trade" || e.type === "gift") {
         await scene.dialTo(e.actor);                          // trades are legal ONLY on the actor's
@@ -234,7 +239,7 @@
         : "BULLET EJECTED", 1400);
     } else if (it === "SHAKEDOWN") {                                             // M23 place
       await scene.iconFly(icon, e.actor, e.target);
-      await scene.toast(nm(e.target, roster) + " SEDATED", 1300);
+      await scene.toast(nm(e.target, roster) + " MARKED FOR A SHAKEDOWN", 1400);
     } else if (it === "TERMS") {                                             // M21 TERMS
       await scene.iconFly(THEME.ICON.envelope, e.actor, e.target);
       await scene.toast(who + (who === "YOU" ? " HAVE" : " HAS") + " DIRT ON " + nm(e.target, roster), 1500);

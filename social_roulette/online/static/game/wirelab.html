@@ -64,11 +64,11 @@
     o = o || {};
     const now = Date.now() / 1000;
     const players = o.players || [
-      { id: 0, team: "RED",  cover: o.myLives || 3, alive: true, handcuffed: false, immune_from: [] },
-      { id: 1, team: "BLUE", cover: 3, alive: true, handcuffed: false, immune_from: [] },
-      { id: 2, team: "RED",  cover: 2, alive: true, handcuffed: true,  immune_from: [3] },
-      { id: 3, team: "BLUE", cover: 3, alive: true, handcuffed: false, immune_from: [] },
-      { id: 4, team: "RED",  cover: 1, alive: true, handcuffed: false, immune_from: [] },
+      { id: 0, team: "RED",  cover: o.myLives || 3, alive: true, shaken: false, immune_from: [] },
+      { id: 1, team: "BLUE", cover: 3, alive: true, shaken: false, immune_from: [] },
+      { id: 2, team: "RED",  cover: 2, alive: true, shaken: true,  immune_from: [3] },
+      { id: 3, team: "BLUE", cover: 3, alive: true, shaken: false, immune_from: [] },
+      { id: 4, team: "RED",  cover: 1, alive: true, shaken: false, immune_from: [] },
     ];
     return Object.assign({
       type: "view", roster: ROSTER, events: o.events || [],
@@ -212,11 +212,11 @@
       await filmTap("no-item", () => openHub("onAction"));
       await abort();
       push(view({ legal: L_ITEMS, players: [
-        { id: 0, team: "RED",  cover: 3, alive: true, handcuffed: false, immune_from: [] },
-        { id: 1, team: "BLUE", cover: 3, alive: true, handcuffed: false, immune_from: [] },
-        { id: 2, team: "RED",  cover: 0, alive: false, handcuffed: false, immune_from: [] },
-        { id: 3, team: "BLUE", cover: 3, alive: true, handcuffed: false, immune_from: [] },
-        { id: 4, team: "RED",  cover: 0, alive: false, handcuffed: false, immune_from: [] },
+        { id: 0, team: "RED",  cover: 3, alive: true, shaken: false, immune_from: [] },
+        { id: 1, team: "BLUE", cover: 3, alive: true, shaken: false, immune_from: [] },
+        { id: 2, team: "RED",  cover: 0, alive: false, shaken: false, immune_from: [] },
+        { id: 3, team: "BLUE", cover: 3, alive: true, shaken: false, immune_from: [] },
+        { id: 4, team: "RED",  cover: 0, alive: false, shaken: false, immune_from: [] },
       ] })); await sleep(800);
       await filmTap("teammates-dead", () => openHub("onAction"));
       await abort();
@@ -325,11 +325,11 @@
           { type: "reload", total: 6, live: 3 },
         ],
         players: [
-          { id: 0, team: "RED",  cover: 3, alive: true, handcuffed: false, immune_from: [3] },
-          { id: 1, team: "RED",  cover: 3, alive: true, handcuffed: false, immune_from: [] },
-          { id: 2, team: "RED",  cover: 3, alive: true, handcuffed: false, immune_from: [3] },
-          { id: 3, team: "BLUE", cover: 2, alive: true, handcuffed: false, immune_from: [] },
-          { id: 4, team: "RED",  cover: 0, alive: false, handcuffed: false, immune_from: [] },
+          { id: 0, team: "RED",  cover: 3, alive: true, shaken: false, immune_from: [3] },
+          { id: 1, team: "RED",  cover: 3, alive: true, shaken: false, immune_from: [] },
+          { id: 2, team: "RED",  cover: 3, alive: true, shaken: false, immune_from: [3] },
+          { id: 3, team: "BLUE", cover: 2, alive: true, shaken: false, immune_from: [] },
+          { id: 4, team: "RED",  cover: 0, alive: false, shaken: false, immune_from: [] },
         ],
         over: { current: 2 } }));
       for (let k = 0; k < 8; k++) await film("beat" + (k + 1));

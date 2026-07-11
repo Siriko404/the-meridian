@@ -231,6 +231,21 @@ async def ws(ws: WebSocket):
                     payloads = _capture_payloads(lb)
                 await _broadcast_views(lb, payloads)
 
+            elif t == "tax" and lb and lb.room and me and me["seat"] is not None:
+                try:
+                    tier = int(msg.get("tier", -1))
+                except (ValueError, TypeError):
+                    await _send(ws, {"type": "error", "msg": "bad payload"})
+                    continue
+                async with lb.lock:
+                    try:
+                        lb.room.pay_tax(me["seat"], tier, msg.get("items") or [])
+                    except IllegalAction as e:
+                        await _send(ws, {"type": "error", "msg": str(e)})
+                        continue
+                    payloads = _capture_payloads(lb)
+                await _broadcast_views(lb, payloads)
+
             elif t == "flip" and lb and lb.room and me and me["seat"] is not None:
                 try:                                     # flip with a CHOSEN payment {target, items:[names]}
                     target = int(msg.get("target", -1))
