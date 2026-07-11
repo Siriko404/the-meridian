@@ -1,6 +1,23 @@
 # Social Roulette — Project Status (resume anchor)
 
-**Updated:** 2026-07-10 (late) · **Branch:** master == uiv2-client @ `962bd3a`, both pushed, DEPLOY CURL-CONFIRMED LIVE · Read this first after any context reset.
+**Updated:** 2026-07-11 · **Branch:** uiv2-client LOCAL HEAD ahead of pushed `eac71da` by ONE unpushed WIP commit (dpr3 default — see warning) · master == origin @ `eac71da` · LIVE at `eac71da`, curl-confirmed · Read this first after any context reset.
+
+## ═══ HANDOFF 2026-07-11 — HANDLER v2 + MENUS SHIPPED · DPR3 WIP ═══
+- **READ ledger `handler_v2_session` + `resolution_session` FIRST** — today's complete record.
+- **SHIPPED + LIVE (`123912b`→`eac71da`):** HANDLER v2 silent redirect (user redesign: seize =
+  anonymous pick-X, shooter told NOTHING, wire says shooter→X, timeout obeys, first-seize locks,
+  serif alarm toast) · `_notes` lifecycle fix (stuck "HIGHER POWER" banner root cause) · menu
+  crumb-rail (ghost piles killed) · RED marching-ants seize pick · speclab rewritten (16 real-chain
+  steps) · reslab (phone sharpness A/B — **user locked 3×**).
+- **⚠ UNPUSHED WIP ON LOCAL uiv2-client: dpr3-default commit (main.js). NOT smoke-verified —
+  DO NOT PUSH until the clean smoke in ledger `resolution_session.remaining` passes.**
+  Escape hatch once live: `?dpr=1`.
+- **NEXT:** user has TWO NEW MODS (unstated — fresh context) → then dpr3 smoke + push + his phone
+  check → ledger redesign (his direction still pending) → speclab ratification → win-cond sim (#6).
+- Dev server: game :8000 running (uvicorn, .venv). Tests: 262 py (`.venv\Scripts\python -m pytest tests/ -q`) + 8 node (`node --test social_roulette/online/static/game/test/*.test.mjs`).
+- **Rig law (hard-won today):** live-rAF vs frozen-rAF are exclusive regimes — occluded Chrome
+  shows STALE frames (clicking them = false bugs); never `g.loop.sleep()` during the opening
+  drain; lobby depart button id = `startbtn`; wedged CDP tab → close it, open fresh.
 
 ## ═══ HANDOFF 2026-07-10 — ITEM REDESIGN SHIPPED ═══
 - **READ `docs/FEEDBACK_LEDGER.json` SECOND** — the systematic ledger: all 21 feedback items,

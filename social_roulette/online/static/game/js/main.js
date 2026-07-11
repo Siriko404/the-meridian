@@ -66,12 +66,24 @@
   function bootGame() {
     if (game) return;
     show(null);
-    SCENE.ready = (s) => { scene = s; window.__scene = s; s.setCode(sceneCode); drain(); };
+    // DPR 3 backing store, camera-zoomed: layout coordinates untouched, text crisp on
+    // phones (reslab lock, user 2026-07-11). ?dpr=1 is the no-redeploy escape hatch.
+    const q = new URLSearchParams(location.search);
+    const DPR = Math.max(1, parseInt(q.get("dpr") || "3", 10) || 3);
+    const origRes = Phaser.GameObjects.Text.prototype.setResolution;
+    Phaser.GameObjects.Text.prototype.setResolution = function (r) {
+      return origRes.call(this, Math.max(r || 1, DPR));     // texts match the backing store
+    };
+    SCENE.ready = (s) => {
+      scene = s; window.__scene = s; s.setCode(sceneCode);
+      if (DPR !== 1) { s.cameras.main.setZoom(DPR); s.cameras.main.centerOn(SCENE.W / 2, SCENE.H / 2); }
+      drain();
+    };
     game = new Phaser.Game({
       // CANVAS by default: phone-verified smooth where the WebGL path stuttered hard
       // (2026-07-10 live ?diag bisect). ?webgl=1 restores AUTO for A/B.
-      type: new URLSearchParams(location.search).get("webgl") ? Phaser.AUTO : Phaser.CANVAS,
-      parent: "stage", width: SCENE.W, height: SCENE.H,
+      type: q.get("webgl") ? Phaser.AUTO : Phaser.CANVAS,
+      parent: "stage", width: SCENE.W * DPR, height: SCENE.H * DPR,
       backgroundColor: "#000000", pixelArt: true,
       scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
       scene: SCENE.TableScene,
