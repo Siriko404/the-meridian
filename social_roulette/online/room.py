@@ -11,6 +11,7 @@ them, then settles to the new per-seat view. Events carry only PUBLIC fields
 (fired bullet, damage, death, flip) — never the hidden bullet order or a peek.
 """
 import json
+import random
 import time
 
 from social_roulette.engine.engine import new_game, step as engine_step
@@ -55,6 +56,17 @@ def _anim(row):
 
 class IllegalAction(Exception):
     pass
+
+
+def _rng_dump(r):
+    st = r.getstate()
+    return [st[0], list(st[1]), st[2]]
+
+
+def _rng_load(d):
+    r = random.Random()
+    r.setstate((d[0], tuple(d[1]), d[2]))
+    return r
 
 
 class Room:
@@ -279,6 +291,137 @@ class Room:
     @property
     def current(self):
         return self.state.current_id
+
+    # ---- snapshot (spec 2026-07-11 §4): the session file's last line IS the game ----
+
+    def to_dict(self):
+        """Serialize everything needed to resume play mid-game. JSON-safe; enums
+        travel by NAME; the rng travels via random.Random.getstate() so a restored
+        room draws the SAME future (rng continuity). `messages` are not carried —
+        comms are engine-off online (comms_enabled=False, __init__). The Recorder
+        archive is not carried either: a restored room records a fresh archive."""
+        st = self.state
+        return {
+            "v": 1,
+            "gen": self.gen,
+            "phase": self.phase,
+            "remaining": (None if self.phase_ends_at is None
+                          else self.phase_ends_at - self.now()),
+            "human": sorted(self.human),
+            "seating": list(self.seating),
+            "extra_turn": self.extra_turn,
+            "feed": list(self.feed),
+            "turn": self._turn,
+            "notes": [[s, n] for s, n in self._notes],
+            "pending_offer": self.pending_offer,
+            "trade_result": self._trade_result,
+            "last_trade_items": self._last_trade_items,
+            "pending_warrant": self.pending_warrant,
+            "handler": self.handler,
+            "pending_bot_shot": (list(self.pending_bot_shot)
+                                 if self.pending_bot_shot is not None else None),
+            "dragnet": {str(k): v for k, v in self._dragnet.items()},
+            "extras": {str(s): {"scan_live": e.scan_live, "scan_of": e.scan_of,
+                                "total": e.total, "live": e.live,
+                                "lp": e._lp, "ln": e._ln}
+                       for s, e in self.extras.items()},
+            "state": {
+                "players": [{
+                    "id": p.id, "team": p.team.name, "cover": p.cover, "alive": p.alive,
+                    "inventory": {it.name: c for it, c in p.inventory.items()},
+                    "immunity_against": sorted(p.immunity_against),
+                    "shaken": p.shaken, "flipback_discount": p.flipback_discount,
+                    "poison_tick": p.poison_tick, "specials": dict(p.specials),
+                } for p in st.players],
+                "order": list(st.order),
+                "current_id": st.current_id,
+                "chamber": {"bullets": [b.name for b in st.chamber.bullets],
+                            "pos": st.chamber.pos},
+                "rng": _rng_dump(st.rng._r),
+                "use_counts": {it.name: c for it, c in st.use_counts.items()},
+                "poison_armed": st.poison_armed,
+                "poison_used_this_turn": st.poison_used_this_turn,
+                "bonus_pending": st.bonus_pending,
+                "winner": st.winner,
+                "msgs_this_turn": st.msgs_this_turn,
+                "tax_pending": st.tax_pending,
+                "tax_silent": st.tax_silent,
+                "comms_enabled": st.comms_enabled,
+                "social_enabled": st.social_enabled,
+                "harm": [[k[0], k[1], v] for k, v in st.harm.items()],
+                "help": [[k[0], k[1], v] for k, v in st.help.items()],
+                "last_skipped": list(st.last_skipped),
+                "last_ticks": [list(t) for t in st.last_ticks],
+            },
+        }
+
+    @classmethod
+    def from_dict(cls, d, now_fn=time.time):
+        from social_roulette.engine.state import GameState, Player, Chamber
+        from social_roulette.engine.constants import Team
+        from social_roulette.engine.rng import SeededRng
+        sd = d["state"]
+        players = [Player(
+            id=p["id"], team=Team[p["team"]], cover=p["cover"], alive=p["alive"],
+            inventory={Item[k]: v for k, v in p["inventory"].items()},
+            immunity_against=set(p["immunity_against"]),
+            shaken=p["shaken"], flipback_discount=p["flipback_discount"],
+            poison_tick=p["poison_tick"], specials=dict(p["specials"]),
+        ) for p in sd["players"]]
+        chamber = Chamber(bullets=[Bullet[b] for b in sd["chamber"]["bullets"]],
+                          pos=sd["chamber"]["pos"])
+        rng = SeededRng(0)
+        rng._r = _rng_load(sd["rng"])
+        state = GameState(players=players, order=list(sd["order"]),
+                          current_id=sd["current_id"], chamber=chamber, rng=rng)
+        state.use_counts = {Item[k]: v for k, v in sd["use_counts"].items()}
+        state.poison_armed = sd["poison_armed"]
+        state.poison_used_this_turn = sd["poison_used_this_turn"]
+        state.bonus_pending = sd["bonus_pending"]
+        state.winner = sd["winner"]
+        state.msgs_this_turn = sd["msgs_this_turn"]
+        state.tax_pending = sd["tax_pending"]
+        state.tax_silent = sd["tax_silent"]
+        state.comms_enabled = sd["comms_enabled"]
+        state.social_enabled = sd["social_enabled"]
+        state.harm = {(a, b): v for a, b, v in sd["harm"]}
+        state.help = {(a, b): v for a, b, v in sd["help"]}
+        state.last_skipped = list(sd["last_skipped"])
+        state.last_ticks = [tuple(t) for t in sd["last_ticks"]]
+        r = object.__new__(cls)
+        r.now = now_fn
+        r.gen = d["gen"]
+        r.phase = d["phase"]
+        r.phase_ends_at = None if d["remaining"] is None else now_fn() + d["remaining"]
+        r.human = set(d["human"])
+        r.state = state
+        r.pending_offer = d["pending_offer"]
+        r._trade_result = d["trade_result"]
+        r._last_trade_items = d["last_trade_items"]
+        r.extra_turn = d["extra_turn"]
+        r._notes = [(s, n) for s, n in d["notes"]]
+        r.pending_warrant = d["pending_warrant"]
+        r.handler = d["handler"]
+        r.pending_bot_shot = tuple(d["pending_bot_shot"]) if d["pending_bot_shot"] else None
+        r._dragnet = {int(k): {int(pid): hand for pid, hand in v.items()}
+                      for k, v in d["dragnet"].items()}   # JSON stringified both key layers
+        r.seating = list(d["seating"])
+        r.extras = {}
+        for s, ed in d["extras"].items():
+            e = Extras()
+            e.scan_live = ed["scan_live"]
+            e.scan_of = ed["scan_of"]
+            e.total = ed["total"]
+            e.live = ed["live"]
+            e._lc = state.chamber          # SAME logical chamber — scans stay valid
+            e._lp = ed["lp"]
+            e._ln = ed["ln"]
+            r.extras[int(s)] = e
+        r.feed = list(d["feed"])
+        r.rec = Recorder(0)                # fresh archive on restore (docstring above)
+        r._turn = d["turn"]
+        r.last_events = []                 # a restore settles silently — no beats replay
+        return r
 
     def is_bot(self, seat):
         return seat not in self.human
