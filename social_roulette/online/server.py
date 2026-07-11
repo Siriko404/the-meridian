@@ -103,6 +103,7 @@ async def _deadline(lb, gen):
         acted = lb.room.on_deadline()
         if acted:
             payloads = _capture_payloads(lb)
+            _persist(lb)
     if acted:
         await _broadcast_views(lb, payloads)
         if lb.room.winner is not None:
@@ -125,6 +126,19 @@ def _schedule_deadline(lb):
     lb.deadline_task = None
     if lb.room is not None and lb.room.winner is None and lb.room.phase_ends_at is not None:
         lb.deadline_task = asyncio.create_task(_deadline(lb, lb.room.gen))
+
+
+def _persist(lb):
+    # Journal the whole room AFTER a mutation, inside the same lock/critical
+    # section as _capture_payloads (spec §4: one line per play; the last line
+    # restores the game). A winner closes the record with an `ended` line —
+    # only then does /session/<code>/record open (the file names every hand).
+    if lb.room is None:
+        return
+    storage.session_append(lb.code, {"t": time.time(), "gen": lb.room.gen,
+                                     "snapshot": lb.room.to_dict()})
+    if lb.room.winner is not None:
+        storage.session_append(lb.code, {"ended": lb.room.winner, "t": time.time()})
 
 
 def _capture_payloads(lb):
@@ -281,7 +295,13 @@ async def ws(ws: WebSocket):
                     human_seats = {m["seat"] for m in lb.members if m["seat"] is not None}
                     lb.room = Room(human_seats=human_seats, seed=_seed_from(lb.code),
                                    num_players=lb.seats)
+                    storage.session_write_meta(lb.code, {
+                        "code": lb.code, "seats": lb.seats, "created": time.time(),
+                        "members": [{"pid": m["pid"], "initials": m["name"],
+                                     "portrait": m["portrait"], "seat": m["seat"]}
+                                    for m in lb.members]})
                     payloads = _capture_payloads(lb)
+                    _persist(lb)
                 await _broadcast_views(lb, payloads)     # per-seat events_for carries the opening announce
 
             elif t == "action" and lb and lb.room and me and me["seat"] is not None:
@@ -297,6 +317,7 @@ async def ws(ws: WebSocket):
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
                     payloads = _capture_payloads(lb)
+                    _persist(lb)
                 await _broadcast_views(lb, payloads)     # per-seat events_for carries the delta
                 if lb.room.winner is not None:
                     for m in lb.members:
@@ -311,6 +332,7 @@ async def ws(ws: WebSocket):
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
                     payloads = _capture_payloads(lb)
+                    _persist(lb)
                 await _broadcast_views(lb, payloads)
 
             elif t == "trade_offer" and lb and lb.room and me and me["seat"] is not None:
@@ -327,6 +349,7 @@ async def ws(ws: WebSocket):
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
                     payloads = _capture_payloads(lb)
+                    _persist(lb)
                 await _broadcast_views(lb, payloads)
 
             elif t == "trade_respond" and lb and lb.room and me and me["seat"] is not None:
@@ -337,6 +360,7 @@ async def ws(ws: WebSocket):
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
                     payloads = _capture_payloads(lb)
+                    _persist(lb)
                 await _broadcast_views(lb, payloads)
 
             elif t == "trade_withdraw" and lb and lb.room and me and me["seat"] is not None:
@@ -347,6 +371,7 @@ async def ws(ws: WebSocket):
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
                     payloads = _capture_payloads(lb)
+                    _persist(lb)
                 await _broadcast_views(lb, payloads)
 
             elif t in ("special", "warrant_take", "handler_seize") \
@@ -365,6 +390,7 @@ async def ws(ws: WebSocket):
                         await _send(ws, {"type": "error", "msg": str(e) or "bad payload"})
                         continue
                     payloads = _capture_payloads(lb)
+                    _persist(lb)
                 await _broadcast_views(lb, payloads)
                 if lb.room.winner is not None:
                     for m in lb.members:
@@ -384,6 +410,7 @@ async def ws(ws: WebSocket):
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
                     payloads = _capture_payloads(lb)
+                    _persist(lb)
                 await _broadcast_views(lb, payloads)
 
             elif t == "flip" and lb and lb.room and me and me["seat"] is not None:
@@ -399,6 +426,7 @@ async def ws(ws: WebSocket):
                         await _send(ws, {"type": "error", "msg": str(e)})
                         continue
                     payloads = _capture_payloads(lb)
+                    _persist(lb)
                 await _broadcast_views(lb, payloads)
 
             elif t == "chat" and lb and me:
