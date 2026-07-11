@@ -10,9 +10,10 @@ import secrets
 import time
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from social_roulette.online import storage
 from social_roulette.online.room import Room, IllegalAction
 
 app = FastAPI()
@@ -20,6 +21,48 @@ HERE = os.path.dirname(__file__)
 STATIC = os.path.join(HERE, "static")
 app.mount("/static", StaticFiles(directory=STATIC), name="static")   # logo + shared UI assets
 NUM = 5
+
+PROFILES = storage.load_profiles()          # papers, hot in memory; storage owns the file
+
+
+# ---- identity endpoints (spec 2026-07-11 §2) — pure (status, body) helpers, thin routes ----
+
+def papers_create(fi, li, portrait):
+    fi, li = str(fi or "").strip().upper(), str(li or "").strip().upper()
+    if not (len(fi) == 1 and fi.isalpha() and len(li) == 1 and li.isalpha()):
+        return 400, {"msg": "two letters make a monogram"}
+    try:
+        portrait = int(portrait)
+    except (ValueError, TypeError):
+        return 400, {"msg": "papers need a face"}
+    if not 0 <= portrait <= 11:
+        return 400, {"msg": "papers need a face"}
+    p = storage.create_profile(fi + "." + li + ".", portrait)
+    PROFILES[p["pid"]] = p
+    return 200, p
+
+
+def papers_lookup(fi, li, pid):
+    monogram = (str(fi or "").strip().upper() + "." + str(li or "").strip().upper() + ".")
+    p = PROFILES.get(str(pid or "").strip().upper())
+    if not p or p["initials"] != monogram:
+        return 404, {"msg": "no such papers"}
+    return 200, p
+
+
+def journeys(pid):
+    return 200, {"journeys": storage.journeys_for(str(pid or "").strip().upper())}
+
+
+def record_check(code):
+    """The session file names every hand and the bullet order — it opens only
+    once the line has ended (spec §4: no mid-game access, ever)."""
+    code = str(code or "").strip().upper()
+    if storage.session_read_meta(code) is None:
+        return 404, None
+    if not storage.session_is_ended(code):
+        return 403, None
+    return 200, storage.session_path(code)
 
 
 class Lobby:
@@ -125,6 +168,34 @@ async def index_v1():
 @app.get("/health")
 async def health():
     return {"ok": True}
+
+
+@app.post("/papers")
+async def papers_post(body: dict):
+    st, out = papers_create(body.get("fi"), body.get("li"), body.get("portrait"))
+    return JSONResponse(out, status_code=st)
+
+
+@app.get("/papers")
+async def papers_get(fi: str = "", li: str = "", pid: str = ""):
+    st, out = papers_lookup(fi, li, pid)
+    return JSONResponse(out, status_code=st)
+
+
+@app.get("/journeys")
+async def journeys_get(pid: str = ""):
+    st, out = journeys(pid)
+    return JSONResponse(out, status_code=st)
+
+
+@app.get("/session/{code}/record")
+async def record_get(code: str):
+    st, path = record_check(code)
+    if st != 200:
+        return JSONResponse({"msg": "the line is still running" if st == 403
+                             else "no such record"}, status_code=st)
+    return FileResponse(path, media_type="application/jsonl",
+                        filename="meridian-" + code.upper() + ".jsonl")
 
 
 @app.websocket("/ws")
