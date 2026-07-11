@@ -60,3 +60,16 @@ def test_no_foreign_hand_or_bullet_order_in_any_view_or_events():
         t[0] = (r.phase_ends_at or t[0]) + 0.1
         r.on_deadline()
         sweep()
+
+
+def test_magnet_eject_value_only_for_the_ejector():
+    r, t = clockroom()
+    seat = r.current
+    player_by_id(r.state, seat).inventory = {Item.MAGNET: 1}
+    i = next(a["i"] for a in r.view(seat)["legal"] if a["kind"] == "item" and a["item"] == "MAGNET")
+    r.apply(seat, i)
+    mine = [e for e in r.events_for(seat) if e.get("item") == "MAGNET"][0]
+    assert mine["you"]["ejected"] in ("LIVE", "BLANK")
+    other = next(p for p in range(5) if p != seat)
+    theirs = [e for e in r.events_for(other) if e.get("item") == "MAGNET"][0]
+    assert "you" not in theirs and "seq" not in theirs and "ejected" not in json.dumps(theirs)

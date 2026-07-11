@@ -229,7 +229,9 @@
       await scene.toast(who + " · POISON ARMED", 1500);
     } else if (it === "MAGNET") {                                                  // M22 MAGNET
       await scene.bulletEject();
-      await scene.toast("BULLET EJECTED", 1100);
+      await scene.toast(e.you && e.you.ejected                                     // B4: only YOU see the value
+        ? "EJECTED · " + e.you.ejected + " — ONLY YOU SAW IT"
+        : "BULLET EJECTED", 1400);
     } else if (it === "SHAKEDOWN") {                                             // M23 place
       await scene.iconFly(icon, e.actor, e.target);
       await scene.toast(nm(e.target, roster) + " SEDATED", 1300);

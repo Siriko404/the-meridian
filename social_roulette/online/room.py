@@ -38,7 +38,12 @@ def _anim(row):
         return {"type": "fine", "actor": row["actor"]}                # public: NO item (D14)
     if t == "draw":
         return {"type": "draw", "seq": row["seq"]}                    # seq keys the per-seat enrichment lookup
-    return {k: row[k] for k in _ANIM_KEYS if k in ("type", "actor") or row.get(k) is not None}
+    out = {k: row[k] for k in _ANIM_KEYS if k in ("type", "actor") or row.get(k) is not None}
+    if t == "item_used":
+        out["type"] = "item"       # the client/fixture vocabulary (recorder rows say item_used)
+        if row.get("item") == "MAGNET":
+            out["seq"] = row["seq"]                                   # ejected value: actor-only enrichment (B4)
+    return out
 
 
 class IllegalAction(Exception):
@@ -262,6 +267,13 @@ class Room:
                     if mine:
                         e["you"] = mine
                 e.pop("seq", None)
+            if e["type"] == "item" and e.get("item") == "MAGNET":
+                if e.get("actor") == seat and e.get("seq") is not None:
+                    row = next((r for r in self.rec.rows if r["seq"] == e["seq"]), None)
+                    ex = json.loads(row["extra"]) if row and row.get("extra") else {}
+                    if ex.get("discarded"):
+                        e["you"] = {"ejected": ex["discarded"]}
+                e.pop("seq", None)
             if e["type"] == "trade" and seat in (e.get("actor"), e.get("target")):
                 if self._last_trade_items is not None:
                     e["items"] = self._last_trade_items
@@ -360,7 +372,10 @@ class Room:
             if it == Item.GEIGER:
                 self.extras[seat].scan(ev)
             # MAGNET: every seat's stale scan clears via Extras.sync (window len change)
-            self.rec.item_used(self._turn, seat, action.item.name, action.target_id, {})
+            eff = {}
+            if it == Item.MAGNET and ev.get("discarded") is not None:
+                eff = {"discarded": ev["discarded"].name}             # private reveal (B4, user 2026-07-10)
+            self.rec.item_used(self._turn, seat, action.item.name, action.target_id, eff)
             if self.state.chamber is not ch_before and self.state.winner is None:   # Magnet emptied it → reload
                 live = sum(1 for s in self.state.chamber.bullets if s == Bullet.LIVE)
                 self.rec.reload(self._turn, "empty", len(self.state.chamber.bullets), live)
