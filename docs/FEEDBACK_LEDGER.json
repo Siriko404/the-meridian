@@ -30,6 +30,33 @@
     { "id": 20, "name": "PWA installable + install-before-signin", "status": "QUEUED", "note": "PWA does NOT fix FPS (settled); it is the install/login flow item, ties to id 9" },
     { "id": 21, "name": "draw rework", "status": "QUEUED", "note": "draws at every full table circle (3 items/player) + on death (dead player's items scattered randomly to everyone); total cards bounded 1-2x living players; REPLACES reload-trigger draws (verify reading with user before build)" }
   ],
+  "itemsession": {
+    "status": "IN PROGRESS 2026-07-10",
+    "yardstick": "per-item card (moves/seen/answer/when/price/frequency) + 10 kit tests (fun/fair/buildable/safe) + 4 depth tests (1-sentence, use-hurts, >=2 timings, named combo) + sim referee (mechanics only, humans judge social)",
+    "gates": ["1 skeleton DONE", "2 slots IN PROGRESS", "3 specials", "4 names", "5 prices+kit tests", "6 interaction sweep vs 8 edge rules", "7 sim"],
+    "skeleton": "6 slots, one per axis (life/info/chamber/aggression/tempo/shield); ladder 6/6-5/5-4/4 = HYPOTHESIS until gate 5",
+    "slots_decided": {
+      "1 life": "PASSPORT unchanged: +1 cover, locked at max 5. Name stays (user).",
+      "2 info": "GEIGER (was SPYCAM): privately reports HOW MANY of the next 2 rounds are live (0/1/2), never which. Edge rules: re-scan of unchanged window = same report; 1 round left = reports on 1. Legal: zero positional reveal, strongest divergence.",
+      "4 aggression": "POISON (user's final spec 2026-07-10): my LIVE hit deals 1 now + 1 more when MY turn comes again. NO CURE — PASSPORT heals HP but never removes the pending tick; PASSPORT stays locked at max cover as normal. No stacking (max 1 pending tick per victim, ruling 3). Blank = wasted (saw precedent). Poisoner dies before their turn -> tick fires immediately (proposed, flag at build). Divergence #2.",
+      "3 chamber": "MAGNET: eject current round for good — ejected round shown ONLY to the user (private reveal, user 2026-07-10). Lie fuel + GEIGER deduction combo. Reload-on-empty rule unchanged.",
+      "5 tempo": "SHAKEDOWN (was SEDATIVE) = TURN TAX (user's design): place on target; their next turn they choose — pay 6 pts = normal turn, pay 4 pts = SILENT turn (existing bonus-turn rights: items+flip+shoot, no talk/trade), pay nothing = skip. Victim picks cheapest hit (bounded, not OP — min() analysis). Divergence #3. Price stays 4, sim referees. Gate-6: pay moment, death cleanup, one-per-target, teammate ban keeps.",
+      "6 shield": "TERMS (was BLACKMAIL, enum IMMUNITY): function UNCHANGED — place on player, they can't target you with their next shot, expires when they fire, visible chip."
+    },
+    "regular_kit_final_names": ["PASSPORT", "GEIGER", "MAGNET", "POISON", "SHAKEDOWN", "TERMS"],
+    "prices_ratified": "6 = PASSPORT + SHAKEDOWN (user swapped TERMS/SHAKEDOWN 2026-07-10); 5 = GEIGER + POISON (= flip); 4 = MAGNET + TERMS (= flip-back); specials 0. Provisional until sim + win-cond #6.",
+    "specials_allocation": "user 2026-07-10: EVERY player gets ALL 3 specials at game start; never drawn/recharged again; one-shot each; 0 pts; un-finable; tradable; usable on anyone incl teammates",
+    "specials_names": "WARRANT (steal) / DRAGNET (see-all) / HANDLER (puppet) — ratified 2026-07-10",
+    "specials_anonymity": "ALL specials anonymous. Victim learns: WARRANT = searched + item gone; HANDLER = 'being ridden' at decision; DRAGNET = never knows. Table learns NOTHING official in all three. Specials police each other (only a DRAGNET can verify special-count claims).",
+    "specials_designed": {
+      "1 steal": "WARRANT: inspect target's FULL hand privately (incl. their specials), take ONE item of your choice — specials stealable (ruling 1, ratified). Respect taker's caps.",
+      "2 see-all": "DRAGNET: privately see EVERY player's REGULAR items only — specials NOT shown (ratified: kills the DRAGNET->WARRANT seek-and-steal pipeline; WARRANT = narrow+deep, DRAGNET = wide+shallow, each special keeps a monopoly)",
+      "3 puppet": "HANDLER: REACTIVE during ANY decision phase incl. bonus turns (ruling 5) — button steals the shot call; victim's target UI locks, victim told 'being ridden' (NOT by whom); handler picks target under VICTIM's constraints (team wall, TERMS on victim, self allowed); victim's armed items (POISON) still apply. SECRECY LAW (ruling 6, user): ZERO clock effect — timer runs exactly as victim's normal timer, timeout follows the STANDARD law (fines victim's cheapest, then auto self-shot); any visible anomaly would leak puppeteering to the table. Anonymous, private, framing machine."
+    },
+    "gate6_rulings": "1 WARRANT can take specials + sees target specials; DRAGNET regulars-only. 2 SHAKEDOWN payment burns surplus (one overpay law). 3 POISON no tick stacking. 4 dissolved (no cure exists). 5 HANDLER works on bonus turns. 6 HANDLER zero clock effect, standard timeout law.",
+    "specials_bug": "timeout fine takes cheapest item -> 0-pt specials always fined first; RULE NEEDED: specials un-finable",
+    "session_style": "brainstorm each slot IN CHAT (scenarios + depth + risk), user reads and TYPES choice; AskUserQuestion popups rejected for slot picks"
+  },
   "work_order_ratified": ["#itemsession (items 10-15,4)", "rename sweep: engine enums + docs to FINAL post-redesign names, ONE pass (legal mitigation 1+2+3: diverge 2-3 effects, rename enums, SHELLS->ROUNDS)", "item 6 win-cond simulation", "then 9/16/20/21 re-prioritized with user"],
   "design_constants": {
     "seat_card_v2": {
