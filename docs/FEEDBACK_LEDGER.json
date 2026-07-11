@@ -33,7 +33,8 @@
   "itemsession": {
     "status": "IN PROGRESS 2026-07-10",
     "yardstick": "per-item card (moves/seen/answer/when/price/frequency) + 10 kit tests (fun/fair/buildable/safe) + 4 depth tests (1-sentence, use-hurts, >=2 timings, named combo) + sim referee (mechanics only, humans judge social)",
-    "gates": ["1 skeleton DONE", "2 slots IN PROGRESS", "3 specials", "4 names", "5 prices+kit tests", "6 interaction sweep vs 8 edge rules", "7 sim"],
+    "gates": ["1 skeleton DONE", "2 slots DONE", "3 specials DONE", "4 names DONE", "5 prices DONE (swap committed ce4d7b7)", "6 interaction sweep DONE (rulings 1-6)", "7 sim PENDING (after implementation)"],
+    "implementation_progress": "DONE: A1+A2 rename sweep b3b5273 (enums+bullets+pistol, schema v2) / A3 lives->cover 3bdaca9 / price swap ce4d7b7. NEXT: B1 GEIGER effect -> B2 POISON tick -> B3 SHAKEDOWN tax -> B4 MAGNET private reveal -> C1 specials rail -> C2 HANDLER (bot 5s aiming window, option b) -> C3 specials UI -> D guide rewrite + icons gallery -> E sim. All NOT deployed yet (no push).",
     "skeleton": "6 slots, one per axis (life/info/chamber/aggression/tempo/shield); ladder 6/6-5/5-4/4 = HYPOTHESIS until gate 5",
     "slots_decided": {
       "1 life": "PASSPORT unchanged: +1 cover, locked at max 5. Name stays (user).",
