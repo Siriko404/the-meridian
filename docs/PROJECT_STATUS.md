@@ -1,20 +1,18 @@
 # Social Roulette — Project Status (resume anchor)
 
-**Updated:** 2026-07-11 (evening) · **Branch:** uiv2-client == origin == master @ `120867e` · LIVE at `120867e`, curl-confirmed · Read this first after any context reset.
+**Updated:** 2026-07-11 (night) · **Branch:** uiv2-client == origin == master @ `24d9af5` · LIVE, curl-confirmed · Read this first after any context reset.
 
-## ═══ HANDOFF 2026-07-11 — ALL SHIPPED · AWAITING USER'S ONE-GO ?dpr=3 PHONE CHECK ═══
-- **READ ledger `handler_v2_session` + `resolution_session` FIRST** — today's complete record.
-- **SHIPPED + LIVE (`123912b`→`120867e`):** HANDLER v2 silent redirect · `_notes` lifecycle fix ·
-  menu crumb-rail · RED marching-ants seize pick · speclab (16 steps) · reslab (**user locked 3×**) ·
-  `284db31` HANDLER race fix (turn-stamped seize: EXECUTE crossing the turn boundary dies unspent —
-  user's atomicity law: not executed legally → not spent, no effect; DRAGNET/WARRANT audited lawful) ·
-  `120867e` DPR mechanism live but **DEFAULT 1** (?dpr=N opt-in) + livepump.html dev rig.
-- **⏳ GATE: user checks https://meridian-ta39.onrender.com/static/game/index.html?dpr=3 on his
-  phone IN ONE GO (his call: "let me check it in one go") — sharpness AND taps. Pass → flip
-  default to 3 (one char in main.js bootGame). Fail on taps → real zoom hit-test bug; repro in
-  livepump.html + __taps probe (see ledger verification_state).**
-- **NEXT after gate:** user's TWO NEW MODS (unstated — fresh context) → ledger redesign (his
-  direction still pending) → speclab ratification → win-cond sim (#6).
+## ═══ HANDOFF 2026-07-11 — DPR3 LIVE FOR EVERYONE + TIMER-FREEZE CLASS KILLED ═══
+- **READ ledger `handler_v2_session` + `resolution_session` + `timer_session` FIRST.**
+- **SHIPPED + LIVE (`123912b`→`24d9af5`):** HANDLER v2 silent redirect · `_notes` lifecycle fix ·
+  menu crumb-rail · RED marching-ants seize pick · speclab (16 steps) · reslab ·
+  `284db31` HANDLER race fix (turn-stamped seize; atomicity law: not executed legally → not
+  spent, no effect; DRAGNET/WARRANT audited lawful) · `120867e` livepump.html dev rig ·
+  `a945248` **DPR 3× DEFAULT FOR EVERYONE — user's phone check: "its perfect"** (sharpness AND
+  taps; the rig's dead-button scare was a rig artifact) · `24d9af5` timer-freeze class fix
+  (grace freeze at 0:30/1:30, anchor lag, band blink — user field report; film-verified).
+- **NEXT:** user's TWO NEW MODS (unstated — he keeps deferring for a fresh context) → ledger
+  redesign (his direction still pending) → speclab ratification → win-cond sim (#6).
 - Dev servers: game :8000 + devcap sink :8017 running. Tests: 263 py (`.venv\Scripts\python -m pytest tests/ -q`) + 8 node (`node --test social_roulette/online/static/game/test/*.test.mjs`).
 - **Rig law (hard-won today, full version in ledger rig_lessons):** this machine can go fully
   rAF-DEAD (0 ticks, even foregrounded) — pumping `g.loop.step` does NOT advance tweens (Phaser

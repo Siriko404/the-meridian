@@ -64,6 +64,13 @@
       "other_defects_same_session": "menu ghost-trail overlap (fade lock keeps ALL old rows at 0.25 alpha — 15-row kit buries next sheet; fix: collapse retired list to ONE crumb line) + ledger redesign requested (direction pending from user)",
       "shipped": "ALL LIVE at eac71da (curl-confirmed meridian-ta39.onrender.com): 123912b handler-v2 server+client+_notes lifecycle fix (6 new tests, 262 py + 8 node green) / 62813e2 crumb rail + floors + RED marching-ants seize pick (user: 'moving red dotted frames') + serif alarm toast (user caught white DOM #banner posing as game warning — convention: scene.toast = in-world voice 18 sites, #banner = harness only 3 sites) + searched toast 2-line copy + SEIZE single-line + speclab rewritten to 16 REAL-chain steps (window.__lab.tap added) / eac71da reslab"
     },
+    "timer_session": {
+      "date": "2026-07-11",
+      "trigger": "user field report during his ?dpr=3 phone check: 'the timer froze on 30 secs' — pre-existing, DPR-independent (timer path never touches DPR)",
+      "class_found": "1 GRACE FREEZE (his bug): server pads phase_ends_at with beat grace (room._grace, up to 20s) but setBand clamped display at phase nominal -> digits pinned frozen at 0:30 (decision/tax) or 1:30 (talk) for the whole grace. 2 ANCHOR LAG: NET.countdown anchored at drain time, views queued behind beat chains ran the clock seconds ahead then jumped on re-anchor. 3 TALK-END: ~0:30 shown between client zero and server broadcast (latency-long after fix 2; honest under the 90s-burn design, accepted). 4 BAND BLINK: drain blanked the band unconditionally, 250ms flash per beatless refresh.",
+      "fix": "24d9af5 LIVE: honest digits (count real remaining THROUGH grace; only bar geometry caps at TOTAL; color by phase invert so decision grace stays red) + countdown anchored at view ARRIVAL (rides queue item) + band stand-down only when beats exist. Server deadline machinery audited: every mutation path re-arms via _broadcast_views -> _schedule_deadline, early-wake re-arms — no gaps.",
+      "verified": "capture.html `grace` scenario (committed): decision 0:40->0:29 counting straight through the old freeze point, red, bar capped; talk 1:48 honest white. V0 audit, 8 node green."
+    },
     "resolution_session": {
       "date": "2026-07-11",
       "trigger": "friend feedback, user concurs: text unreadable on phones — 'our blindspot all the way'",
