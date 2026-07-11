@@ -9,6 +9,7 @@
   let curView = null, roster = null;
   const accept = NET.genGate();
   let bannerT = null;
+  let seizeInFlight = false;                  // a seize awaiting its verdict (v2-3 alarm routing)
 
   function banner(text, holdMs) {
     const b = $("banner");
@@ -44,6 +45,7 @@
         `<div class="member">${esc(x.name)}${x.host ? " · CONDUCTOR" : ""}</div>`).join("");
     } else if (m.type === "view") {
       roster = m.roster || roster;
+      seizeInFlight = false;                  // any fresh state settles the seize silently
       queue.push({ events: accept(m) ? (m.events || []) : [], view: m });
       bootGame(); drain();
     } else if (m.type === "chat") {
@@ -52,7 +54,10 @@
       log.scrollTop = log.scrollHeight;
       if (scene) scene.setTicker(m.from + ": " + m.text);
     } else if (m.type === "error") {
-      banner("⚠ " + m.msg);
+      if (seizeInFlight && scene) {           // the v2-3 alarm is an IN-WORLD beat — serif
+        seizeInFlight = false;                // toast, never the harness's white banner
+        scene.toast("THE TRIGGER IS ALREADY HELD", 1600);
+      } else banner("⚠ " + m.msg);
       if (curView) cancelSel();               // rejected action → restore the verb strip
     } else if (m.type === "end") {
       ended = true; endWinner = m.winner; drain();
@@ -503,10 +508,12 @@
     openTh("HANDLER");
     const t = th;
     t.show(async () => {
-      const id = await t.pickSeat("shoot", curView.seize_ids || [], "THEIR SHOT — TAP THE REAL TARGET");
+      const id = await t.pickSeat("seize", curView.seize_ids || [], "THEIR SHOT — TAP THE REAL TARGET");
       if (id == null || !t.alive()) return;
       confirmStep("RE-AIM AT " + THEME.seatName(id, roster), THEME.SPECIALS.HANDLER.blurb,
-        () => net.send({ type: "handler_seize", target: id }));
+        () => { seizeInFlight = true;                            // a SILENT success sends no view —
+          setTimeout(() => { seizeInFlight = false; }, 4000);    // don't let the flag eat later errors
+          net.send({ type: "handler_seize", target: id }); });
     });
   }
 

@@ -183,8 +183,8 @@
         await scene.dialTo(e.actor);                          // trades are legal ONLY on the actor's
         await tradeBeat(scene, e, prev, view, roster);        // turn (engine) — show it (M26)
       } else if (e.type === "searched") {                  // WARRANT victim (private, anonymous)
-        await scene.toast(e.taken
-          ? "YOUR KIT WAS SEARCHED \u00B7 YOUR " + (THEME.ITEMS[e.taken] || THEME.SPECIALS[e.taken] || { name: e.taken }).name + " IS GONE"
+        await scene.toast(e.taken                          // \u22642 toast lines \u2014 3 hit the turn arrow
+          ? "SEARCHED \u2014 YOUR " + (THEME.ITEMS[e.taken] || THEME.SPECIALS[e.taken] || { name: e.taken }).name + " IS GONE"
           : "YOUR KIT WAS SEARCHED", 2000);
       } else if (e.type === "trade_private") {
         await scene.toast(e.kind === "cancelled"

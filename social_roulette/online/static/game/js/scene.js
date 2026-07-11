@@ -608,8 +608,7 @@
         const c = this.add.container(66, 668).setDepth(9).setVisible(false);    // above the dock rail, clear of every hub
         c.add(this.add.circle(0, 0, 24, 0x000000).setStrokeStyle(2, WHITE, 0.95)
           .setInteractive().on("pointerdown", () => this._onSeize && this._onSeize()));
-        c.add(this.add.text(0, 0, "SEIZE\nSHOT", style(10)).setOrigin(0.5).setResolution(2)
-          .setAlign("center"));
+        c.add(this.add.text(0, 0, "SEIZE", style(9)).setOrigin(0.5).setResolution(2));
         this.seizeBtn = c;
       }
       this._onSeize = cb;
@@ -697,7 +696,7 @@
     }
 
     /* ---- CLICK-THREAD MENU (RATIFIED — replaced the radial dial system entirely).
-     * mode: "stack" locked picks collapse to breadcrumb lines · "fade" lists stay, siblings fade
+     * mode: "stack" locked picks collapse to breadcrumb lines · "fade" retired lists collapse to ONE crumb
      *       · "cols" each step is a column. anim: "stagger" | "decode". All objects live at scene
      * root depth 22 (decode slots inherit txtObj.depth — containers would strand them behind the scrim). */
     openThread(opts) {
@@ -746,7 +745,8 @@
           it.dot ? 38 : ((mode === "fade" && it.sub) ? 58 : rowH));
         const Hs = off + pitch.reduce((a, b) => a + b, 0);
         if (mode === "fade") {                                 // ACTIVE list rides screen center;
-          const targetHy = Math.max(112, 384 - Hs / 2);        // the trail slides up out of the way
+          const floor = 138 + th.steps * 22;                   // …but never under the burn-circle
+          const targetHy = Math.max(floor, 384 - Hs / 2);      // or the crumb rail (2026-07-11 fix)
           if (!th._sections.length && !th.active) th.cursorY = targetHy;
           else if (Math.abs(targetHy - th.cursorY) > 4) th._slide(targetHy - th.cursorY);
           hy = th.cursorY;
@@ -875,16 +875,24 @@
           st.crumb = mk(this.add.text(W / 2, cy, st.key + " ▸ " + pick.it.label, style(12))
             .setOrigin(0.5).setResolution(2).setDepth(22));
           others.forEach((o) => o.destroy());
-        } else if (mode === "fade") {                          // list compresses in place, siblings ghost
-          const base = st.headT ? st.headT.y + 22 : st.hy + 4;
-          if (st.headT) st.headT.setAlpha(0.55).setScale(0.85);
-          st.rows.forEach((r, k) => {                          // buttons with their own "▸" keep it
-            r.t.setText((k === i && r.t.text.indexOf("▸") < 0 ? "▸ " : "") + r.t.text);
-            if (k === i) r.t._pick = th.steps;                 // pinned as a crumb when the trail slides
-            this.tweens.add({ targets: r.t, y: base + k * 24, scale: 0.72,
-              alpha: k === i ? 1 : (r.it.dim ? 0.15 : 0.25), duration: 220, ease: "Cubic.easeInOut" });
+        } else if (mode === "fade") {                          // retire to ONE crumb line — ghosting
+          const cy = 134 + th.steps * 22;                      // whole lists buried the next sheet
+          if (st.headT) {                                      // (playtest photos, 2026-07-11)
+            const h = st.headT; st.headT = null;
+            this.tweens.add({ targets: h, alpha: 0, duration: 150, onComplete: () => h.destroy() });
+          }
+          st.rows.forEach((r, k) => {
+            if (k === i) {
+              r.t.setText((r.t.text.indexOf("▸") < 0 ? "▸ " : "") + r.t.text);
+              r.t._pick = th.steps;                            // pinned on the crumb rail
+              this.tweens.add({ targets: r.t, x: W / 2, y: cy, scale: 0.72, alpha: 1,
+                duration: 220, ease: "Cubic.easeInOut" });
+            } else {
+              const o = r.t; r.t = null;
+              this.tweens.add({ targets: o, alpha: 0, duration: 150, onComplete: () => o.destroy() });
+            }
           });
-          th.cursorY = base + st.rows.length * 24 + 20;
+          th.cursorY = cy + 22;
           await this.w(240);
         } else {                                               // cols: the column dims, pick stays lit
           if (st.headT) st.headT.setAlpha(0.4);
@@ -901,15 +909,15 @@
         backB.setAlpha(1);
       };
 
-      const FIXED = new Set([scrim, dockCover, topCover, abort, backB, clockC]);  // chrome never slides
-      th._slide = (dy) => {                                    // move the whole trail (ghosts, crumbs, title)
+      const FIXED = new Set([scrim, dockCover, topCover, abort, backB, clockC, title]);  // chrome never slides
+      th._slide = (dy) => {                                    // move the whole trail (crumbs stay pinned)
         own.forEach((o) => {
           if (FIXED.has(o) || !o.scene || o.y == null) return;
           if (o._ba == null) o._ba = o.alpha;                  // remember the resting alpha
           if (o._oy == null) o._oy = o.y;                      // and the home position
           o._ty = (o._ty == null ? o.y : o._ty) + dy;          // settled target — overlapping slides
-          const ty = o._pick != null                           // a "▸ pick" NEVER slides under the
-            ? Math.max(o._ty, 134 + o._pick * 16) : o._ty;     // burn-circle — it pins as a crumb rail
+          const ty = o._pick != null                           // a "▸ pick" IS the crumb rail — it
+            ? 134 + o._pick * 22 : o._ty;                      // never drifts, up OR down
           this.tweens.add({ targets: o, y: ty, alpha: ty < 134 ? 0 : o._ba,  // ghosts fade BEFORE
             duration: 240, ease: "Cubic.easeInOut" });         // the burn-circle zone
         });
@@ -964,7 +972,7 @@
           .setResolution(2).setDepth(22).setName("tcxl"));
         const arm = this.decode(cancel, "✕ CANCEL", 240);
         const done = (id) => {
-          if (kind === "trade") this.seatGlow([], false); else this.clearTargets();
+          if (kind === "trade" || kind === "seize") this.seatGlow([], false); else this.clearTargets();
           ribbon.destroy(); cancel.destroy();
           th._picking = false;
           if (this._thread === th) {
@@ -978,7 +986,8 @@
         arm.then(() => { if (cancel.scene) cancel.setInteractive()   // back to the menu — NOT a full abort
           .on("pointerdown", () => done(null)); });
         if (kind === "shoot" || kind === "flip") this.setTargets(ids, done);  // red frame: danger
-        else if (kind === "trade") this.seatGlow(ids, true, done);   // marching ants
+        else if (kind === "trade") this.seatGlow(ids, true, done);   // white ants
+        else if (kind === "seize") this.seatGlow(ids, true, done, RED);  // RED ants — a re-aimed shot
         else this.setItemTargets(ids, done);                   // white pulse: item
       });
       th.close = () => this.closeThread();
@@ -1032,10 +1041,11 @@
         this._brackets.push({ destroy: () => { tw.remove(); g.destroy(); } }, hit);
       });
     }
-    seatGlow(ids, on, onTap) {                                 // M26 — MARCHING ANTS dotted frame.
+    seatGlow(ids, on, onTap, color) {                          // M26 — MARCHING ANTS dotted frame.
       this._glows.forEach((o) => { o.ev.remove(); o.g.destroy(); if (o.hit) o.hit.destroy(); });
-      this._glows = [];                                        // WHITE + tap — never red (trade ≠ danger)
-      if (!on) return;
+      this._glows = [];                                        // WHITE = trade; RED = seize (someone
+      if (!on) return;                                         // else's shot re-aimed = danger)
+      const tint = color == null ? WHITE : color;
       ids.forEach((id) => {
         const s = this.seats.get(id); if (!s) return;
         const g = this.add.graphics().setDepth(11);
@@ -1049,7 +1059,7 @@
           return [s.x - HALF, s.y + HALF - (d - 6 * HALF)];
         };
         const draw = () => {
-          g.clear().lineStyle(3, WHITE, 0.95);
+          g.clear().lineStyle(3, tint, 0.95);
           for (let d = phase; d < phase + PERIM; d += DASH + GAP) {
             g.beginPath();
             const [x0, y0] = pt(d); g.moveTo(x0, y0);
