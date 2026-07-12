@@ -2,7 +2,7 @@
  "_readme": "SYSTEMATIC LEDGER for the 2026-07-10 feedback batch. Read AFTER docs/PROJECT_STATUS.md. Statuses: LIVE (deployed) / WIRED (committed, not deployed) / QUEUED / DEFERRED / RESOLVED-BY-AUDIT. Every ratified design carries its EXACT parameters — do not re-litigate, do not re-sample. Update this file after every completed item.",
  "updated": "2026-07-12",
  "branch_state": {
-  "head": "5fc77b9 pushed+deploying (stale-WS guard + rejoin snap; docs-fix 0033d63 rode out with it)",
+  "head": "5a66699 local (RELOAD=REDRAW economy); origin @ f85874a — deploy pending user word",
   "branches": "uiv2-client == master == origin @ 5fc77b9",
   "deploy": "Render watches uiv2-client; push = deploy; confirm live via curl BEFORE giving the user a link",
   "live_url": "https://meridian-ta39.onrender.com"
@@ -282,5 +282,18 @@
    "node tests run via glob form only: node --test .../test/*.test.mjs (directory form fails)"
   ],
   "tests_added": "tests/test_depart.py (4, one-loop FakeWS convention)"
+ },
+ "reload_redraw_session": {
+  "trigger": "user: \"make the game a bit item rich\" -> counter-proposed his own rule set, ratified",
+  "ratified_law": "RELOAD = REDRAW: chamber reloads on empty AND every death; every reload deals 2 draws to each living player; kill+empty = ONE batch of 2; chamber total slots capped max(2*living, 6)",
+  "evidence_drought": "baseline 200-sims: 8p and 12p games complete with MEDIAN ZERO draw events (deaths reset the chamber, empty never fires; corpses burn items)",
+  "gate_results": "after: n=5 turns 22->18 draws 1->5; n=8 39->33, 0->8; n=12 60->54, 0->11; 600/600 complete",
+  "key_engineering": [
+   "2n cap is UNLOADABLE at 2 living (needs >=3 live at <=70% density => >=5 slots) -> floor 6 or load_chamber spins forever",
+   "live density naturally ~57% (E[min]/E[max] of 2d6) -> cap does not change lethality, only cycle length",
+   "tick deaths buffer batches in state.last_draws, drained like last_ticks (room._drain_ticks + sim/turn.py); zero client changes (M17 draw beat rides recorder rows)",
+   "game_guide.md edited with PRESERVED line count so engine guide:69 refs stay valid"
+  ],
+  "commit": "5a66699"
  }
 }
