@@ -44,3 +44,5 @@ CONSUMPTION_MULT = 1.0   # user 2026-07-10: cap = exactly the living-player coun
 MIN_PLAYERS = 5
 LIVE_FRACTION_MIN = 0.30
 LIVE_FRACTION_MAX = 0.70
+CHAMBER_CAP_MULT = 2     # user 2026-07-12: total slots <= 2x living — reloads come around faster
+CHAMBER_CAP_FLOOR = 6    # 2 living can't fit >n live rounds under the fraction band below 6 slots

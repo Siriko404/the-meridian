@@ -5,7 +5,7 @@ from .chamber import load_chamber
 from .shooting import resolve_shot
 from .items import apply_item, cap_reached
 from .economy import flip_team, pay_cost
-from .reload import reload_on_empty, reload_on_death, draw_items_for_all
+from .reload import reload_on_empty, reload_on_death
 from .endgame import assert_legal_shot, winner, next_living_after
 from .actions import UseItem, Flip, Trade, Shoot, EndSubactions, Speak, PayTax
 from .specials import starting_specials
@@ -14,7 +14,8 @@ from .specials import starting_specials
 def _process_death(state, victim_id):
     """Shared death bookkeeping (shot AND poison-tick kills): burn the corpse's
     items, expire the Terms they placed, drop them from the rotation, honor-reload,
-    update winner. Turn reassignment/draws stay with the caller (context-specific)."""
+    update winner. RELOAD = REDRAW: the death reload deals 2 to every living player;
+    the batch is returned — the caller routes it (ev["draws"] / last_draws buffer)."""
     victim = player_by_id(state, victim_id)
     victim.alive = False
     victim.inventory = {}                       # guide:69 — items burned
@@ -22,8 +23,9 @@ def _process_death(state, victim_id):
     for p in state.players:                     # guide:69 — their placed Terms expires
         p.immunity_against.discard(victim_id)
     state.order = [pid for pid in state.order if pid != victim_id]
-    reload_on_death(state)
+    draws = reload_on_death(state)
     state.winner = winner(state)
+    return draws
 
 
 def _fire_ticks(state, poisoner_id):
@@ -43,7 +45,7 @@ def _fire_ticks(state, poisoner_id):
                 killed = v.cover == 0
                 state.last_ticks.append((v.id, pid, killed))
                 if killed:
-                    _process_death(state, v.id)
+                    state.last_draws.append(_process_death(state, v.id))
                     if state.winner is not None:
                         return
                     queue.append(v.id)
@@ -94,10 +96,10 @@ def take_shot(state, shooter_id, target_id):
     emptied = state.chamber.is_empty()
     if ev["killed"]:
         order_before = list(state.order)
-        _process_death(state, target_id)
+        # RELOAD = REDRAW: the death IS the reload — one batch of 2, even when the
+        # fatal shot also drained the chamber (one reload, one payout — user ruling)
+        ev["draws"] = _process_death(state, target_id)
         _fire_ticks(state, target_id)               # a dead poisoner's tick fires NOW (B2 ruling)
-        if emptied:
-            ev["draws"] = draw_items_for_all(state, 2)
         state.bonus_pending = False
         state.poison_used_this_turn = False
         if state.winner is not None:

@@ -68,6 +68,7 @@ class GameState:
     help: dict = field(default_factory=dict)   # (receiver_id, giver_id) -> cumulative gift point-value received
     last_skipped: list = field(default_factory=list)  # pids who skipped (tax unpaid / timeout)
     last_ticks: list = field(default_factory=list)    # (victim, poisoner, killed) fired at turn advance / a death
+    last_draws: list = field(default_factory=list)    # draw batches from TICK deaths (RELOAD=REDRAW) — drained like ticks
 
 
 def player_by_id(state, pid):

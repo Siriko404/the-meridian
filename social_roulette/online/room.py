@@ -779,6 +779,9 @@ class Room:
             if k:
                 self.rec.elimination(self._turn, v, poisoner)
         self.state.last_ticks.clear()
+        for batch in self.state.last_draws:              # tick-death deals (RELOAD=REDRAW)
+            self._record_draws({"draws": batch})
+        self.state.last_draws.clear()
 
     def _drain_skips(self):
         """A shaken seat skipped at turn-advance is a PUBLIC event — flush the

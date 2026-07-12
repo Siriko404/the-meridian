@@ -24,5 +24,7 @@ def reload_on_empty(state):
 
 
 def reload_on_death(state):
+    # RELOAD = REDRAW (user 2026-07-12): a death reloads AND deals, same as empty
     state.chamber = load_chamber(state.rng, len(living_players(state)))
     reset_caps(state)
+    return draw_items_for_all(state, 2)

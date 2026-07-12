@@ -53,10 +53,10 @@ Each player rolls a single die **three times** to receive three starting items:
 
 ## The Chamber & Reloading
 
-The chamber reloads whenever it **empties — for any reason.**
+**RELOAD = REDRAW** (2026-07-12): the chamber reloads on **empty AND on every death** — and every reload deals **2 draws to each living player.**
 
 ### A. The chamber empties (last bullet fired, or Magnet'd away)
-- A fresh load is rolled (accumulate until **live > living players**, 30–70% live).
+- A fresh load is rolled (accumulate until **live > living players**, 30–70% live, **total ≤ max(2× living, 6)** — capped so reloads come around faster).
 - Every player **draws 2 items**, each rolled on the 1–6 item table, respecting the caps (over-cap items are not received).
 - If **Magnet** emptied the chamber, the reload + refill resolve, then the active player **still takes their shot** from the new chamber.
 
@@ -65,7 +65,7 @@ The chamber reloads whenever it **empties — for any reason.**
 - The player who landed the killing shot **takes a full extra turn** (talk + trade + items + flip + shoot).
 - Play then continues from the **next living seat after the killer**; the dead player leaves the rotation.
 - All **item consumption caps reset.**
-- **Items are drawn only if the chamber also emptied** (e.g. the kill was the last bullet). A mid-chamber kill just reshuffles — no item draw.
+- **Every living player draws 2** (the death IS a reload). A kill that also emptied the chamber pays **once**, not twice — one reload, one batch.
 - The dead player's items are **burned.** Of the tokens they had placed on others: their **Terms expires** (it protected them); their **Shakedown stays** (the target's next turn is still taxed).
 
 > `live > players` is guaranteed **only at load.** Magnet can drop live to or below the player count mid-chamber.

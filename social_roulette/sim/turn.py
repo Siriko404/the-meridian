@@ -173,6 +173,9 @@ def take_policy_turn(state, pid, policy, extras_map, rec=None, turn_idx=0, stop_
             rec.skip(turn_idx, pid_s)
         state.last_skipped.clear()
     state.last_ticks.clear()
+    for batch in state.last_draws:                   # tick-death deals (RELOAD=REDRAW)
+        _rec_draws(rec, turn_idx, {"draws": batch})
+    state.last_draws.clear()
     for e in extras_map.values():
         e.sync(state)
     return {"dead": dead}
