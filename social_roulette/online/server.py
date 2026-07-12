@@ -72,6 +72,9 @@ class Lobby:
         self.room = None           # Room once started
         self.lock = asyncio.Lock()
         self.deadline_task = None   # pending asyncio task that fires the phase deadline
+        self.hold_task = None       # pending 5:00 hold-expiry watcher (spec §4)
+        self.house_seats = {}       # seat -> {"name","portrait"} after SEAT THE HOUSE:
+                                    # the cover keeps playing, identity never flickers
 
     def by_pid(self, pid):
         return next((m for m in self.members if m.get("pid") == pid), None)
@@ -141,6 +144,108 @@ def _persist(lb):
         storage.session_append(lb.code, {"ended": lb.room.winner, "t": time.time()})
 
 
+def _appoint_chooser(lb):
+    # the conductor if aboard, else the earliest connected human — the 5:00
+    # choice must never wait on someone who is gone (spec §4)
+    seated = [m for m in lb.members if m["seat"] is not None and m["ws"] is not None]
+    host = next((m for m in seated if m["host"]), None)
+    pick = host or (seated[0] if seated else None)
+    return pick["seat"] if pick else None
+
+
+async def _hold_watch(lb, since):
+    try:
+        await asyncio.sleep(max(0.0, since + Room.HOLD_S - time.time()))
+    except asyncio.CancelledError:
+        return
+    async with lb.lock:
+        if lb.room is None or lb.room.held_since != since or lb.room.hold_expired:
+            return                       # held_since is the gen-guard of holds
+        lb.room.hold_expired = True
+        lb.room.hold_chooser = _appoint_chooser(lb)
+        _persist(lb)
+    await _broadcast_views(lb)
+
+
+async def _sync_hold(lb):
+    """Reconcile the hold with who is actually connected (call on every drop and
+    rejoin). Enters, refreshes, or releases the hold; broadcasts on change."""
+    changed = False
+    async with lb.lock:
+        r = lb.room
+        if r is None or r.winner is not None:
+            return
+        missing = sorted(m["seat"] for m in lb.members
+                         if m["seat"] is not None and m["ws"] is None
+                         and m["seat"] in r.human)
+        if missing and r.held_since is None:
+            r.hold(missing)
+            r.hold_chooser = _appoint_chooser(lb)
+            if lb.deadline_task is not None:     # the frozen clock must not fire
+                lb.deadline_task.cancel()
+                lb.deadline_task = None
+            if lb.hold_task is not None:
+                lb.hold_task.cancel()
+            lb.hold_task = asyncio.create_task(_hold_watch(lb, r.held_since))
+            _persist(lb)
+            changed = True
+        elif missing and r.held_since is not None and set(missing) != r.hold_missing:
+            r.hold(missing)                      # another agent left / one came back
+            r.hold_chooser = _appoint_chooser(lb)
+            _persist(lb)
+            changed = True
+        elif not missing and r.held_since is not None:
+            r.release()                          # all aboard — 3·2·1 rides the new deadline
+            if lb.hold_task is not None:
+                lb.hold_task.cancel()
+                lb.hold_task = None
+            _persist(lb)
+            changed = True
+    if changed:
+        await _broadcast_views(lb)               # release path re-arms the deadline here
+
+
+async def _apply_hold_choice(lb, seat, kind):
+    """The conductor's 5:00 call (spec §4). Returns (error, payloads, ended)."""
+    async with lb.lock:
+        r = lb.room
+        if r is None or not r.hold_expired or seat != r.hold_chooser:
+            return "not your call", None, False
+        if kind == "bot":
+            # SEAT THE HOUSE: the missing seats' covers play on as bots;
+            # their papers can no longer reclaim them
+            for s in sorted(r.hold_missing):
+                r.human.discard(s)
+                mm = next((x for x in lb.members if x["seat"] == s), None)
+                if mm:
+                    lb.house_seats[s] = {"name": mm["name"], "portrait": mm["portrait"]}
+                    lb.members.remove(mm)
+            r.release()
+            if lb.hold_task is not None:
+                lb.hold_task.cancel()
+                lb.hold_task = None
+            if r.is_bot(r.state.current_id):
+                r.last_events = []           # the house plays the frozen turn NOW —
+                r._run_bots()                # nobody waits out a dead man's fines
+                r._begin_phase_for_current()
+            _persist(lb)
+            return None, _capture_payloads(lb), False
+        if kind == "end":
+            # END THE LINE: no verdict; the record closes and opens for download
+            storage.session_append(lb.code, {"t": time.time(), "gen": r.gen,
+                                             "snapshot": r.to_dict()})
+            storage.session_append(lb.code, {"ended": "abandoned", "t": time.time()})
+            lb.room = None
+            if lb.hold_task is not None:
+                lb.hold_task.cancel()
+                lb.hold_task = None
+            if lb.deadline_task is not None:
+                lb.deadline_task.cancel()
+                lb.deadline_task = None
+            return None, None, True
+        return "bad payload", None, False
+
+
 def _capture_payloads(lb):
     # Snapshot each seat's per-seat delta + view WHILE the room lock is held, so a
     # concurrent handler/deadline cannot mutate the room between sends (I1: per-seat
@@ -154,9 +259,10 @@ def _portraits(lb):
     # Every seat wears a face: humans their chosen frame, bots the UNUSED frames
     # first (collision-free at any fill — spec §5). Pure + deterministic per
     # broadcast: seating and members' picks are fixed once the car departs.
-    used = {m["portrait"] for m in lb.members if m["seat"] is not None}
-    pool = [f for f in range(12) if f not in used]
     out = {m["seat"]: m["portrait"] for m in lb.members if m["seat"] is not None}
+    out.update({s: g["portrait"] for s, g in lb.house_seats.items()})   # covers play on
+    used = set(out.values())
+    pool = [f for f in range(12) if f not in used]
     if lb.room is not None:
         for s in lb.room.seating:
             if s not in out:
@@ -166,6 +272,7 @@ def _portraits(lb):
 
 async def _broadcast_views(lb, payloads=None):
     roster = {m["seat"]: m["name"] for m in lb.members if m["seat"] is not None}
+    roster.update({s: g["name"] for s, g in lb.house_seats.items()})    # identity never flickers
     portraits = _portraits(lb)
     for m in lb.members:
         if m["ws"] is not None and m["seat"] is not None:
@@ -268,6 +375,7 @@ async def ws(ws: WebSocket):
                     await _lobby_state(lb)
                 else:
                     await _broadcast_views(lb)
+                    await _sync_hold(lb)         # a rejoin may release the held car
 
             elif t == "ready" and lb and me and lb.room is None:
                 me["ready"] = bool(msg.get("on"))
@@ -429,7 +537,27 @@ async def ws(ws: WebSocket):
                     _persist(lb)
                 await _broadcast_views(lb, payloads)
 
+            elif t == "hold_choice" and lb and lb.room and me and me["seat"] is not None:
+                err, payloads, ended = await _apply_hold_choice(
+                    lb, me["seat"], str(msg.get("kind") or ""))
+                if err:
+                    await _send(ws, {"type": "error", "msg": err})
+                    continue
+                if ended:
+                    for m in lb.members:
+                        if m["ws"] is not None:
+                            await _send(m["ws"], {"type": "end", "winner": None})
+                    continue
+                await _broadcast_views(lb, payloads)
+                if lb.room.winner is not None:       # the house playthrough may end it
+                    for m in lb.members:
+                        if m["ws"] is not None:
+                            await _send(m["ws"], {"type": "end", "winner": lb.room.winner})
+
             elif t == "chat" and lb and me:
+                if lb.room is not None and lb.room.held_since is not None:
+                    await _send(ws, {"type": "error", "msg": "the car is held"})
+                    continue
                 if lb.room is not None and (me["seat"] is None or not lb.room.can_chat(me["seat"])):
                     await _send(ws, {"type": "error", "msg": "silence"})
                     continue
@@ -458,3 +586,4 @@ async def ws(ws: WebSocket):
                         LOBBIES.pop(lb.code, None)   # empty car returns to the yard
             else:
                 me["ws"] = None        # seat held; the papers reclaim it
+                await _sync_hold(lb)   # a seated human off the car HOLDS the game (spec §4)
