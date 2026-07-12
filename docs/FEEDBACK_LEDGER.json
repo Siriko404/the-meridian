@@ -1,137 +1,286 @@
 {
-  "_readme": "SYSTEMATIC LEDGER for the 2026-07-10 feedback batch. Read AFTER docs/PROJECT_STATUS.md. Statuses: LIVE (deployed) / WIRED (committed, not deployed) / QUEUED / DEFERRED / RESOLVED-BY-AUDIT. Every ratified design carries its EXACT parameters — do not re-litigate, do not re-sample. Update this file after every completed item.",
-  "updated": "2026-07-12",
-  "branch_state": {
-    "head": "0ee215f pushed+deployed (a local docs-fix commit rides after — push it with the NEXT code change; a lone push would redeploy and wipe live profiles/sessions mid-test)",
-    "branches": "uiv2-client == master == origin @ 0ee215f, LIVE curl-confirmed 2026-07-12",
-    "deploy": "Render watches uiv2-client; push = deploy; confirm live via curl BEFORE giving the user a link",
-    "live_url": "https://meridian-ta39.onrender.com"
+ "_readme": "SYSTEMATIC LEDGER for the 2026-07-10 feedback batch. Read AFTER docs/PROJECT_STATUS.md. Statuses: LIVE (deployed) / WIRED (committed, not deployed) / QUEUED / DEFERRED / RESOLVED-BY-AUDIT. Every ratified design carries its EXACT parameters — do not re-litigate, do not re-sample. Update this file after every completed item.",
+ "updated": "2026-07-12",
+ "branch_state": {
+  "head": "5fc77b9 pushed+deploying (stale-WS guard + rejoin snap; docs-fix 0033d63 rode out with it)",
+  "branches": "uiv2-client == master == origin @ 5fc77b9",
+  "deploy": "Render watches uiv2-client; push = deploy; confirm live via curl BEFORE giving the user a link",
+  "live_url": "https://meridian-ta39.onrender.com"
+ },
+ "sessions_identity_12p_session": {
+  "date": "2026-07-12",
+  "trigger": "the user's three saved mods: (1) session state not secure (reload/disconnect loses everything) -> persistent jsonl per play, unique ids, waiting room with ready/conductor/seat-dial/bot-fill, pause until rejoin; (2) up to 12 players, visually+functionally; (3) sign-in pages, profile-document-in-ticket theme, page map rethought fundamentally",
+  "spec": "docs/superpowers/specs/2026-07-11-sessions-identity-12p-design.md — 6 sections ratified via AskUserQuestion, then rev 2 after a full convention audit (every UI file read end-to-end; 10 corrections incl. portraits-already-exist, 12-ring overlap math, pre-start join hole, D11 supersession, one-page/one-ws overlay law)",
+  "rulings": "durability = the file lives while the game is unfinished, downloadable at the end, NEXT deletes; pid IS the credential (no password, party game); mid-game drop = auto-resume 3s on rejoin; cold restore = READY VOTE (his original words); 5:00 timeout -> conductor chooses SEAT THE HOUSE / END THE LINE (my recommendation, approved); conductor dial 5-12",
+  "shipped_local": "91f1d76 storage / 25e0436 papers+journeys+record endpoints / b858219 pid join + portraits on the wire / f6a9878 ticket overlays + CSS cache-buster (stale-css burned a review round) / 2fbab4d lobby state machine / b2e2549 platform UI / ce2efc4 Room.to_dict-from_dict rng-continuous / 7cb5ba8+774c326 journal per mutation / 74472b1 room hold / f1fbee6 server hold+watcher+choice / 3e5eae0 hold overlay+3-2-1+conductor sheet / 82334bd restore+cold-vote+record ticket / e311721 twelve (S=58 geometry, 12 codenames, dragnet rows)",
+  "verified": "323 py + 8 node green; live browser: papers->issued(S-UCND)->dashboard->new car->reload auto-return->depart, chosen hat portrait on seat; 8-seat and 12-seat boards clean; HOLD cycle live with python sidekick (freeze exact, 4:52 countdown, rejoin resume 1:14->1:10); dragnet report 11 rows one screen",
+  "laws_learned": "starlette TestClient gives EVERY websocket its own event loop — cross-socket asyncio.Lock hangs forever; multi-client server tests go hand-built-lobby style (test_server_deadline pattern). pids are credentials: never broadcast in rosters. session snapshot holds bullet order + all hands: record endpoint post-end only.",
+  "debts": "capture film scenarios for hold/12p not written (live screenshots only); livepump/devbot rigs reference dead join ids; ?bot devbot unverified under papers; @app.on_event deprecation warning; PWA (item 20) still deferred",
+  "deploy_note": "UNPUSHED. Protocol break on deploy: meridian_token dies, players create papers once. Push only on the user's word."
+ },
+ "items": [
+  {
+   "id": 1,
+   "name": "timer authority bug",
+   "status": "LIVE",
+   "commit": "1024a2f",
+   "note": "_deadline early-wake left NO task; else-branch re-arms; tests/test_server_deadline.py"
   },
-  "sessions_identity_12p_session": {
-    "date": "2026-07-12",
-    "trigger": "the user's three saved mods: (1) session state not secure (reload/disconnect loses everything) -> persistent jsonl per play, unique ids, waiting room with ready/conductor/seat-dial/bot-fill, pause until rejoin; (2) up to 12 players, visually+functionally; (3) sign-in pages, profile-document-in-ticket theme, page map rethought fundamentally",
-    "spec": "docs/superpowers/specs/2026-07-11-sessions-identity-12p-design.md — 6 sections ratified via AskUserQuestion, then rev 2 after a full convention audit (every UI file read end-to-end; 10 corrections incl. portraits-already-exist, 12-ring overlap math, pre-start join hole, D11 supersession, one-page/one-ws overlay law)",
-    "rulings": "durability = the file lives while the game is unfinished, downloadable at the end, NEXT deletes; pid IS the credential (no password, party game); mid-game drop = auto-resume 3s on rejoin; cold restore = READY VOTE (his original words); 5:00 timeout -> conductor chooses SEAT THE HOUSE / END THE LINE (my recommendation, approved); conductor dial 5-12",
-    "shipped_local": "91f1d76 storage / 25e0436 papers+journeys+record endpoints / b858219 pid join + portraits on the wire / f6a9878 ticket overlays + CSS cache-buster (stale-css burned a review round) / 2fbab4d lobby state machine / b2e2549 platform UI / ce2efc4 Room.to_dict-from_dict rng-continuous / 7cb5ba8+774c326 journal per mutation / 74472b1 room hold / f1fbee6 server hold+watcher+choice / 3e5eae0 hold overlay+3-2-1+conductor sheet / 82334bd restore+cold-vote+record ticket / e311721 twelve (S=58 geometry, 12 codenames, dragnet rows)",
-    "verified": "323 py + 8 node green; live browser: papers->issued(S-UCND)->dashboard->new car->reload auto-return->depart, chosen hat portrait on seat; 8-seat and 12-seat boards clean; HOLD cycle live with python sidekick (freeze exact, 4:52 countdown, rejoin resume 1:14->1:10); dragnet report 11 rows one screen",
-    "laws_learned": "starlette TestClient gives EVERY websocket its own event loop — cross-socket asyncio.Lock hangs forever; multi-client server tests go hand-built-lobby style (test_server_deadline pattern). pids are credentials: never broadcast in rosters. session snapshot holds bullet order + all hands: record endpoint post-end only.",
-    "debts": "capture film scenarios for hold/12p not written (live screenshots only); livepump/devbot rigs reference dead join ids; ?bot devbot unverified under papers; @app.on_event deprecation warning; PWA (item 20) still deferred",
-    "deploy_note": "UNPUSHED. Protocol break on deploy: meridian_token dies, players create papers once. Push only on the user's word."
+  {
+   "id": 2,
+   "name": "consume cap x1.3 -> x1.0",
+   "status": "LIVE",
+   "commit": "7b657bd",
+   "note": "CONSUMPTION_MULT=1.0; guide synced"
   },
-  "items": [
-    { "id": 1,  "name": "timer authority bug", "status": "LIVE", "commit": "1024a2f", "note": "_deadline early-wake left NO task; else-branch re-arms; tests/test_server_deadline.py" },
-    { "id": 2,  "name": "consume cap x1.3 -> x1.0", "status": "LIVE", "commit": "7b657bd", "note": "CONSUMPTION_MULT=1.0; guide synced" },
-    { "id": 3,  "name": "sedative teammate ban", "status": "LIVE", "commit": "e12e36d", "note": "legal_actions gate; IMMUNITY on teammates stays legal; FFA unaffected; RL possibility test widened to 150 seeds" },
-    { "id": 4,  "name": "item changes header", "status": "RESOLVED", "note": "= item redesign work item (#7)" },
-    { "id": 5,  "name": "seat card redesign", "status": "LIVE", "commit": "2d81a9c", "note": "see design_constants.seat_card_v2 — 10 lab iterations, all params ratified" },
-    { "id": 6,  "name": "win condition: max cover held one full circle", "status": "QUEUED", "note": "EVALUATE FIRST via simulation, report, user decides. Punch-card full-5 pulse is the UI tell already. Needs #7 item wiring first (user ordering)." },
-    { "id": 7,  "name": "image->1bit engine", "status": "DEFERRED", "note": "user: later ambitions" },
-    { "id": 8,  "name": "sedative/blackmail teammate rules", "status": "LIVE", "note": "folded into item 3" },
-    { "id": 9,  "name": "login page + ticket profile + waiting room", "status": "LIVE", "note": "sessions_identity_12p_session — deployed 2026-07-12, awaiting user's mobile verdict" },
-    { "id": 10, "name": "soften item names", "status": "QUEUED", "note": "inside item redesign session (#itemsession)" },
-    { "id": 11, "name": "special item: steal items from one player", "status": "QUEUED", "note": "#itemsession" },
-    { "id": 12, "name": "special item: see all inventories", "status": "QUEUED", "note": "#itemsession; theme: call intelligence-service backup" },
-    { "id": 13, "name": "special item: steal/force a player's shot (mind-switch); rename current BLACKMAIL->BRIBE", "status": "QUEUED", "note": "#itemsession" },
-    { "id": 14, "name": "special items are non-chargeable", "status": "QUEUED", "note": "NOT drawn; allocated ONCE at game start; 0 economy value; tradable; usable on ANYONE incl. teammates" },
-    { "id": 15, "name": "special item theme: calling a higher power", "status": "QUEUED", "note": "#itemsession" },
-    { "id": 16, "name": "language JSON ledger + LLM personality re-skin", "status": "QUEUED", "note": "all narration/comments in labeled structured JSON with default text + context; user describes persona -> LLM transforms" },
-    { "id": 17, "name": "lives -> COVER copy", "status": "RESOLVED-BY-AUDIT", "note": "client already says COVER; engine/docs vocabulary lands in the rename sweep" },
-    { "id": 18, "name": "beat text slower + linger", "status": "LIVE", "commit": "710e447", "note": "READ=1.6 in scene.js scales toast/stamp/float/coin captions; menus untouched" },
-    { "id": 19, "name": "phone FPS", "status": "LIVE", "commit": "99a7cbd", "note": "cause = WebGL path; CANVAS is default; ?webgl=1 restores AUTO; ?diag=1 FPS HUD exists" },
-    { "id": 20, "name": "PWA installable + install-before-signin", "status": "QUEUED", "note": "PWA does NOT fix FPS (settled); it is the install/login flow item, ties to id 9" },
-    { "id": 21, "name": "draw rework", "status": "QUEUED", "note": "draws at every full table circle (3 items/player) + on death (dead player's items scattered randomly to everyone); total cards bounded 1-2x living players; REPLACES reload-trigger draws (verify reading with user before build)" }
-  ],
-  "itemsession": {
-    "status": "IN PROGRESS 2026-07-10",
-    "yardstick": "per-item card (moves/seen/answer/when/price/frequency) + 10 kit tests (fun/fair/buildable/safe) + 4 depth tests (1-sentence, use-hurts, >=2 timings, named combo) + sim referee (mechanics only, humans judge social)",
-    "gates": ["1 skeleton DONE", "2 slots DONE", "3 specials DONE", "4 names DONE", "5 prices DONE (swap committed ce4d7b7)", "6 interaction sweep DONE (rulings 1-6)", "7 sim PENDING (after implementation)"],
-    "implementation_progress": "ALL LANDED + DEPLOYED + CURL-CONFIRMED 2026-07-10 @ 962bd3a: renames b3b5273/3bdaca9, prices ce4d7b7, GEIGER 07ac358, POISON 70507ef, MAGNET reveal 58d489f, SHAKEDOWN tax a61f38f, specials server 3d35f7d, specials UI 097d72d, speclab visual-audit fixes 962bd3a. Full-stack ws smoke passed (DRAGNET round-trip). 257 py + 6 node tests green. Remaining: E win-cond sim (#6).",
-    "speclab_audit": "speclab.html = 16-step ratification lab (W1-W6 warrant, D1-D3 dragnet, H1-H6 handler; actor/victim/table chairs). Self-audit 2026-07-10 found+fixed 4 defects: ledger overflow -> one ruled row per item; kit+specials too tall (clock collision) -> SPECIALS sub-page; SEIZE button hub collision -> (66,668) above the dock rail; pick-note copy clipped -> shortened. USER RATIFICATION OF THE 16 STEPS STILL PENDING.",
-    "pending_ui_gates": "USER: play live + ratify speclab 16 steps / poisoned-victim seat chip design (lab sample -> user ratifies) / special icons 22/26/33 are DRAFTS (gallery gate) / film-discipline pass over the new beats (tax, tick, aiming, seize) not yet run / specials NOT tradable yet (offer system extension deferred, spec debt)",
-    "skeleton": "6 slots, one per axis (life/info/chamber/aggression/tempo/shield); ladder 6/6-5/5-4/4 = HYPOTHESIS until gate 5",
-    "slots_decided": {
-      "1 life": "PASSPORT unchanged: +1 cover, locked at max 5. Name stays (user).",
-      "2 info": "GEIGER (was SPYCAM): privately reports HOW MANY of the next 2 rounds are live (0/1/2), never which. Edge rules: re-scan of unchanged window = same report; 1 round left = reports on 1. Legal: zero positional reveal, strongest divergence.",
-      "4 aggression": "POISON (user's final spec 2026-07-10): my LIVE hit deals 1 now + 1 more when MY turn comes again. NO CURE — PASSPORT heals HP but never removes the pending tick; PASSPORT stays locked at max cover as normal. No stacking (max 1 pending tick per victim, ruling 3). Blank = wasted (saw precedent). Poisoner dies before their turn -> tick fires immediately (proposed, flag at build). Divergence #2.",
-      "3 chamber": "MAGNET: eject current round for good — ejected round shown ONLY to the user (private reveal, user 2026-07-10). Lie fuel + GEIGER deduction combo. Reload-on-empty rule unchanged.",
-      "5 tempo": "SHAKEDOWN (was SEDATIVE) = TURN TAX (user's design): place on target; their next turn they choose — pay 6 pts = normal turn, pay 4 pts = SILENT turn (existing bonus-turn rights: items+flip+shoot, no talk/trade), pay nothing = skip. Victim picks cheapest hit (bounded, not OP — min() analysis). Divergence #3. Price stays 4, sim referees. Gate-6: pay moment, death cleanup, one-per-target, teammate ban keeps.",
-      "6 shield": "TERMS (was BLACKMAIL, enum IMMUNITY): function UNCHANGED — place on player, they can't target you with their next shot, expires when they fire, visible chip."
-    },
-    "regular_kit_final_names": ["PASSPORT", "GEIGER", "MAGNET", "POISON", "SHAKEDOWN", "TERMS"],
-    "prices_ratified": "6 = PASSPORT + SHAKEDOWN (user swapped TERMS/SHAKEDOWN 2026-07-10); 5 = GEIGER + POISON (= flip); 4 = MAGNET + TERMS (= flip-back); specials 0. Provisional until sim + win-cond #6.",
-    "specials_allocation": "user 2026-07-10: EVERY player gets ALL 3 specials at game start; never drawn/recharged again; one-shot each; 0 pts; un-finable; tradable; usable on anyone incl teammates",
-    "specials_names": "WARRANT (steal) / DRAGNET (see-all) / HANDLER (puppet) — ratified 2026-07-10",
-    "specials_anonymity": "ALL specials anonymous. Victim learns: WARRANT = searched + item gone; HANDLER = NOTHING (v2 2026-07-11 — shooter infers only from damage mismatch); DRAGNET = never knows. Table learns NOTHING official in all three. Specials police each other (only a DRAGNET can verify special-count claims).",
-    "specials_designed": {
-      "1 steal": "WARRANT: inspect target's FULL hand privately (incl. their specials), take ONE item of your choice — specials stealable (ruling 1, ratified). Respect taker's caps.",
-      "2 see-all": "DRAGNET: privately see EVERY player's REGULAR items only — specials NOT shown (ratified: kills the DRAGNET->WARRANT seek-and-steal pipeline; WARRANT = narrow+deep, DRAGNET = wide+shallow, each special keeps a monopoly)",
-      "3 puppet": "HANDLER v2 (user redesign 2026-07-11, replaces v1 'ridden' model): SILENT REDIRECT. Seize = ONE atomic move during any other player's decision/aiming phase: pick target X from the SHOOTER's legal targets at seize time, confirm, HANDLER consumed. Shooter gets ZERO notice — no banner, no locked SHOOT, picks + confirms their own target normally. Whatever shot ends that turn (deliberate OR timeout auto-self-shot, ruling v2-1) resolves at X instead. Wire/table/record all read 'shooter shot X'. Shooter learns ONLY from the damage mismatch; same-target pick = perfect crime, shooter never knows; no proof possible. v2-2: X must be legal for the shooter (TERMS respected — 'as if the handler's mind controlled their hands'); X may be the shooter themself (forced self-shot) or the seizer. v2-3: first seize locks; later seize attempts get PRIVATE error 'trigger already held' (leaks only to conspirator #2). Bot aiming window (5s) kept, shot still fires exactly AT deadline when seized (early fire would leak — secrecy law). Kill credit/extra turn/poison follow wire truth (the shooter). Archive (recorder) logs the seize + real target; wire never does."
-    },
-    "handler_v2_session": {
-      "date": "2026-07-11",
-      "trigger": "live playtest photos: 'A HIGHER POWER HOLDS YOUR TRIGGER' banner replayed forever (root cause: room._notes never cleared outside use_special — one seize note rode EVERY broadcast); user then redesigned handler entirely rather than fix the notice",
-      "scene_ratified": "Joe's turn; Sina seizes + picks Anna silently; Joe taps Mara + EXECUTE; bullet hits Anna; table sees 'JOE SHOT ANNA'; only Joe sees the mismatch, can't prove intent; if Sina picked Mara too, Joe never knows ('PERFECT! i love you.')",
-      "rulings": "v2-1 timeout self-shot also redirects to X. v2-2 X constrained to shooter-legal targets. v2-3 first-served lock, private 'trigger already held' alarm to later seizers.",
-      "other_defects_same_session": "menu ghost-trail overlap (fade lock keeps ALL old rows at 0.25 alpha — 15-row kit buries next sheet; fix: collapse retired list to ONE crumb line) + ledger redesign requested (direction pending from user)",
-      "shipped": "ALL LIVE at eac71da (curl-confirmed meridian-ta39.onrender.com): 123912b handler-v2 server+client+_notes lifecycle fix (6 new tests, 262 py + 8 node green) / 62813e2 crumb rail + floors + RED marching-ants seize pick (user: 'moving red dotted frames') + serif alarm toast (user caught white DOM #banner posing as game warning — convention: scene.toast = in-world voice 18 sites, #banner = harness only 3 sites) + searched toast 2-line copy + SEIZE single-line + speclab rewritten to 16 REAL-chain steps (window.__lab.tap added) / eac71da reslab"
-    },
-    "timer_session": {
-      "date": "2026-07-11",
-      "trigger": "user field report during his ?dpr=3 phone check: 'the timer froze on 30 secs' — pre-existing, DPR-independent (timer path never touches DPR)",
-      "class_found": "1 GRACE FREEZE (his bug): server pads phase_ends_at with beat grace (room._grace, up to 20s) but setBand clamped display at phase nominal -> digits pinned frozen at 0:30 (decision/tax) or 1:30 (talk) for the whole grace. 2 ANCHOR LAG: NET.countdown anchored at drain time, views queued behind beat chains ran the clock seconds ahead then jumped on re-anchor. 3 TALK-END: ~0:30 shown between client zero and server broadcast (latency-long after fix 2; honest under the 90s-burn design, accepted). 4 BAND BLINK: drain blanked the band unconditionally, 250ms flash per beatless refresh.",
-      "fix": "24d9af5 LIVE: honest digits (count real remaining THROUGH grace; only bar geometry caps at TOTAL; color by phase invert so decision grace stays red) + countdown anchored at view ARRIVAL (rides queue item) + band stand-down only when beats exist. Server deadline machinery audited: every mutation path re-arms via _broadcast_views -> _schedule_deadline, early-wake re-arms — no gaps.",
-      "verified": "capture.html `grace` scenario (committed): decision 0:40->0:29 counting straight through the old freeze point, red, bar capped; talk 1:48 honest white. V0 audit, 8 node green."
-    },
-    "resolution_session": {
-      "date": "2026-07-11",
-      "trigger": "friend feedback, user concurs: text unreadable on phones — 'our blindspot all the way'",
-      "root_cause": "backing canvas 390x844 (scene.js W,H) stretched over ~3x-density phone screens with nearest-neighbor (pixelArt + image-rendering:pixelated): every canvas px = 3x3 device px, small serif = mush. CANVAS renderer kept small for CPU speed (2026-07-10 WebGL-stutter bisect) — silent price was sharpness. setResolution(2) hardcoded at ~100 text sites caps below need.",
-      "reslab": "LIVE: meridian-ta39.onrender.com/static/game/reslab.html — same worst-case screen (kit small subs + burning band + red ants load) at DPR 1/2/3/DEVICE x CANVAS/WEBGL, switcher bar + live FPS meter. Mechanism: canvas W*DPR x H*DPR + cameras.main.setZoom(DPR)+centerOn (layout coords untouched) + Text.prototype.setResolution clamp to >=DPR (no scene.js sweep).",
-      "user_lock": "3x (renderer assumed CANVAS — the default he viewed; webgl toggle unconfirmed, flagged to him unanswered)",
-      "paranoid_checks_done": "grep clean: NO setScrollFactor/extra cameras/viewports/masks/snapshots anywhere — only zoom-safe cameras.main.shake. Text metrics (t.width layouts) unaffected by resolution. iOS canvas limits fine (2.96M px).",
-      "implementation_state": "SHIPPED 120867e (live, master synced): whole DPR mechanism dormant behind ?dpr=N, DEFAULT 1 — live game untouched. User decision: 'let me check it in one go' — HE is the smoke, on his real phone via ?dpr=3. If it passes, default flips to 3 in a one-char commit (main.js bootGame q.get('dpr') || '1').",
-      "verification_state": "RIG VERDICT INCONCLUSIVE ON TAPS: via livepump.html the 3x game reached YOUR TURN with a PERFECT board (band, clock, seats, plates, hub — film-verified via devcap). But a real CDP click on YOUR MOVE reported pointer p.x/p.y in RAW BACKING px (586,2327) while worldX/worldY were CORRECT game coords (195,776), and the menu did NOT open. All scene.js input is object-level setInteractive (no manual p.x math), so hit-test SHOULD be camera-aware — unresolved whether this is a real zoom hit-test defect (Phaser 4 setInteractive under camera zoom) or a rig artifact of the virtual clock. THE PHONE CHECK SETTLES IT.",
-      "remaining": "1 user one-go phone check: meridian-ta39.onrender.com/static/game/index.html?dpr=3 — sharpness AND every tap (hub, kit, YOUR MOVE chain, a shot). 2 if taps dead at 3x: real bug — fix candidates: hit-test transform under camera zoom (setInteractive hitArea vs camera), or route hits via worldX; reproduce first in livepump + __taps probe. 3 if pass: flip default to 3. 4 then labs/speclab DPR.",
-      "rig_lessons": "THIS MACHINE CAN GO FULLY rAF-DEAD (screen locked/idle): visible+focused tab, 0 rAF ticks in 800ms real — NO live-rAF run is possible; foregrounding via user32 does not help. Manual g.loop.step pumps the Phaser clock but NOT tweens (Phaser captured the real perf.now/Date.now at load — live monkey-patching is TOO LATE; a 180ms tween sat at progress 0.00 through 2100 pumped frames; one tween showed duration 8.4e14ms). THE cure is livepump.html (committed, static/game/): virtualizes rAF+performance.now+Date.now BEFORE phaser loads (capture.html's trick), then document.open-swallows the real index.html — the LIVE ws game then plays under window.__pump.start()/stop() at ~4x real speed, film-grabbable via canvas.toDataURL to the devcap sink. Older lessons still hold: never g.loop.sleep() during the opening drain; lobby DEPART id = 'startbtn'; join ids name/lastinit/enterbtn; wedged-CDP tab -> fresh tab; band countdown display reads the virtualized Date.now and races — cosmetic."
-    },
-    "implementation_plan": {
-      "phases": "A1 enum rename (code+fixtures, lockstep server+client, ONE commit) / A2 shell->bullet + shotgun->pistol everywhere (SCHEMA_VERSION 2) / A3 lives->cover (engine field + view key; recorder row keys UNCHANGED) / B1 GEIGER / B2 POISON tick / B3 SHAKEDOWN tax (multi-commit: engine, room+server, client) / B4 MAGNET private reveal / C1 specials rail + WARRANT + DRAGNET / C2 HANDLER (multi-commit) / C3 specials UI / D game_guide rewrite + film fixtures + icon gallery gate / E win-cond sim",
-      "rulings": "HANDLER-on-bots = option b (bots pause ~5s 'aiming' before their shot; HANDLER clickable in the window) — user 2026-07-10. RL/bots = auto-rule (bots pay tax greedily if cheap, random-ish specials; RL action space NOT extended — debt noted). lives->cover = engine field too. Death-by-tick: new death path — kill credit to poisoner, honor reload + caps reset, NO extra turn (proposed, confirm at B2). Archives (counsel-runs, docs/superpowers/*, stage*_results, *audit.md) keep OLD names — renaming history falsifies it; active docs only. OBS_DIM changes invalidate RL checkpoints — accepted. Blurbs update ONLY when the behavior lands (copy = engine truth); game_guide rewritten wholesale in D.",
-      "a1_tokens": "BEER->MAGNET HANDCUFFS->SHAKEDOWN MAGNIFIER->GEIGER SAW->POISON CIGARETTES->PASSPORT IMMUNITY->TERMS; case-sensitive whole-token; internal lowercase fields (saw_active, immunity_against, handcuffed) rename in their B-phase commits"
-    },
-    "gate6_rulings": "1 WARRANT can take specials + sees target specials; DRAGNET regulars-only. 2 SHAKEDOWN payment burns surplus (one overpay law). 3 POISON no tick stacking. 4 dissolved (no cure exists). 5 HANDLER works on bonus turns. 6 HANDLER zero clock effect, standard timeout law.",
-    "specials_bug": "timeout fine takes cheapest item -> 0-pt specials always fined first; RULE NEEDED: specials un-finable",
-    "session_style": "brainstorm each slot IN CHAT (scenarios + depth + risk), user reads and TYPES choice; AskUserQuestion popups rejected for slot picks"
+  {
+   "id": 3,
+   "name": "sedative teammate ban",
+   "status": "LIVE",
+   "commit": "e12e36d",
+   "note": "legal_actions gate; IMMUNITY on teammates stays legal; FFA unaffected; RL possibility test widened to 150 seeds"
   },
-  "work_order_ratified": ["#itemsession (items 10-15,4)", "rename sweep: engine enums + docs to FINAL post-redesign names, ONE pass (legal mitigation 1+2+3: diverge 2-3 effects, rename enums, SHELLS->BULLETS + shotgun->pistol, user 2026-07-10)", "item 6 win-cond simulation", "then 9/16/20/21 re-prioritized with user"],
-  "design_constants": {
-    "seat_card_v2": {
-      "cover_meter": "5 punch dots RIGHT of frame: r=3, pitch=12, 6px gap from tile edge (px = x+48); solid=cover, punched = lasting ring 1px @0.30 alpha; RED when shown<=2; +1 = stamp t:0->1 170ms Back.easeOut; -1 = alpha->0.25 60ms then ring; FULL5 = pulse A: per-dot alpha *= 1-max(0,1-|t*6-0.5-k|*1.4)*0.75, cycle 1800ms, continuous, bottom->top",
-      "chips": "LEFT of frame, bx = x-52 (5px gap; leftmost ring seat x~60 lands at screen edge 0); BARE glyphs no boxes: sedated = circle r7 stroke2 + diagonal slash; dirt = serif ! style(15); placer monograms stacked under ! at style(9.6) (~80% of plate name), spacing: sedated->! +25, !->tags +17, tag pitch height+3; chips setVisible(false) DURING stampSeat (audit fix); dead = no chips",
-      "plates": "frame-width w2=39, ny = y+61 (gap22), h2=13; team A (RED, plate 0xffffff) = BOX: white fill, black serif style(12) no stroke; team B (BLUE) = RULES: white serif + 2 hairlines at ny+-13; FFA = bare name only; dead = gray #666666 + strike line; name letterSpacing 2",
-      "frames": "all 1px; team A alpha 1.0, team B alpha 0.5 (THEME.TEAMS fa); active seat alpha 1 vs idle 0.55, multiplied by fa",
-      "removed": "heart pips, tally sticks, plate rectangles, chipT text, strike line object"
-    },
-    "beat_pacing": "READ = 1.6 (scene.js) — toast decode 440*R hold(1400)*R out 480*R, stampSeat hold 900*R, floatAt 950*R, coinFlip captions * SCENE.READ",
-    "renderer": "Phaser.CANVAS default (phone-verified smooth); ?webgl=1 -> AUTO; ?diag=1 -> FPS HUD (js/diag.js)",
-    "engine_balance": "CONSUMPTION_MULT=1.0; HANDCUFFS never on teammates while teams_active"
+  {
+   "id": 4,
+   "name": "item changes header",
+   "status": "RESOLVED",
+   "note": "= item redesign work item (#7)"
   },
-  "session_laws": [
-    "labs (lifelab/platelab/framelab) need NO deploy — user views http://127.0.0.1:8000/... on this machine; game server runs on :8000, devcap sink on :8017",
-    "before giving the user ANY live link: curl-confirm the deploy finished (Render ~2min)",
-    "SELF-AUDIT every design sample: screenshot + zoom at REAL size, judge aesthetics/readability, iterate BEFORE presenting — shipping unlooked-at designs burned trust twice",
-    "film discipline gate: runner.html moments must be DONE with viol=0; sheets land in %TEMP%/sr_devcap",
-    "browser automation CANNOT judge motion (rAF-throttled when occluded) — force states via window.__lab/__scene JS injection for frames; user judges motion live",
-    "red = danger ONLY; faces sacred (alpha only, never tint); every menu opens from a tapped icon; copy must match engine truth",
-    "atomic commit per item; push only on user's word; master and uiv2-client always synced together",
-    "preference choices -> AskUserQuestion; frustration -> stop and diagnose with ONE atomic question"
-  ],
-  "environment": {
-    "servers": "game: ./.venv/Scripts/python -m uvicorn social_roulette.online.server:app --port 8000 ; devcap sink: ./.venv/Scripts/python _devcap.py (:8017, needed by capture/runner)",
-    "tests": "./.venv/Scripts/python -m pytest -q (243) ; node social_roulette/online/static/game/test/net.test.mjs (2)",
-    "film": "http://127.0.0.1:8000/static/game/runner.html?list=board,... poll title ALLDONE; audits+sheets in %TEMP%/sr_devcap",
-    "speclab": "http://127.0.0.1:8000/static/game/speclab.html — tap = next step; window.__lab.go(n) jumps",
-    "occluded_audit_trick": "Chrome hidden => rAF frozen => menus never decode. Inject: window.__pump=(n)=>{const g=window.__scene.game;let t=performance.now();for(let k=0;k<n;k++){t+=16.7;g.loop.step(t);}}; then __lab.go(n); __pump(150); screenshot.",
-    "never_touch": ["HowToRun.txt", "docs/LEGAL_RISK_AUDIT.md"]
+  {
+   "id": 5,
+   "name": "seat card redesign",
+   "status": "LIVE",
+   "commit": "2d81a9c",
+   "note": "see design_constants.seat_card_v2 — 10 lab iterations, all params ratified"
+  },
+  {
+   "id": 6,
+   "name": "win condition: max cover held one full circle",
+   "status": "QUEUED",
+   "note": "EVALUATE FIRST via simulation, report, user decides. Punch-card full-5 pulse is the UI tell already. Needs #7 item wiring first (user ordering)."
+  },
+  {
+   "id": 7,
+   "name": "image->1bit engine",
+   "status": "DEFERRED",
+   "note": "user: later ambitions"
+  },
+  {
+   "id": 8,
+   "name": "sedative/blackmail teammate rules",
+   "status": "LIVE",
+   "note": "folded into item 3"
+  },
+  {
+   "id": 9,
+   "name": "login page + ticket profile + waiting room",
+   "status": "LIVE",
+   "note": "sessions_identity_12p_session — deployed 2026-07-12, awaiting user's mobile verdict"
+  },
+  {
+   "id": 10,
+   "name": "soften item names",
+   "status": "QUEUED",
+   "note": "inside item redesign session (#itemsession)"
+  },
+  {
+   "id": 11,
+   "name": "special item: steal items from one player",
+   "status": "QUEUED",
+   "note": "#itemsession"
+  },
+  {
+   "id": 12,
+   "name": "special item: see all inventories",
+   "status": "QUEUED",
+   "note": "#itemsession; theme: call intelligence-service backup"
+  },
+  {
+   "id": 13,
+   "name": "special item: steal/force a player's shot (mind-switch); rename current BLACKMAIL->BRIBE",
+   "status": "QUEUED",
+   "note": "#itemsession"
+  },
+  {
+   "id": 14,
+   "name": "special items are non-chargeable",
+   "status": "QUEUED",
+   "note": "NOT drawn; allocated ONCE at game start; 0 economy value; tradable; usable on ANYONE incl. teammates"
+  },
+  {
+   "id": 15,
+   "name": "special item theme: calling a higher power",
+   "status": "QUEUED",
+   "note": "#itemsession"
+  },
+  {
+   "id": 16,
+   "name": "language JSON ledger + LLM personality re-skin",
+   "status": "QUEUED",
+   "note": "all narration/comments in labeled structured JSON with default text + context; user describes persona -> LLM transforms"
+  },
+  {
+   "id": 17,
+   "name": "lives -> COVER copy",
+   "status": "RESOLVED-BY-AUDIT",
+   "note": "client already says COVER; engine/docs vocabulary lands in the rename sweep"
+  },
+  {
+   "id": 18,
+   "name": "beat text slower + linger",
+   "status": "LIVE",
+   "commit": "710e447",
+   "note": "READ=1.6 in scene.js scales toast/stamp/float/coin captions; menus untouched"
+  },
+  {
+   "id": 19,
+   "name": "phone FPS",
+   "status": "LIVE",
+   "commit": "99a7cbd",
+   "note": "cause = WebGL path; CANVAS is default; ?webgl=1 restores AUTO; ?diag=1 FPS HUD exists"
+  },
+  {
+   "id": 20,
+   "name": "PWA installable + install-before-signin",
+   "status": "QUEUED",
+   "note": "PWA does NOT fix FPS (settled); it is the install/login flow item, ties to id 9"
+  },
+  {
+   "id": 21,
+   "name": "draw rework",
+   "status": "QUEUED",
+   "note": "draws at every full table circle (3 items/player) + on death (dead player's items scattered randomly to everyone); total cards bounded 1-2x living players; REPLACES reload-trigger draws (verify reading with user before build)"
   }
+ ],
+ "itemsession": {
+  "status": "IN PROGRESS 2026-07-10",
+  "yardstick": "per-item card (moves/seen/answer/when/price/frequency) + 10 kit tests (fun/fair/buildable/safe) + 4 depth tests (1-sentence, use-hurts, >=2 timings, named combo) + sim referee (mechanics only, humans judge social)",
+  "gates": [
+   "1 skeleton DONE",
+   "2 slots DONE",
+   "3 specials DONE",
+   "4 names DONE",
+   "5 prices DONE (swap committed ce4d7b7)",
+   "6 interaction sweep DONE (rulings 1-6)",
+   "7 sim PENDING (after implementation)"
+  ],
+  "implementation_progress": "ALL LANDED + DEPLOYED + CURL-CONFIRMED 2026-07-10 @ 962bd3a: renames b3b5273/3bdaca9, prices ce4d7b7, GEIGER 07ac358, POISON 70507ef, MAGNET reveal 58d489f, SHAKEDOWN tax a61f38f, specials server 3d35f7d, specials UI 097d72d, speclab visual-audit fixes 962bd3a. Full-stack ws smoke passed (DRAGNET round-trip). 257 py + 6 node tests green. Remaining: E win-cond sim (#6).",
+  "speclab_audit": "speclab.html = 16-step ratification lab (W1-W6 warrant, D1-D3 dragnet, H1-H6 handler; actor/victim/table chairs). Self-audit 2026-07-10 found+fixed 4 defects: ledger overflow -> one ruled row per item; kit+specials too tall (clock collision) -> SPECIALS sub-page; SEIZE button hub collision -> (66,668) above the dock rail; pick-note copy clipped -> shortened. USER RATIFICATION OF THE 16 STEPS STILL PENDING.",
+  "pending_ui_gates": "USER: play live + ratify speclab 16 steps / poisoned-victim seat chip design (lab sample -> user ratifies) / special icons 22/26/33 are DRAFTS (gallery gate) / film-discipline pass over the new beats (tax, tick, aiming, seize) not yet run / specials NOT tradable yet (offer system extension deferred, spec debt)",
+  "skeleton": "6 slots, one per axis (life/info/chamber/aggression/tempo/shield); ladder 6/6-5/5-4/4 = HYPOTHESIS until gate 5",
+  "slots_decided": {
+   "1 life": "PASSPORT unchanged: +1 cover, locked at max 5. Name stays (user).",
+   "2 info": "GEIGER (was SPYCAM): privately reports HOW MANY of the next 2 rounds are live (0/1/2), never which. Edge rules: re-scan of unchanged window = same report; 1 round left = reports on 1. Legal: zero positional reveal, strongest divergence.",
+   "4 aggression": "POISON (user's final spec 2026-07-10): my LIVE hit deals 1 now + 1 more when MY turn comes again. NO CURE — PASSPORT heals HP but never removes the pending tick; PASSPORT stays locked at max cover as normal. No stacking (max 1 pending tick per victim, ruling 3). Blank = wasted (saw precedent). Poisoner dies before their turn -> tick fires immediately (proposed, flag at build). Divergence #2.",
+   "3 chamber": "MAGNET: eject current round for good — ejected round shown ONLY to the user (private reveal, user 2026-07-10). Lie fuel + GEIGER deduction combo. Reload-on-empty rule unchanged.",
+   "5 tempo": "SHAKEDOWN (was SEDATIVE) = TURN TAX (user's design): place on target; their next turn they choose — pay 6 pts = normal turn, pay 4 pts = SILENT turn (existing bonus-turn rights: items+flip+shoot, no talk/trade), pay nothing = skip. Victim picks cheapest hit (bounded, not OP — min() analysis). Divergence #3. Price stays 4, sim referees. Gate-6: pay moment, death cleanup, one-per-target, teammate ban keeps.",
+   "6 shield": "TERMS (was BLACKMAIL, enum IMMUNITY): function UNCHANGED — place on player, they can't target you with their next shot, expires when they fire, visible chip."
+  },
+  "regular_kit_final_names": [
+   "PASSPORT",
+   "GEIGER",
+   "MAGNET",
+   "POISON",
+   "SHAKEDOWN",
+   "TERMS"
+  ],
+  "prices_ratified": "6 = PASSPORT + SHAKEDOWN (user swapped TERMS/SHAKEDOWN 2026-07-10); 5 = GEIGER + POISON (= flip); 4 = MAGNET + TERMS (= flip-back); specials 0. Provisional until sim + win-cond #6.",
+  "specials_allocation": "user 2026-07-10: EVERY player gets ALL 3 specials at game start; never drawn/recharged again; one-shot each; 0 pts; un-finable; tradable; usable on anyone incl teammates",
+  "specials_names": "WARRANT (steal) / DRAGNET (see-all) / HANDLER (puppet) — ratified 2026-07-10",
+  "specials_anonymity": "ALL specials anonymous. Victim learns: WARRANT = searched + item gone; HANDLER = NOTHING (v2 2026-07-11 — shooter infers only from damage mismatch); DRAGNET = never knows. Table learns NOTHING official in all three. Specials police each other (only a DRAGNET can verify special-count claims).",
+  "specials_designed": {
+   "1 steal": "WARRANT: inspect target's FULL hand privately (incl. their specials), take ONE item of your choice — specials stealable (ruling 1, ratified). Respect taker's caps.",
+   "2 see-all": "DRAGNET: privately see EVERY player's REGULAR items only — specials NOT shown (ratified: kills the DRAGNET->WARRANT seek-and-steal pipeline; WARRANT = narrow+deep, DRAGNET = wide+shallow, each special keeps a monopoly)",
+   "3 puppet": "HANDLER v2 (user redesign 2026-07-11, replaces v1 'ridden' model): SILENT REDIRECT. Seize = ONE atomic move during any other player's decision/aiming phase: pick target X from the SHOOTER's legal targets at seize time, confirm, HANDLER consumed. Shooter gets ZERO notice — no banner, no locked SHOOT, picks + confirms their own target normally. Whatever shot ends that turn (deliberate OR timeout auto-self-shot, ruling v2-1) resolves at X instead. Wire/table/record all read 'shooter shot X'. Shooter learns ONLY from the damage mismatch; same-target pick = perfect crime, shooter never knows; no proof possible. v2-2: X must be legal for the shooter (TERMS respected — 'as if the handler's mind controlled their hands'); X may be the shooter themself (forced self-shot) or the seizer. v2-3: first seize locks; later seize attempts get PRIVATE error 'trigger already held' (leaks only to conspirator #2). Bot aiming window (5s) kept, shot still fires exactly AT deadline when seized (early fire would leak — secrecy law). Kill credit/extra turn/poison follow wire truth (the shooter). Archive (recorder) logs the seize + real target; wire never does."
+  },
+  "handler_v2_session": {
+   "date": "2026-07-11",
+   "trigger": "live playtest photos: 'A HIGHER POWER HOLDS YOUR TRIGGER' banner replayed forever (root cause: room._notes never cleared outside use_special — one seize note rode EVERY broadcast); user then redesigned handler entirely rather than fix the notice",
+   "scene_ratified": "Joe's turn; Sina seizes + picks Anna silently; Joe taps Mara + EXECUTE; bullet hits Anna; table sees 'JOE SHOT ANNA'; only Joe sees the mismatch, can't prove intent; if Sina picked Mara too, Joe never knows ('PERFECT! i love you.')",
+   "rulings": "v2-1 timeout self-shot also redirects to X. v2-2 X constrained to shooter-legal targets. v2-3 first-served lock, private 'trigger already held' alarm to later seizers.",
+   "other_defects_same_session": "menu ghost-trail overlap (fade lock keeps ALL old rows at 0.25 alpha — 15-row kit buries next sheet; fix: collapse retired list to ONE crumb line) + ledger redesign requested (direction pending from user)",
+   "shipped": "ALL LIVE at eac71da (curl-confirmed meridian-ta39.onrender.com): 123912b handler-v2 server+client+_notes lifecycle fix (6 new tests, 262 py + 8 node green) / 62813e2 crumb rail + floors + RED marching-ants seize pick (user: 'moving red dotted frames') + serif alarm toast (user caught white DOM #banner posing as game warning — convention: scene.toast = in-world voice 18 sites, #banner = harness only 3 sites) + searched toast 2-line copy + SEIZE single-line + speclab rewritten to 16 REAL-chain steps (window.__lab.tap added) / eac71da reslab"
+  },
+  "timer_session": {
+   "date": "2026-07-11",
+   "trigger": "user field report during his ?dpr=3 phone check: 'the timer froze on 30 secs' — pre-existing, DPR-independent (timer path never touches DPR)",
+   "class_found": "1 GRACE FREEZE (his bug): server pads phase_ends_at with beat grace (room._grace, up to 20s) but setBand clamped display at phase nominal -> digits pinned frozen at 0:30 (decision/tax) or 1:30 (talk) for the whole grace. 2 ANCHOR LAG: NET.countdown anchored at drain time, views queued behind beat chains ran the clock seconds ahead then jumped on re-anchor. 3 TALK-END: ~0:30 shown between client zero and server broadcast (latency-long after fix 2; honest under the 90s-burn design, accepted). 4 BAND BLINK: drain blanked the band unconditionally, 250ms flash per beatless refresh.",
+   "fix": "24d9af5 LIVE: honest digits (count real remaining THROUGH grace; only bar geometry caps at TOTAL; color by phase invert so decision grace stays red) + countdown anchored at view ARRIVAL (rides queue item) + band stand-down only when beats exist. Server deadline machinery audited: every mutation path re-arms via _broadcast_views -> _schedule_deadline, early-wake re-arms — no gaps.",
+   "verified": "capture.html `grace` scenario (committed): decision 0:40->0:29 counting straight through the old freeze point, red, bar capped; talk 1:48 honest white. V0 audit, 8 node green."
+  },
+  "resolution_session": {
+   "date": "2026-07-11",
+   "trigger": "friend feedback, user concurs: text unreadable on phones — 'our blindspot all the way'",
+   "root_cause": "backing canvas 390x844 (scene.js W,H) stretched over ~3x-density phone screens with nearest-neighbor (pixelArt + image-rendering:pixelated): every canvas px = 3x3 device px, small serif = mush. CANVAS renderer kept small for CPU speed (2026-07-10 WebGL-stutter bisect) — silent price was sharpness. setResolution(2) hardcoded at ~100 text sites caps below need.",
+   "reslab": "LIVE: meridian-ta39.onrender.com/static/game/reslab.html — same worst-case screen (kit small subs + burning band + red ants load) at DPR 1/2/3/DEVICE x CANVAS/WEBGL, switcher bar + live FPS meter. Mechanism: canvas W*DPR x H*DPR + cameras.main.setZoom(DPR)+centerOn (layout coords untouched) + Text.prototype.setResolution clamp to >=DPR (no scene.js sweep).",
+   "user_lock": "3x (renderer assumed CANVAS — the default he viewed; webgl toggle unconfirmed, flagged to him unanswered)",
+   "paranoid_checks_done": "grep clean: NO setScrollFactor/extra cameras/viewports/masks/snapshots anywhere — only zoom-safe cameras.main.shake. Text metrics (t.width layouts) unaffected by resolution. iOS canvas limits fine (2.96M px).",
+   "implementation_state": "SHIPPED 120867e (live, master synced): whole DPR mechanism dormant behind ?dpr=N, DEFAULT 1 — live game untouched. User decision: 'let me check it in one go' — HE is the smoke, on his real phone via ?dpr=3. If it passes, default flips to 3 in a one-char commit (main.js bootGame q.get('dpr') || '1').",
+   "verification_state": "RIG VERDICT INCONCLUSIVE ON TAPS: via livepump.html the 3x game reached YOUR TURN with a PERFECT board (band, clock, seats, plates, hub — film-verified via devcap). But a real CDP click on YOUR MOVE reported pointer p.x/p.y in RAW BACKING px (586,2327) while worldX/worldY were CORRECT game coords (195,776), and the menu did NOT open. All scene.js input is object-level setInteractive (no manual p.x math), so hit-test SHOULD be camera-aware — unresolved whether this is a real zoom hit-test defect (Phaser 4 setInteractive under camera zoom) or a rig artifact of the virtual clock. THE PHONE CHECK SETTLES IT.",
+   "remaining": "1 user one-go phone check: meridian-ta39.onrender.com/static/game/index.html?dpr=3 — sharpness AND every tap (hub, kit, YOUR MOVE chain, a shot). 2 if taps dead at 3x: real bug — fix candidates: hit-test transform under camera zoom (setInteractive hitArea vs camera), or route hits via worldX; reproduce first in livepump + __taps probe. 3 if pass: flip default to 3. 4 then labs/speclab DPR.",
+   "rig_lessons": "THIS MACHINE CAN GO FULLY rAF-DEAD (screen locked/idle): visible+focused tab, 0 rAF ticks in 800ms real — NO live-rAF run is possible; foregrounding via user32 does not help. Manual g.loop.step pumps the Phaser clock but NOT tweens (Phaser captured the real perf.now/Date.now at load — live monkey-patching is TOO LATE; a 180ms tween sat at progress 0.00 through 2100 pumped frames; one tween showed duration 8.4e14ms). THE cure is livepump.html (committed, static/game/): virtualizes rAF+performance.now+Date.now BEFORE phaser loads (capture.html's trick), then document.open-swallows the real index.html — the LIVE ws game then plays under window.__pump.start()/stop() at ~4x real speed, film-grabbable via canvas.toDataURL to the devcap sink. Older lessons still hold: never g.loop.sleep() during the opening drain; lobby DEPART id = 'startbtn'; join ids name/lastinit/enterbtn; wedged-CDP tab -> fresh tab; band countdown display reads the virtualized Date.now and races — cosmetic."
+  },
+  "implementation_plan": {
+   "phases": "A1 enum rename (code+fixtures, lockstep server+client, ONE commit) / A2 shell->bullet + shotgun->pistol everywhere (SCHEMA_VERSION 2) / A3 lives->cover (engine field + view key; recorder row keys UNCHANGED) / B1 GEIGER / B2 POISON tick / B3 SHAKEDOWN tax (multi-commit: engine, room+server, client) / B4 MAGNET private reveal / C1 specials rail + WARRANT + DRAGNET / C2 HANDLER (multi-commit) / C3 specials UI / D game_guide rewrite + film fixtures + icon gallery gate / E win-cond sim",
+   "rulings": "HANDLER-on-bots = option b (bots pause ~5s 'aiming' before their shot; HANDLER clickable in the window) — user 2026-07-10. RL/bots = auto-rule (bots pay tax greedily if cheap, random-ish specials; RL action space NOT extended — debt noted). lives->cover = engine field too. Death-by-tick: new death path — kill credit to poisoner, honor reload + caps reset, NO extra turn (proposed, confirm at B2). Archives (counsel-runs, docs/superpowers/*, stage*_results, *audit.md) keep OLD names — renaming history falsifies it; active docs only. OBS_DIM changes invalidate RL checkpoints — accepted. Blurbs update ONLY when the behavior lands (copy = engine truth); game_guide rewritten wholesale in D.",
+   "a1_tokens": "BEER->MAGNET HANDCUFFS->SHAKEDOWN MAGNIFIER->GEIGER SAW->POISON CIGARETTES->PASSPORT IMMUNITY->TERMS; case-sensitive whole-token; internal lowercase fields (saw_active, immunity_against, handcuffed) rename in their B-phase commits"
+  },
+  "gate6_rulings": "1 WARRANT can take specials + sees target specials; DRAGNET regulars-only. 2 SHAKEDOWN payment burns surplus (one overpay law). 3 POISON no tick stacking. 4 dissolved (no cure exists). 5 HANDLER works on bonus turns. 6 HANDLER zero clock effect, standard timeout law.",
+  "specials_bug": "timeout fine takes cheapest item -> 0-pt specials always fined first; RULE NEEDED: specials un-finable",
+  "session_style": "brainstorm each slot IN CHAT (scenarios + depth + risk), user reads and TYPES choice; AskUserQuestion popups rejected for slot picks"
+ },
+ "work_order_ratified": [
+  "#itemsession (items 10-15,4)",
+  "rename sweep: engine enums + docs to FINAL post-redesign names, ONE pass (legal mitigation 1+2+3: diverge 2-3 effects, rename enums, SHELLS->BULLETS + shotgun->pistol, user 2026-07-10)",
+  "item 6 win-cond simulation",
+  "then 9/16/20/21 re-prioritized with user"
+ ],
+ "design_constants": {
+  "seat_card_v2": {
+   "cover_meter": "5 punch dots RIGHT of frame: r=3, pitch=12, 6px gap from tile edge (px = x+48); solid=cover, punched = lasting ring 1px @0.30 alpha; RED when shown<=2; +1 = stamp t:0->1 170ms Back.easeOut; -1 = alpha->0.25 60ms then ring; FULL5 = pulse A: per-dot alpha *= 1-max(0,1-|t*6-0.5-k|*1.4)*0.75, cycle 1800ms, continuous, bottom->top",
+   "chips": "LEFT of frame, bx = x-52 (5px gap; leftmost ring seat x~60 lands at screen edge 0); BARE glyphs no boxes: sedated = circle r7 stroke2 + diagonal slash; dirt = serif ! style(15); placer monograms stacked under ! at style(9.6) (~80% of plate name), spacing: sedated->! +25, !->tags +17, tag pitch height+3; chips setVisible(false) DURING stampSeat (audit fix); dead = no chips",
+   "plates": "frame-width w2=39, ny = y+61 (gap22), h2=13; team A (RED, plate 0xffffff) = BOX: white fill, black serif style(12) no stroke; team B (BLUE) = RULES: white serif + 2 hairlines at ny+-13; FFA = bare name only; dead = gray #666666 + strike line; name letterSpacing 2",
+   "frames": "all 1px; team A alpha 1.0, team B alpha 0.5 (THEME.TEAMS fa); active seat alpha 1 vs idle 0.55, multiplied by fa",
+   "removed": "heart pips, tally sticks, plate rectangles, chipT text, strike line object"
+  },
+  "beat_pacing": "READ = 1.6 (scene.js) — toast decode 440*R hold(1400)*R out 480*R, stampSeat hold 900*R, floatAt 950*R, coinFlip captions * SCENE.READ",
+  "renderer": "Phaser.CANVAS default (phone-verified smooth); ?webgl=1 -> AUTO; ?diag=1 -> FPS HUD (js/diag.js)",
+  "engine_balance": "CONSUMPTION_MULT=1.0; HANDCUFFS never on teammates while teams_active"
+ },
+ "session_laws": [
+  "labs (lifelab/platelab/framelab) need NO deploy — user views http://127.0.0.1:8000/... on this machine; game server runs on :8000, devcap sink on :8017",
+  "before giving the user ANY live link: curl-confirm the deploy finished (Render ~2min)",
+  "SELF-AUDIT every design sample: screenshot + zoom at REAL size, judge aesthetics/readability, iterate BEFORE presenting — shipping unlooked-at designs burned trust twice",
+  "film discipline gate: runner.html moments must be DONE with viol=0; sheets land in %TEMP%/sr_devcap",
+  "browser automation CANNOT judge motion (rAF-throttled when occluded) — force states via window.__lab/__scene JS injection for frames; user judges motion live",
+  "red = danger ONLY; faces sacred (alpha only, never tint); every menu opens from a tapped icon; copy must match engine truth",
+  "atomic commit per item; push only on user's word; master and uiv2-client always synced together",
+  "preference choices -> AskUserQuestion; frustration -> stop and diagnose with ONE atomic question"
+ ],
+ "environment": {
+  "servers": "game: ./.venv/Scripts/python -m uvicorn social_roulette.online.server:app --port 8000 ; devcap sink: ./.venv/Scripts/python _devcap.py (:8017, needed by capture/runner)",
+  "tests": "./.venv/Scripts/python -m pytest -q (243) ; node social_roulette/online/static/game/test/net.test.mjs (2)",
+  "film": "http://127.0.0.1:8000/static/game/runner.html?list=board,... poll title ALLDONE; audits+sheets in %TEMP%/sr_devcap",
+  "speclab": "http://127.0.0.1:8000/static/game/speclab.html — tap = next step; window.__lab.go(n) jumps",
+  "occluded_audit_trick": "Chrome hidden => rAF frozen => menus never decode. Inject: window.__pump=(n)=>{const g=window.__scene.game;let t=performance.now();for(let k=0;k<n;k++){t+=16.7;g.loop.step(t);}}; then __lab.go(n); __pump(150); screenshot.",
+  "never_touch": [
+   "HowToRun.txt",
+   "docs/LEGAL_RISK_AUDIT.md"
+  ]
+ },
+ "mobile_fix_session": {
+  "trigger": "user mobile test verdict: (1) timer froze at 0:30 after relogin, (2) ratified: rejoin must snap to the live stage, <=1 quick animation, timer synced",
+  "root_cause": "disconnect handler had no socket-identity guard: phone reload leaves old WS lingering; new WS reclaims seat; stale close nulled the LIVE ws -> _sync_hold held the car -> deaf client talk band = 30+max(0,expired) = frozen 0:30; actions still worked (direct-ws error replies)",
+  "fix": [
+   "_depart(lb, me, ws) extracted; every branch guarded me[ws] is ws; reclaim evicts old socket (server.py) @ f1f7663",
+   "drain firstView: full M1-M5 ceremony ONLY when announce event present (true departure); rejoin = settle render + one dialTo; band already wall-anchored at arrival (main.js) @ 5fc77b9"
+  ],
+  "verified": "live repro both ways (pre-fix: \"the car is held\" on live socket; post-fix: chat echo, no hold); browser: fresh car plays full ceremony, reload lands on live board in seconds, decision band ticking; 327 py + 8 node green",
+  "laws_learned": [
+   "stale-socket law: ANY per-connection cleanup must verify it still owns the resource (me[ws] is ws) - mobile reloads make late closes the NORM, not the exception",
+   "background-tab measurements lie: rAF throttle inflated snap timing to 15s+; screenshot/focused tab showed seconds - never judge choreo timing from an unfocused tab (extends the motion law)",
+   "node tests run via glob form only: node --test .../test/*.test.mjs (directory form fails)"
+  ],
+  "tests_added": "tests/test_depart.py (4, one-loop FakeWS convention)"
+ }
 }

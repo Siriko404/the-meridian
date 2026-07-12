@@ -1,6 +1,18 @@
 # Social Roulette — Project Status (resume anchor)
 
-**Updated:** 2026-07-12 · **Branch:** uiv2-client == master == origin @ `0ee215f` · **DEPLOYED + curl-confirmed LIVE** (root 200 with PAPERS REQUIRED, /papers answering) · user testing on mobile · THIS docs-fix commit is LOCAL-ONLY on purpose: a push redeploys Render and WIPES live profiles/sessions mid-test — push it bundled with the next code change.
+**Updated:** 2026-07-12 · **Branch:** uiv2-client == master == origin @ `5fc77b9` · pushed, Render deploying (curl-poll running) · user re-tests reload on mobile next.
+
+## ═══ HANDOFF 2026-07-12b — MOBILE VERDICT ROUND 1: STALE-SOCKET FREEZE KILLED + REJOIN SNAP ═══
+- **READ ledger `mobile_fix_session` FIRST.** User's mobile report: band froze at 0:30 after relogin.
+- **Root cause (reproduced live, two sockets one pid):** disconnect cleanup had NO socket-identity
+  guard — phone reload leaves the old WS lingering; the new WS reclaims the seat; the stale close
+  then nulled the LIVE ws and held the car; the deaf client's talk band = 30+max(0,expired) = 0:30.
+- `f1f7663` **_depart(lb, me, ws)** — every disconnect branch guarded `me["ws"] is ws`; reclaim
+  evicts the old socket. tests/test_depart.py (4). · `5fc77b9` **rejoin SNAP (ratified):** full
+  M1–M5 ceremony only when the announce event rides (true departure); rejoin = settle + one dial
+  click, band already wall-anchored at arrival. Browser-verified both paths; 327 py + 8 node green.
+- **Laws:** per-connection cleanup must prove it still owns the resource (late closes are the NORM
+  on mobile) · never judge choreo timing from an unfocused tab (rAF throttle lies).
 
 ## ═══ HANDOFF 2026-07-12 — THE THREE MODS: SESSIONS + PAPERS + 12 PLAYERS (LIVE) ═══
 - **READ ledger `sessions_identity_12p_session` FIRST.** Spec (ratified §-by-§):
