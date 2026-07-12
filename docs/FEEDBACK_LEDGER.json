@@ -1,11 +1,22 @@
 {
   "_readme": "SYSTEMATIC LEDGER for the 2026-07-10 feedback batch. Read AFTER docs/PROJECT_STATUS.md. Statuses: LIVE (deployed) / WIRED (committed, not deployed) / QUEUED / DEFERRED / RESOLVED-BY-AUDIT. Every ratified design carries its EXACT parameters — do not re-litigate, do not re-sample. Update this file after every completed item.",
-  "updated": "2026-07-10",
+  "updated": "2026-07-12",
   "branch_state": {
-    "head": "2d81a9c",
-    "branches": "master == uiv2-client, both pushed",
+    "head": "e311721 (+docs commit after)",
+    "branches": "uiv2-client AHEAD of origin/master — sessions+papers+12p UNPUSHED (user's word deploys)",
     "deploy": "Render watches uiv2-client; push = deploy; confirm live via curl BEFORE giving the user a link",
     "live_url": "https://meridian-ta39.onrender.com"
+  },
+  "sessions_identity_12p_session": {
+    "date": "2026-07-12",
+    "trigger": "the user's three saved mods: (1) session state not secure (reload/disconnect loses everything) -> persistent jsonl per play, unique ids, waiting room with ready/conductor/seat-dial/bot-fill, pause until rejoin; (2) up to 12 players, visually+functionally; (3) sign-in pages, profile-document-in-ticket theme, page map rethought fundamentally",
+    "spec": "docs/superpowers/specs/2026-07-11-sessions-identity-12p-design.md — 6 sections ratified via AskUserQuestion, then rev 2 after a full convention audit (every UI file read end-to-end; 10 corrections incl. portraits-already-exist, 12-ring overlap math, pre-start join hole, D11 supersession, one-page/one-ws overlay law)",
+    "rulings": "durability = the file lives while the game is unfinished, downloadable at the end, NEXT deletes; pid IS the credential (no password, party game); mid-game drop = auto-resume 3s on rejoin; cold restore = READY VOTE (his original words); 5:00 timeout -> conductor chooses SEAT THE HOUSE / END THE LINE (my recommendation, approved); conductor dial 5-12",
+    "shipped_local": "91f1d76 storage / 25e0436 papers+journeys+record endpoints / b858219 pid join + portraits on the wire / f6a9878 ticket overlays + CSS cache-buster (stale-css burned a review round) / 2fbab4d lobby state machine / b2e2549 platform UI / ce2efc4 Room.to_dict-from_dict rng-continuous / 7cb5ba8+774c326 journal per mutation / 74472b1 room hold / f1fbee6 server hold+watcher+choice / 3e5eae0 hold overlay+3-2-1+conductor sheet / 82334bd restore+cold-vote+record ticket / e311721 twelve (S=58 geometry, 12 codenames, dragnet rows)",
+    "verified": "323 py + 8 node green; live browser: papers->issued(S-UCND)->dashboard->new car->reload auto-return->depart, chosen hat portrait on seat; 8-seat and 12-seat boards clean; HOLD cycle live with python sidekick (freeze exact, 4:52 countdown, rejoin resume 1:14->1:10); dragnet report 11 rows one screen",
+    "laws_learned": "starlette TestClient gives EVERY websocket its own event loop — cross-socket asyncio.Lock hangs forever; multi-client server tests go hand-built-lobby style (test_server_deadline pattern). pids are credentials: never broadcast in rosters. session snapshot holds bullet order + all hands: record endpoint post-end only.",
+    "debts": "capture film scenarios for hold/12p not written (live screenshots only); livepump/devbot rigs reference dead join ids; ?bot devbot unverified under papers; @app.on_event deprecation warning; PWA (item 20) still deferred",
+    "deploy_note": "UNPUSHED. Protocol break on deploy: meridian_token dies, players create papers once. Push only on the user's word."
   },
   "items": [
     { "id": 1,  "name": "timer authority bug", "status": "LIVE", "commit": "1024a2f", "note": "_deadline early-wake left NO task; else-branch re-arms; tests/test_server_deadline.py" },
@@ -16,7 +27,7 @@
     { "id": 6,  "name": "win condition: max cover held one full circle", "status": "QUEUED", "note": "EVALUATE FIRST via simulation, report, user decides. Punch-card full-5 pulse is the UI tell already. Needs #7 item wiring first (user ordering)." },
     { "id": 7,  "name": "image->1bit engine", "status": "DEFERRED", "note": "user: later ambitions" },
     { "id": 8,  "name": "sedative/blackmail teammate rules", "status": "LIVE", "note": "folded into item 3" },
-    { "id": 9,  "name": "login page + ticket profile + waiting room", "status": "QUEUED" },
+    { "id": 9,  "name": "login page + ticket profile + waiting room", "status": "WIRED", "note": "sessions_identity_12p_session — built+verified locally, UNPUSHED" },
     { "id": 10, "name": "soften item names", "status": "QUEUED", "note": "inside item redesign session (#itemsession)" },
     { "id": 11, "name": "special item: steal items from one player", "status": "QUEUED", "note": "#itemsession" },
     { "id": 12, "name": "special item: see all inventories", "status": "QUEUED", "note": "#itemsession; theme: call intelligence-service backup" },

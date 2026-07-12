@@ -1,6 +1,30 @@
 # Social Roulette — Project Status (resume anchor)
 
-**Updated:** 2026-07-11 (night) · **Branch:** uiv2-client == origin == master @ `24d9af5` · LIVE, curl-confirmed · Read this first after any context reset.
+**Updated:** 2026-07-12 · **Branch:** uiv2-client @ `e311721` (docs follow) · **NOT PUSHED — the user's word deploys** · Read this first after any context reset.
+
+## ═══ HANDOFF 2026-07-12 — THE THREE MODS: SESSIONS + PAPERS + 12 PLAYERS (LOCAL, UNPUSHED) ═══
+- **READ ledger `sessions_identity_12p_session` FIRST.** Spec (ratified §-by-§):
+  `docs/superpowers/specs/2026-07-11-sessions-identity-12p-design.md` · plan: `docs/superpowers/plans/2026-07-11-sessions-identity-12p.md`.
+- **BUILT + BROWSER-VERIFIED locally (17 tasks, 323 py + 8 node green), commit chain
+  `91f1d76`→`e311721`:** PAPERS identity (profiles.jsonl, issued pid `X-####` = the credential,
+  12 JJ99 portrait picker, terminus/papers/signin/dashboard ticket overlays, auto-return via
+  `meridian_pid`+`meridian_car`) · PLATFORM waiting room (manifest+ready gate+seats dial 5–12+
+  locked DEPART+join gating+conductor inheritance) · SESSION JOURNAL (snapshot per mutation to
+  `data/sessions/<CODE>.jsonl`, `Room.to_dict/from_dict` with rng continuity) · HOLD AT SIGNAL
+  (drop freezes the exact second for everyone, 5:00 clock, rejoin → 3·2·1 resume — VERIFIED LIVE
+  with a python sidekick second player; timeout → conductor: SEAT THE HOUSE / END THE LINE;
+  covers play on via `house_seats`) · boot restore as HELD cars + cold READY-VOTE ·
+  record ticket (download post-end only — the file names every hand; burns when the last agent
+  leaves) · TWELVE players (parametric seat size S=58 at n>8 — 78px tiles overlap at 12 (pitch
+  75.6px), 12 codenames, one-row dragnet with 3-letter fallback, 12-seat board + dragnet
+  screenshot-verified live).
+- **NOT DONE / NEXT:** push+deploy (USER'S WORD ONLY — this is a big protocol change; old
+  clients' `meridian_token` dies, everyone makes papers once) · capture.html film scenarios for
+  hold/12p (visual checks were live-browser screenshots this session) · livepump/devbot rigs
+  still reference the OLD join ids (name/lastinit) — update before next rig session ·
+  `?bot` devbot flow unverified under papers · deprecated `@app.on_event` warning (cosmetic).
+- Dev: profiles/sessions live in `social_roulette/online/data/` (gitignored). Second-player rig:
+  `scratchpad/sidekick.py CODE [PID]`. Tests: 323 py + 8 node.
 
 ## ═══ HANDOFF 2026-07-11 — DPR3 LIVE FOR EVERYONE + TIMER-FREEZE CLASS KILLED ═══
 - **READ ledger `handler_v2_session` + `resolution_session` + `timer_session` FIRST.**
