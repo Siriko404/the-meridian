@@ -24,7 +24,9 @@
     DRAGNET: { name: "DRAGNET", icon: 26, blurb: "SEE EVERY KIT - ONCE" },
     HANDLER: { name: "HANDLER", icon: 33, blurb: "RE-AIM SOMEONE'S SHOT - THEY NEVER KNOW" },
   };
-  const CODENAMES = ["V.K.", "C.W.", "J.L.", "N.D.", "W.N.", "H.Y.", "M.T.", "P.K."];  // bots wear monograms too
+  const CODENAMES = ["V.K.", "C.W.", "J.L.", "N.D.", "W.N.", "H.Y.", "M.T.", "P.K.",
+                     "R.S.", "E.F.", "L.O.", "T.B."];   // bots wear monograms too — 12 for a
+                                                        // full car, no repeats (spec §5)
   const ICON = { revolver: 0, heart: 20, ledger: 37, briefcase: 40, envelope: 14,
                  poison: 11, phone: 38 };
   const MAX_COVER = 5, MAX_PER_TYPE = 3, MAX_TOTAL = 8;

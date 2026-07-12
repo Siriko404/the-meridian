@@ -27,5 +27,6 @@ test("seatName: roster (string keys) wins, truncated 8 upper; bots get codenames
   assert.equal(THEME.seatName(0, { "0": "alexandra" }), "ALEXANDR");
   assert.equal(THEME.seatName(2, { "0": "a" }), THEME.CODENAMES[2]);
   assert.equal(THEME.seatName(3, null), THEME.CODENAMES[3]);
-  assert.equal(THEME.CODENAMES.length, 8);
+  assert.equal(THEME.CODENAMES.length, 12);                 // a full car, no repeats (spec S5)
+  assert.equal(new Set(THEME.CODENAMES).size, 12);
 });

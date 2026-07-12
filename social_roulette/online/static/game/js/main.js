@@ -600,10 +600,12 @@
     t.show(() => {
       const rows = [{ info: true, label: "EVERY KIT ON THE TRAIN — SPECIALS STAY DARK" }, { dot: true }];
       Object.entries(report || {}).forEach(([pid, hand]) => {
-        const inv = Object.entries(hand || {}).filter(([, c]) => c > 0)
-          .map(([en, c]) => iname(en) + "×" + c).join(" · ") || "EMPTY-HANDED";
-        rows.push({ label: THEME.seatName(+pid, roster), still: true, bright: true });
-        rows.push({ info: true, label: inv, tight: true });
+        // ONE ruled row per kit — the two-row layout overflowed at 12 players (spec §5).
+        // Long hands fall back to 3-letter prefixes (PAS/SHA/GEI/POI/MAG/TER — distinct).
+        const ent = Object.entries(hand || {}).filter(([, c]) => c > 0);
+        let inv = ent.map(([en, c]) => iname(en) + "×" + c).join(" · ") || "EMPTY-HANDED";
+        if (inv.length > 26) inv = ent.map(([en, c]) => iname(en).slice(0, 3) + "×" + c).join(" · ");
+        rows.push({ split: [THEME.seatName(+pid, roster), inv] });
       });
       t.list("i", "", rows);
       t.onRow = null;

@@ -93,21 +93,29 @@
 
     layout(order) {
       const n = order.length;
+      // ONE derivation site (spec §5): at n>8 the ring pitch 2·R·sin(π/n) drops under
+      // the 78px tile (75.6px at 12) — the seat size S shrinks and EVERY derived
+      // constant (corners, plates, dot/chip columns, brackets, ants, hits) follows.
+      const S = n <= 8 ? 78 : 58;
+      this.S = S;
+      this.FSC = S === 78 ? 2 : 1.5;                       // 36px faces → the S-box, crisp halves
+      const HS = S / 2;
+      const RXn = n <= 8 ? RX : 150, RYn = n <= 8 ? RY : 168;   // wider ring buys air at 12
       order.forEach((id, i) => {
         const a = this.seatAngle(i, n);
-        const x = CX + RX * Math.cos(a), y = CY + RY * Math.sin(a);
-        const tile = this.add.rectangle(x, y, 78, 78, 0x000000).setStrokeStyle(2, WHITE, 0.55);
+        const x = CX + RXn * Math.cos(a), y = CY + RYn * Math.sin(a);
+        const tile = this.add.rectangle(x, y, S, S, 0x000000).setStrokeStyle(2, WHITE, 0.55);
         const broken = this.add.graphics().setVisible(false);  // death frame (M14)
-        [[-39, -39, 1, 1], [39, -39, -1, 1], [-39, 39, 1, -1], [39, 39, -1, -1]].forEach(([dx, dy, sx, sy]) => {
+        [[-HS, -HS, 1, 1], [HS, -HS, -1, 1], [-HS, HS, 1, -1], [HS, HS, -1, -1]].forEach(([dx, dy, sx, sy]) => {
           broken.lineStyle(3, WHITE, 0.8);
           broken.lineBetween(x + dx + sx * 4, y + dy + sy * 4, x + dx + sx * 16, y + dy + sy * 4);
           broken.lineBetween(x + dx + sx * 4, y + dy + sy * 4, x + dx + sx * 4, y + dy + sy * 16);
         });
-        const face = this.add.image(x, y, "faces", this._pmap(id)).setScale(2); // faces SACRED — no tint ever
+        const face = this.add.image(x, y, "faces", this._pmap(id)).setScale(this.FSC); // faces SACRED — no tint ever
         // PLATE (ratified M2): A = black serif in a slim white box · B = white serif
         // between two thin rules · dead = bare gray + strike. Art lives in plateG.
         const plateG = this.add.graphics().setDepth(2);
-        const nameT = this.add.text(x, y + 61, "", style(12, "#ffffff")).setOrigin(0.5)
+        const nameT = this.add.text(x, y + HS + 22, "", style(12, "#ffffff")).setOrigin(0.5)
           .setResolution(2).setLetterSpacing(2).setDepth(3);
         // COVER dots (#5, punch card): 5 dots right of the frame, painted per-frame
         // by update(); a hit punches a dot into a lasting ring; full 5 pulses (win-watch).
@@ -160,7 +168,7 @@
       const active = p.alive && p.id === view.current && view.winner == null;
       s.tile.setStrokeStyle(1, WHITE, (active ? 1 : 0.55) * s.fa);
       s.face.setFrame(this._pmap(p.id));                      // papers may arrive after layout
-      s.face.setScale(2);                                     // uniform — turn is shown by the ARROW only
+      s.face.setScale(this.FSC || 2);                         // uniform — turn is shown by the ARROW only
       if (active && !live) this._arrowTo(p.id);
       if (!p.alive) {                                         // M14 end-state (the beat itself is choreo)
         s.tile.setVisible(false); s.broken.setVisible(true);
@@ -176,7 +184,7 @@
     /* PLATE art (ratified M2: gap 22, pad 5): box (team A) · rules (team B) ·
      * bare (FFA — team semantics ended) · dead (gray + strike). */
     repaintPlate(s, nm, mode) {
-      const g = s.plateG, ny = s.y + 61;
+      const g = s.plateG, ny = s.y + (this.S || 78) / 2 + 22;
       g.clear();
       s.nameT.setText(nm).setY(ny);
       if (mode === "dead") {
@@ -185,7 +193,7 @@
         g.lineBetween(s.x - s.nameT.width / 2, ny, s.x + s.nameT.width / 2, ny);
         return;
       }
-      const w2 = 39, h2 = 13;                                 // plate spans the avatar frame width
+      const w2 = (this.S || 78) / 2, h2 = 13;                 // plate spans the avatar frame width
       if (mode === "box") {                                   // A: black serif in a slim white box
         s.nameT.setColor("#000000").setStroke("#ffffff", 0);
         g.fillStyle(0xffffff, 1).fillRect(s.x - w2, ny - h2, w2 * 2, h2 * 2);
@@ -209,7 +217,7 @@
       s.chipObjs = [];
       if (!p.alive) return;
       const dirt = (p.immune_from || []).map((c) => THEME.seatName(c, roster));
-      const bx = s.x - 39 - 5 - 8;                            // 5px gap — the leftmost ring seat
+      const bx = s.x - (this.S || 78) / 2 - 13;               // 5px gap — the leftmost ring seat
                                                               // (x≈60) stays on-screen
       let cy = s.y - 22;
       if (p.shaken) {                                     // bare glyphs, no boxes (ratified)
@@ -269,8 +277,8 @@
       this.syncCover(s, 0, false);
     }
     _paintDots(g, s, pulseT) {
-      const px = s.x + 39 + 6 + 3;                            // 6px gap + dot radius
-      const yBot = s.y + 24;
+      const px = s.x + (this.S || 78) / 2 + 9;                // 6px gap + dot radius
+      const yBot = s.y + (this.S || 78) / 2 - 15;
       const col = s.shown <= 2 ? RED : WHITE;
       for (let k = 0; k < 5; k++) {
         const q = s.dots[k], cy = yBot - k * 12;
@@ -588,7 +596,7 @@
       }
       this._arrow.setVisible(!this._thread);                  // never over an open menu
       this._arrowTween.stop();
-      this._arrow.setPosition(s.x, s.y - 86);                 // above the chip stack, never on it
+      this._arrow.setPosition(s.x, s.y - (this.S || 78) / 2 - 47);   // above the chips, never on them
       this._arrowTween = this.tweens.add({ targets: this._arrow, y: "+=6", yoyo: true,
         repeat: -1, duration: 420, ease: "Sine.easeInOut" });
     }
@@ -1081,15 +1089,16 @@
     /* ---- targeting + glow ---- */
     setTargets(ids, onTap) {                                   // M11 — RED corner brackets (danger)
       this.clearTargets();
+      const B = (this.S || 78) / 2 + 5;                        // brackets hug the tile at any S
       ids.forEach((id) => {
         const s = this.seats.get(id); if (!s) return;
         const g = this.add.graphics().setDepth(12);
-        [[-44, -44, 1, 1], [44, -44, -1, 1], [-44, 44, 1, -1], [44, 44, -1, -1]].forEach(([dx, dy, sx, sy]) => {
+        [[-B, -B, 1, 1], [B, -B, -1, 1], [-B, B, 1, -1], [B, B, -1, -1]].forEach(([dx, dy, sx, sy]) => {
           g.lineStyle(3, RED, 1);
           g.lineBetween(s.x + dx, s.y + dy, s.x + dx + sx * 14, s.y + dy);
           g.lineBetween(s.x + dx, s.y + dy, s.x + dx, s.y + dy + sy * 14);
         });
-        const hit = this.add.rectangle(s.x, s.y, 88, 88, 0xffffff, 0.001).setDepth(12).setName("tgt")
+        const hit = this.add.rectangle(s.x, s.y, B * 2, B * 2, 0xffffff, 0.001).setDepth(12).setName("tgt")
           .setInteractive().on("pointerdown", () => onTap && onTap(id));
         this._brackets.push(g, hit);
       });
@@ -1097,16 +1106,17 @@
     clearTargets() { this._brackets.forEach((o) => o.destroy()); this._brackets = []; }
     setItemTargets(ids, onTap) {                               // item targeting — WHITE pulsing brackets
       this.clearTargets();                                     // (red = danger only; ants = trade)
+      const B = (this.S || 78) / 2 + 5;
       ids.forEach((id) => {
         const s = this.seats.get(id); if (!s) return;
         const g = this.add.graphics().setDepth(12);
-        [[-44, -44, 1, 1], [44, -44, -1, 1], [-44, 44, 1, -1], [44, 44, -1, -1]].forEach(([dx, dy, sx, sy]) => {
+        [[-B, -B, 1, 1], [B, -B, -1, 1], [-B, B, 1, -1], [B, B, -1, -1]].forEach(([dx, dy, sx, sy]) => {
           g.lineStyle(3, WHITE, 1);
           g.lineBetween(s.x + dx, s.y + dy, s.x + dx + sx * 14, s.y + dy);
           g.lineBetween(s.x + dx, s.y + dy, s.x + dx, s.y + dy + sy * 14);
         });
         const tw = this.tweens.add({ targets: g, alpha: 0.25, duration: 480, yoyo: true, repeat: -1 });
-        const hit = this.add.rectangle(s.x, s.y, 88, 88, 0xffffff, 0.001).setDepth(12).setName("tgt")
+        const hit = this.add.rectangle(s.x, s.y, B * 2, B * 2, 0xffffff, 0.001).setDepth(12).setName("tgt")
           .setInteractive().on("pointerdown", () => onTap && onTap(id));
         this._brackets.push({ destroy: () => { tw.remove(); g.destroy(); } }, hit);
       });
@@ -1119,7 +1129,7 @@
       ids.forEach((id) => {
         const s = this.seats.get(id); if (!s) return;
         const g = this.add.graphics().setDepth(11);
-        const HALF = 47, DASH = 9, GAP = 7, PERIM = 8 * HALF;
+        const HALF = (this.S || 78) / 2 + 8, DASH = 9, GAP = 7, PERIM = 8 * HALF;
         let phase = 0;
         const pt = (d) => {                                    // walk the square perimeter
           d = ((d % PERIM) + PERIM) % PERIM;
@@ -1141,7 +1151,7 @@
         draw();
         const ev = this.time.addEvent({ delay: 70, loop: true, callback: draw });
         let hit = null;
-        if (onTap) hit = this.add.rectangle(s.x, s.y, 94, 94, 0xffffff, 0.001).setDepth(11)
+        if (onTap) hit = this.add.rectangle(s.x, s.y, HALF * 2, HALF * 2, 0xffffff, 0.001).setDepth(11)
           .setName("tgt").setInteractive().on("pointerdown", () => onTap(id));
         this._glows.push({ g, ev, hit });
       });
