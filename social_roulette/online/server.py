@@ -208,6 +208,37 @@ async def _sync_hold(lb):
         await _broadcast_views(lb)               # release path re-arms the deadline here
 
 
+async def _depart(lb, me, ws):
+    """Disconnect cleanup for ONE closed socket. A phone reload leaves the old
+    connection lingering while the new one reclaims the seat — when the stale
+    socket finally dies it must not touch the live one (it used to null the
+    reclaimed ws and hold the car; the deaf client's talk band froze at 0:30)."""
+    if me["ws"] is not ws:
+        return                             # stale close — the seat already moved on
+    if lb.room is None and not lb.abandoned:
+        # pre-departure a leaver steps OFF the manifest (a ghost would jam the
+        # ready-all gate); the earliest remaining boarder inherits the whistle
+        if me in lb.members:
+            lb.members.remove(me)
+            if me["host"] and lb.members:
+                lb.members[0]["host"] = True
+            if lb.members:
+                await _lobby_state(lb)
+            else:
+                LOBBIES.pop(lb.code, None)   # empty car returns to the yard
+    elif lb.abandoned or lb.room.winner is not None:
+        # journey over (verdict or END THE LINE): leaving is departure, not a
+        # drop — the record burns when the LAST agent walks away (spec §4)
+        if me in lb.members:
+            lb.members.remove(me)
+        if not any(mm["ws"] is not None for mm in lb.members):
+            storage.session_delete(lb.code)
+            LOBBIES.pop(lb.code, None)
+    else:
+        me["ws"] = None        # seat held; the papers reclaim it
+        await _sync_hold(lb)   # a seated human off the car HOLDS the game (spec §4)
+
+
 def restore_sessions():
     """Boot restore (spec §4): every unfinished session file becomes a HELD car
     waiting for its humans. Sync + broadcast-free — nobody is connected at boot."""
@@ -423,7 +454,12 @@ async def ws(ws: WebSocket):
                 lb = LOBBIES.setdefault(code, Lobby(code))
                 me = lb.by_pid(prof["pid"])
                 if me:                                   # reconnect: reclaim seat
-                    me["ws"] = ws
+                    old, me["ws"] = me["ws"], ws
+                    if old is not None and old is not ws:
+                        try:                             # evict the lingering socket NOW —
+                            await old.close()            # its late close is guarded in _depart
+                        except Exception:
+                            pass
                 else:
                     if lb.room is not None:              # started cars accept only their own
                         await _send(ws, {"type": "error", "msg": "the car has departed"})
@@ -643,25 +679,4 @@ async def ws(ws: WebSocket):
 
     except WebSocketDisconnect:
         if me and lb:
-            if lb.room is None and not lb.abandoned:
-                # pre-departure a leaver steps OFF the manifest (a ghost would jam the
-                # ready-all gate); the earliest remaining boarder inherits the whistle
-                if me in lb.members:
-                    lb.members.remove(me)
-                    if me["host"] and lb.members:
-                        lb.members[0]["host"] = True
-                    if lb.members:
-                        await _lobby_state(lb)
-                    else:
-                        LOBBIES.pop(lb.code, None)   # empty car returns to the yard
-            elif lb.abandoned or lb.room.winner is not None:
-                # journey over (verdict or END THE LINE): leaving is departure, not a
-                # drop — the record burns when the LAST agent walks away (spec §4)
-                if me in lb.members:
-                    lb.members.remove(me)
-                if not any(mm["ws"] is not None for mm in lb.members):
-                    storage.session_delete(lb.code)
-                    LOBBIES.pop(lb.code, None)
-            else:
-                me["ws"] = None        # seat held; the papers reclaim it
-                await _sync_hold(lb)   # a seated human off the car HOLDS the game (spec §4)
+            await _depart(lb, me, ws)
