@@ -633,6 +633,49 @@
         s.tk = 1; s.fa = 1; });
     }
 
+    /* ---- HOLD AT SIGNAL (spec 2026-07-11 §4): a dropped agent freezes the car.
+     * Full scrim (depth 19 — over the board, UNDER the thread menus so the
+     * conductor's choice sheet still opens), serif in-world lines, wall-clock
+     * digits fed by holdTick. White throughout — red stays danger-only. ---- */
+    setHold(h, roster) {
+      if (!h) {
+        if (this._hold) { this._hold.own.forEach((o) => o.destroy()); this._hold = null; }
+        return;
+      }
+      if (!this._hold) {
+        const scrim = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.94)
+          .setDepth(19).setInteractive();                    // absorbs board taps
+        const l1 = this.add.text(W / 2, 330, "", style(16, "#ffffff",
+          { align: "center", wordWrap: { width: W - 60 } })).setOrigin(0.5)
+          .setResolution(2).setDepth(19).setLetterSpacing(1);
+        const l2 = this.add.text(W / 2, 402, "", style(24)).setOrigin(0.5)
+          .setResolution(2).setDepth(19);
+        const l3 = this.add.text(W / 2, 452, "", style(11, "#aaaaaa")).setOrigin(0.5)
+          .setResolution(2).setDepth(19).setLetterSpacing(2);
+        this._hold = { own: [scrim, l1, l2, l3], l1, l2, l3, key: "" };
+      }
+      const names = (h.missing || []).map((id) => THEME.seatName(id, roster));
+      const key = names.join("·") + (h.expired ? "!" : "");
+      if (key !== this._hold.key) {
+        this._hold.key = key;
+        const who = (names.length > 1 ? "AGENTS " : "AGENT ") + names.join(" · ");
+        this.decode(this._hold.l1, who + " LEFT THE CAR", 420);
+        this._hold.l3.setText(h.expired ? "THE CONDUCTOR DECIDES" : "HOLDING AT SIGNAL");
+      }
+    }
+    holdTick(secs) {
+      if (this._hold) this._hold.l2.setText(secs == null ? "" : fmt(secs));
+    }
+    async resumeBeat() {                 // 3·2·1 — release ships +3s for exactly this beat
+      for (const d of ["3", "2", "1"]) {
+        const t = this.add.text(W / 2, 390, "", style(30)).setOrigin(0.5)
+          .setResolution(2).setDepth(19).setName("fx");
+        await this.decode(t, d, 220);
+        await this.w(420);
+        t.destroy();
+      }
+    }
+
     /* ---- dice ceremony (M2 full / M16 fast) — counters + transient loading cylinder ---- */
     async diceCeremony(total, live, opts) {
       opts = opts || {};

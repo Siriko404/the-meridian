@@ -101,7 +101,10 @@
       seizeInFlight = false;                  // any fresh state settles the seize silently
       // anchor the countdown at ARRIVAL — anchoring at drain time (after queued beats
       // played) ran the clock seconds ahead, then re-anchors jumped it (timer-freeze class)
-      queue.push({ events: accept(m) ? (m.events || []) : [], view: m, left: NET.countdown(m) });
+      queue.push({ events: accept(m) ? (m.events || []) : [], view: m, left: NET.countdown(m),
+        // the hold clock is wall-anchored the same way as the band (timer law)
+        holdLeft: m.hold ? NET.countdown({ phase_ends_at: m.hold.deadline,
+                                           server_now: m.server_now }) : null });
       bootGame(); drain();
     } else if (m.type === "chat") {
       const log = $("chatlog");
@@ -156,6 +159,7 @@
 
   /* ---- [DRAIN] queue → choreography → settle (v1's proven loop, gen-gated at enqueue) ---- */
   let firstView = true, leftFn = null, noteOverride = null;
+  let wasHeld = false, curHoldLeft = null;      // hold overlay lifecycle (spec §4)
 
   async function drain() {
     if (busy || !scene) return;
@@ -178,6 +182,14 @@
         await CHOREO.play(scene, it.events, prev, curView, roster);
       } else {
         scene.render(curView, roster);                         // stale/rebroadcast: settle only
+      }
+      if (curView.hold) {                                      // the car is HELD — scrim owns the stage
+        scene.setHold(curView.hold, roster);
+        wasHeld = true; curHoldLeft = it.holdLeft;
+      } else if (wasHeld) {
+        wasHeld = false; curHoldLeft = null;
+        scene.setHold(null);
+        await scene.resumeBeat();                              // 3·2·1 — the release carried +3s
       }
     }
     busy = false;                                              // BEFORE afterSettle — myTurn() checks it
@@ -216,7 +228,9 @@
       else moveThread();
     };
     scene.onPhone = () => $("chatsheet").classList.toggle("on");
-    const chatOk = curView.phase === "talk" && meAlive() && curView.winner == null;
+    const h = curView.hold;                                          // held car: chat frozen,
+    if (h && h.expired && h.chooser === curView.you) holdChoiceThread();   // conductor decides
+    const chatOk = curView.phase === "talk" && meAlive() && curView.winner == null && !h;
     $("chatin").disabled = !chatOk;
     $("chatin").placeholder = chatOk ? "say something…" : "SILENCE.";
     buildFace();
@@ -594,6 +608,29 @@
     });
   }
 
+  function holdChoiceThread() {                    // the conductor's 5:00 call (spec §4)
+    if (scene._thread) return;                     // reconnect-safe: re-arrives with the view
+    openTh("THE SIGNAL");
+    const t = th;
+    t.show(() => {
+      const rows = [
+        { info: true, label: "FIVE MINUTES AT THE SIGNAL — YOUR CALL, CONDUCTOR" },
+        { dot: true },
+        { k: "bot", label: "SEAT THE HOUSE", bright: true,
+          sub: "THEIR CHAIR PLAYS ON AS A BOT" },
+        { k: "end", label: "END THE LINE", down: true,
+          sub: "CLOSE THE RECORD — NO VERDICT" }];
+      t.list("HOLD", "", rows);
+      t.onRow = async (i) => {
+        if (!t.alive() || !rows[i].k) return;
+        await t.lock(i);
+        if (!t.alive()) return;
+        closeTh();
+        net.send({ type: "hold_choice", kind: rows[i].k });
+      };
+    });
+  }
+
   /* ---- B3: the SHAKEDOWN sheet — pay 6 (full), pay 4 (silent), or sit out ---- */
   function taxThread() {
     const tiers = new Set((curView.legal || []).filter((a) => a.kind === "tax").map((a) => a.tier));
@@ -686,6 +723,10 @@
   }
   function tick() {
     if (!curView || !scene || !scene.built || busy) return;    // never overwrite a playing beat
+    if (curView.hold) {                                        // frozen car: only the hold
+      scene.holdTick(curHoldLeft ? curHoldLeft() : null);      // clock breathes
+      return;
+    }
     const secs = leftFn ? leftFn() : null;
     const mine = curView.current === curView.you;
     scene.setBand({
