@@ -2,8 +2,8 @@
   "_readme": "SYSTEMATIC LEDGER for the 2026-07-10 feedback batch. Read AFTER docs/PROJECT_STATUS.md. Statuses: LIVE (deployed) / WIRED (committed, not deployed) / QUEUED / DEFERRED / RESOLVED-BY-AUDIT. Every ratified design carries its EXACT parameters — do not re-litigate, do not re-sample. Update this file after every completed item.",
   "updated": "2026-07-12",
   "branch_state": {
-    "head": "e311721 (+docs commit after)",
-    "branches": "uiv2-client AHEAD of origin/master — sessions+papers+12p UNPUSHED (user's word deploys)",
+    "head": "0ee215f pushed+deployed (a local docs-fix commit rides after — push it with the NEXT code change; a lone push would redeploy and wipe live profiles/sessions mid-test)",
+    "branches": "uiv2-client == master == origin @ 0ee215f, LIVE curl-confirmed 2026-07-12",
     "deploy": "Render watches uiv2-client; push = deploy; confirm live via curl BEFORE giving the user a link",
     "live_url": "https://meridian-ta39.onrender.com"
   },
@@ -27,7 +27,7 @@
     { "id": 6,  "name": "win condition: max cover held one full circle", "status": "QUEUED", "note": "EVALUATE FIRST via simulation, report, user decides. Punch-card full-5 pulse is the UI tell already. Needs #7 item wiring first (user ordering)." },
     { "id": 7,  "name": "image->1bit engine", "status": "DEFERRED", "note": "user: later ambitions" },
     { "id": 8,  "name": "sedative/blackmail teammate rules", "status": "LIVE", "note": "folded into item 3" },
-    { "id": 9,  "name": "login page + ticket profile + waiting room", "status": "WIRED", "note": "sessions_identity_12p_session — built+verified locally, UNPUSHED" },
+    { "id": 9,  "name": "login page + ticket profile + waiting room", "status": "LIVE", "note": "sessions_identity_12p_session — deployed 2026-07-12, awaiting user's mobile verdict" },
     { "id": 10, "name": "soften item names", "status": "QUEUED", "note": "inside item redesign session (#itemsession)" },
     { "id": 11, "name": "special item: steal items from one player", "status": "QUEUED", "note": "#itemsession" },
     { "id": 12, "name": "special item: see all inventories", "status": "QUEUED", "note": "#itemsession; theme: call intelligence-service backup" },

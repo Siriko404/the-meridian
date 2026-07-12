@@ -1,8 +1,8 @@
 # Social Roulette — Project Status (resume anchor)
 
-**Updated:** 2026-07-12 · **Branch:** uiv2-client @ `e311721` (docs follow) · **NOT PUSHED — the user's word deploys** · Read this first after any context reset.
+**Updated:** 2026-07-12 · **Branch:** uiv2-client == master == origin @ `0ee215f` · **DEPLOYED + curl-confirmed LIVE** (root 200 with PAPERS REQUIRED, /papers answering) · user testing on mobile · THIS docs-fix commit is LOCAL-ONLY on purpose: a push redeploys Render and WIPES live profiles/sessions mid-test — push it bundled with the next code change.
 
-## ═══ HANDOFF 2026-07-12 — THE THREE MODS: SESSIONS + PAPERS + 12 PLAYERS (LOCAL, UNPUSHED) ═══
+## ═══ HANDOFF 2026-07-12 — THE THREE MODS: SESSIONS + PAPERS + 12 PLAYERS (LIVE) ═══
 - **READ ledger `sessions_identity_12p_session` FIRST.** Spec (ratified §-by-§):
   `docs/superpowers/specs/2026-07-11-sessions-identity-12p-design.md` · plan: `docs/superpowers/plans/2026-07-11-sessions-identity-12p.md`.
 - **BUILT + BROWSER-VERIFIED locally (17 tasks, 323 py + 8 node green), commit chain
@@ -18,11 +18,11 @@
   leaves) · TWELVE players (parametric seat size S=58 at n>8 — 78px tiles overlap at 12 (pitch
   75.6px), 12 codenames, one-row dragnet with 3-letter fallback, 12-seat board + dragnet
   screenshot-verified live).
-- **NOT DONE / NEXT:** push+deploy (USER'S WORD ONLY — this is a big protocol change; old
-  clients' `meridian_token` dies, everyone makes papers once) · capture.html film scenarios for
+- **NEXT:** user's mobile verdict → fix what he finds · capture.html film scenarios for
   hold/12p (visual checks were live-browser screenshots this session) · livepump/devbot rigs
   still reference the OLD join ids (name/lastinit) — update before next rig session ·
-  `?bot` devbot flow unverified under papers · deprecated `@app.on_event` warning (cosmetic).
+  `?bot` devbot flow unverified under papers · deprecated `@app.on_event` warning (cosmetic) ·
+  REDEPLOY WIPES data/ (profiles+sessions) — never push while he is mid-game.
 - Dev: profiles/sessions live in `social_roulette/online/data/` (gitignored). Second-player rig:
   `scratchpad/sidekick.py CODE [PID]`. Tests: 323 py + 8 node.
 
