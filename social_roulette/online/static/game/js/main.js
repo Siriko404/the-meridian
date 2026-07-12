@@ -188,7 +188,11 @@
       if (firstView) {
         firstView = false;
         const ann = (it.events || []).find((e) => e.type === "announce");
-        await CHOREO.setup(scene, curView, roster, ann);       // M1–M5
+        if (ann) await CHOREO.setup(scene, curView, roster, ann);   // M1–M5 — true departure only
+        else {                                                 // rejoin: SNAP to the live car —
+          scene.render(curView, roster);                       // no ceremony, no stale-beat replay,
+          await scene.dialTo(curView.current, false);          // one click; timer anchored at arrival
+        }
       } else if (it.events && it.events.length) {
         await CHOREO.play(scene, it.events, prev, curView, roster);
       } else {
