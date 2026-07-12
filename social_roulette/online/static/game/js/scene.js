@@ -637,7 +637,7 @@
      * Full scrim (depth 19 — over the board, UNDER the thread menus so the
      * conductor's choice sheet still opens), serif in-world lines, wall-clock
      * digits fed by holdTick. White throughout — red stays danger-only. ---- */
-    setHold(h, roster) {
+    setHold(h, roster, onReady) {
       if (!h) {
         if (this._hold) { this._hold.own.forEach((o) => o.destroy()); this._hold = null; }
         return;
@@ -654,13 +654,28 @@
           .setResolution(2).setDepth(19).setLetterSpacing(2);
         this._hold = { own: [scrim, l1, l2, l3], l1, l2, l3, key: "" };
       }
+      if (h.cold && !this._hold.rb && onReady) {             // the cold-car READY VOTE
+        const rb = this.add.text(W / 2, 520, "✓ READY", style(15)).setOrigin(0.5)
+          .setResolution(2).setDepth(19).setLetterSpacing(3)
+          .setInteractive().on("pointerdown", () => onReady());
+        this._hold.rb = rb;
+        this._hold.own.push(rb);
+      }
       const names = (h.missing || []).map((id) => THEME.seatName(id, roster));
-      const key = names.join("·") + (h.expired ? "!" : "");
+      const ready = h.ready || {};
+      const tally = Object.values(ready).filter(Boolean).length
+        + "/" + Object.keys(ready).length;
+      const key = names.join("·") + (h.expired ? "!" : "") + (h.cold ? tally : "");
       if (key !== this._hold.key) {
         this._hold.key = key;
-        const who = (names.length > 1 ? "AGENTS " : "AGENT ") + names.join(" · ");
-        this.decode(this._hold.l1, who + " LEFT THE CAR", 420);
-        this._hold.l3.setText(h.expired ? "THE CONDUCTOR DECIDES" : "HOLDING AT SIGNAL");
+        if (h.cold) {
+          this.decode(this._hold.l1, "THE CAR WAS HELD AT SIGNAL OVERNIGHT", 420);
+          this._hold.l3.setText("ALL ABOARD — VOTE READY · " + tally);
+        } else {
+          const who = (names.length > 1 ? "AGENTS " : "AGENT ") + names.join(" · ");
+          this.decode(this._hold.l1, who + " LEFT THE CAR", 420);
+          this._hold.l3.setText(h.expired ? "THE CONDUCTOR DECIDES" : "HOLDING AT SIGNAL");
+        }
       }
     }
     holdTick(secs) {

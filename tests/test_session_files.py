@@ -76,6 +76,9 @@ def test_ended_marker_closes_the_record():
                 winner = m["winner"]
                 break
         assert winner is not None
-    assert storage.session_is_ended("JEND")
-    st, path = server.record_check("JEND")
-    assert st == 200 and path.exists()                            # record opens at the end
+        assert storage.session_is_ended("JEND")
+        st, path = server.record_check("JEND")
+        assert st == 200 and path.exists()                        # record opens at the end
+    # the last agent walked away — the record burns (C6 departure law)
+    assert storage.session_read_meta("JEND") is None
+    assert "JEND" not in server.LOBBIES

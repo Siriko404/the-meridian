@@ -125,8 +125,18 @@
     } else if (m.type === "end") {
       ended = true; endWinner = m.winner;
       delete localStorage.meridian_car;       // the journey is over — don't auto-board a corpse
+      if (m.winner == null) showRecord();     // END THE LINE: no verdict, straight to the ticket
+      else recordArmed = true;                // verdict: winnerScene plays; next tap → ticket
       drain();
     }
+  }
+  function showRecord() {                     // C6 — the record ticket (spec §4)
+    if (scene) scene.setHold(null);
+    closeTh();
+    $("rline").textContent = endWinner != null
+      ? "LAST AGENT STANDING · " + THEME.seatName(endWinner, roster) : "NO VERDICT";
+    $("dlbtn").href = "/session/" + encodeURIComponent(sceneCode) + "/record";
+    show("record");
   }
   function bootGame() {
     if (game) return;
@@ -159,7 +169,8 @@
 
   /* ---- [DRAIN] queue → choreography → settle (v1's proven loop, gen-gated at enqueue) ---- */
   let firstView = true, leftFn = null, noteOverride = null;
-  let wasHeld = false, curHoldLeft = null;      // hold overlay lifecycle (spec §4)
+  let wasHeld = false, curHoldLeft = null, coldReady = false;   // hold lifecycle (spec §4)
+  let recordArmed = false;                      // post-winner: next tap opens the record ticket
 
   async function drain() {
     if (busy || !scene) return;
@@ -184,7 +195,10 @@
         scene.render(curView, roster);                         // stale/rebroadcast: settle only
       }
       if (curView.hold) {                                      // the car is HELD — scrim owns the stage
-        scene.setHold(curView.hold, roster);
+        const hv = curView.hold_vote;                          // cold cars carry the vote tally
+        coldReady = !!(hv && hv.ready && hv.ready[curView.you]);
+        scene.setHold(hv ? Object.assign({}, curView.hold, hv) : curView.hold, roster,
+          () => net.send({ type: "ready", on: !coldReady }));
         wasHeld = true; curHoldLeft = it.holdLeft;
       } else if (wasHeld) {
         wasHeld = false; curHoldLeft = null;
@@ -740,7 +754,10 @@
     });
   }
   setInterval(tick, 250);
-  document.addEventListener("pointerdown", () => { if (busy) CHOREO.skip(); }, true);
+  document.addEventListener("pointerdown", () => {
+    if (busy) { CHOREO.skip(); return; }
+    if (recordArmed) { recordArmed = false; showRecord(); }   // any tap off the winner scene
+  }, true);
 
   /* ---- wiring ---- */
   const mono = (a, b) => $(a).addEventListener("input", () => { if ($(a).value.length) $(b).focus(); });
@@ -795,7 +812,8 @@
     delete localStorage.meridian_car;
     pid = null; profile = null; gotoTerminus();
   });
-  $("newcarbtn").addEventListener("click", () => connect(""));
+  $("nextbtn").addEventListener("click", () => location.reload());   // ws closes → last one
+  $("newcarbtn").addEventListener("click", () => connect(""));       // out burns the record
   $("enterbtn").addEventListener("click", () => connect());
   $("code").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
   $("readybtn").addEventListener("click", () => net.send({ type: "ready", on: !myReady }));

@@ -75,6 +75,9 @@ class Lobby:
         self.hold_task = None       # pending 5:00 hold-expiry watcher (spec §4)
         self.house_seats = {}       # seat -> {"name","portrait"} after SEAT THE HOUSE:
                                     # the cover keeps playing, identity never flickers
+        self.cold = False           # boot-restored car: release needs the READY VOTE
+                                    # (user ruling: "present and vote ready"), not mere presence
+        self.abandoned = False      # END THE LINE happened: room is gone, record awaits burn
 
     def by_pid(self, pid):
         return next((m for m in self.members if m.get("pid") == pid), None)
@@ -194,15 +197,62 @@ async def _sync_hold(lb):
             r.hold_chooser = _appoint_chooser(lb)
             _persist(lb)
             changed = True
-        elif not missing and r.held_since is not None:
+        elif not missing and r.held_since is not None and not lb.cold:
             r.release()                          # all aboard — 3·2·1 rides the new deadline
-            if lb.hold_task is not None:
+            if lb.hold_task is not None:         # (cold cars wait for the READY VOTE instead)
                 lb.hold_task.cancel()
                 lb.hold_task = None
             _persist(lb)
             changed = True
     if changed:
         await _broadcast_views(lb)               # release path re-arms the deadline here
+
+
+def restore_sessions():
+    """Boot restore (spec §4): every unfinished session file becomes a HELD car
+    waiting for its humans. Sync + broadcast-free — nobody is connected at boot."""
+    storage.sessions_sweep(7)
+    for meta in storage.sessions_unfinished():
+        last = storage.session_read_last(meta["code"])
+        if not last or "snapshot" not in last:
+            continue
+        lb = Lobby(meta["code"])
+        lb.seats = meta.get("seats", 5)
+        lb.members = [{"pid": mm["pid"], "name": mm["initials"], "portrait": mm["portrait"],
+                       "seat": mm["seat"], "ws": None, "host": i == 0, "ready": False}
+                      for i, mm in enumerate(meta.get("members", []))]
+        lb.room = Room.from_dict(last["snapshot"])
+        lb.room.hold(set(lb.room.human))
+        lb.cold = True
+        LOBBIES[lb.code] = lb
+
+
+def _cold_touch(lb):
+    # the 5:00 signal clock starts at the FIRST rejoin, not at boot (spec §4)
+    if lb.cold and lb.hold_task is None and lb.room is not None:
+        lb.room.held_since = time.time()
+        lb.room.hold_chooser = _appoint_chooser(lb)
+        lb.hold_task = asyncio.create_task(_hold_watch(lb, lb.room.held_since))
+
+
+async def _try_cold_release(lb):
+    """The ready vote: all seated humans aboard AND ready → 3·2·1 → play."""
+    changed = False
+    async with lb.lock:
+        r = lb.room
+        if r is None or not lb.cold:
+            return
+        seated = [m for m in lb.members if m["seat"] is not None and m["seat"] in r.human]
+        if seated and all(m["ws"] is not None and m.get("ready") for m in seated):
+            lb.cold = False
+            r.release()
+            if lb.hold_task is not None:
+                lb.hold_task.cancel()
+                lb.hold_task = None
+            _persist(lb)
+            changed = True
+    if changed:
+        await _broadcast_views(lb)
 
 
 async def _apply_hold_choice(lb, seat, kind):
@@ -236,6 +286,7 @@ async def _apply_hold_choice(lb, seat, kind):
                                              "snapshot": r.to_dict()})
             storage.session_append(lb.code, {"ended": "abandoned", "t": time.time()})
             lb.room = None
+            lb.abandoned = True
             if lb.hold_task is not None:
                 lb.hold_task.cancel()
                 lb.hold_task = None
@@ -274,13 +325,21 @@ async def _broadcast_views(lb, payloads=None):
     roster = {m["seat"]: m["name"] for m in lb.members if m["seat"] is not None}
     roster.update({s: g["name"] for s, g in lb.house_seats.items()})    # identity never flickers
     portraits = _portraits(lb)
+    vote = None
+    if lb.cold and lb.room is not None:      # the ready-vote tally rides the message —
+        vote = {"cold": True,                # it is lobby knowledge, not room knowledge
+                "ready": {m["seat"]: bool(m.get("ready") and m["ws"] is not None)
+                          for m in lb.members if m["seat"] is not None}}
     for m in lb.members:
         if m["ws"] is not None and m["seat"] is not None:
             # Mutating paths pass a lock-captured snapshot; the no-mutation join rebroadcast
             # (payloads is None) computes fresh — the room is not changing under it.
             p = payloads[m["seat"]] if payloads is not None else {
                 "events": lb.room.events_for(m["seat"]), **lb.room.view(m["seat"])}
-            await _send(m["ws"], {"type": "view", "roster": roster, "portraits": portraits, **p})
+            out = {"type": "view", "roster": roster, "portraits": portraits, **p}
+            if vote:
+                out["hold_vote"] = vote
+            await _send(m["ws"], out)
     _schedule_deadline(lb)
 
 
@@ -295,6 +354,11 @@ async def _lobby_state(lb):
             await _send(m["ws"], {"type": "lobby", "code": lb.code, "seats": lb.seats,
                                   "members": members, "host": m["host"], "you": i,
                                   "all_ready": all_ready})
+
+
+@app.on_event("startup")
+async def _boot_restore():
+    restore_sessions()      # held cars survive the server (spec §4)
 
 
 @app.get("/")
@@ -374,12 +438,18 @@ async def ws(ws: WebSocket):
                 if lb.room is None:
                     await _lobby_state(lb)
                 else:
+                    _cold_touch(lb)              # first rejoin starts the 5:00 signal clock
                     await _broadcast_views(lb)
                     await _sync_hold(lb)         # a rejoin may release the held car
 
-            elif t == "ready" and lb and me and lb.room is None:
+            elif t == "ready" and lb and me and (lb.room is None or lb.cold):
                 me["ready"] = bool(msg.get("on"))
-                await _lobby_state(lb)
+                if lb.room is None:
+                    await _lobby_state(lb)
+                else:                            # the cold-car vote (spec §4)
+                    await _try_cold_release(lb)
+                    if lb.cold:                  # not yet — show the fresh tally
+                        await _broadcast_views(lb)
 
             elif t == "seats" and lb and me and me["host"] and lb.room is None:
                 try:
@@ -573,7 +643,7 @@ async def ws(ws: WebSocket):
 
     except WebSocketDisconnect:
         if me and lb:
-            if lb.room is None:
+            if lb.room is None and not lb.abandoned:
                 # pre-departure a leaver steps OFF the manifest (a ghost would jam the
                 # ready-all gate); the earliest remaining boarder inherits the whistle
                 if me in lb.members:
@@ -584,6 +654,14 @@ async def ws(ws: WebSocket):
                         await _lobby_state(lb)
                     else:
                         LOBBIES.pop(lb.code, None)   # empty car returns to the yard
+            elif lb.abandoned or lb.room.winner is not None:
+                # journey over (verdict or END THE LINE): leaving is departure, not a
+                # drop — the record burns when the LAST agent walks away (spec §4)
+                if me in lb.members:
+                    lb.members.remove(me)
+                if not any(mm["ws"] is not None for mm in lb.members):
+                    storage.session_delete(lb.code)
+                    LOBBIES.pop(lb.code, None)
             else:
                 me["ws"] = None        # seat held; the papers reclaim it
                 await _sync_hold(lb)   # a seated human off the car HOLDS the game (spec §4)
