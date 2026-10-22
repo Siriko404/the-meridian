@@ -9,6 +9,7 @@ game logic. Two stores:
 """
 import json
 import os
+import re
 import secrets
 import time
 from pathlib import Path
@@ -61,7 +62,13 @@ def create_profile(initials, portrait):
 
 # ---- session records ----
 
+CODE_RE = re.compile(r"[A-Z0-9]{1,16}")
+
+
 def session_path(code):
+    # The code names a file. Never let it carry a path ("../profiles") or other punctuation.
+    if not isinstance(code, str) or not CODE_RE.fullmatch(code):
+        raise ValueError("unsafe session code")
     return _sessions_dir() / (code + ".jsonl")
 
 

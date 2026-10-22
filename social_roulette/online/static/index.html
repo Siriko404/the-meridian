@@ -49,9 +49,10 @@ let curView = null, sel = null;             // sel: null | {menu} | {verb:'shoot
 const POINTS = { TERMS: 6, PASSPORT: 6, GEIGER: 5, POISON: 5, MAGNET: 4, SHAKEDOWN: 4 };  // public (game_guide:110)
 
 const el = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 const send = m => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(m)); };
 const show = id => { document.querySelectorAll(".screen").forEach(s => s.classList.remove("on")); el(id).classList.add("on"); };
-const sys = t => { el("feed").innerHTML = `<span style="color:var(--noise)">· ${t}</span>`; };
+const sys = t => { el("feed").innerHTML = `<span style="color:var(--noise)">· ${esc(t)}</span>`; };
 
 function join(){
   const proto = location.protocol === "https:" ? "wss" : "ws";
@@ -67,9 +68,9 @@ function toggleChat(){ el("chatrow").classList.toggle("on"); if (el("chatrow").c
 function handle(m){
   if (m.type === "joined"){ token = m.token; host = m.host; localStorage.token = token; show("lobby"); el("startbtn").style.display = host ? "" : "none"; }
   else if (m.type === "lobby"){ el("lcode").textContent = m.code; el("roomcode").textContent = m.code;
-    el("members").innerHTML = m.members.map(x => `<div class="member">${x.name}${x.host ? " · HOST" : ""}</div>`).join(""); }
+    el("members").innerHTML = m.members.map(x => `<div class="member">${esc(x.name)}${x.host ? " · HOST" : ""}</div>`).join(""); }
   else if (m.type === "view"){ if (!el("game").classList.contains("on")) show("game"); queue.push({ events: m.events || [], view: m }); drain(); }
-  else if (m.type === "chat"){ el("feed").innerHTML = `<b>${m.from}</b> ${m.text}`; }
+  else if (m.type === "chat"){ el("feed").innerHTML = `<b>${esc(m.from)}</b> ${esc(m.text)}`; }
   else if (m.type === "error"){ sys("⚠ " + m.msg); if (curView) buildControls(); }
   else if (m.type === "end"){ ended = true; endWinner = m.winner; drain(); }
 }

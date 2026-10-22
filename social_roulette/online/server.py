@@ -6,10 +6,12 @@ leaves an empty seat; reconnect with the same token reclaims the seat.
 """
 import asyncio
 import os
+import re
 import secrets
 import time
+from collections import defaultdict, deque
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -22,6 +24,29 @@ STATIC = os.path.join(HERE, "static")
 app.mount("/static", StaticFiles(directory=STATIC), name="static")   # logo + shared UI assets
 
 PROFILES = storage.load_profiles()          # papers, hot in memory; storage owns the file
+
+CODE_RE = re.compile(r"[A-Z0-9]{3,12}")     # a car code is shown to players and names a file
+
+# ---- abuse limits (the papers number is the only credential, so guessing it and filling the disk are both capped) ----
+_HITS = defaultdict(deque)
+
+
+def _allow(key, limit, window, now=None):
+    now = time.time() if now is None else now
+    q = _HITS[key]
+    while q and q[0] <= now - window:
+        q.popleft()
+    if len(q) >= limit:
+        return False
+    q.append(now)
+    if len(_HITS) > 20000:                  # forget idle callers
+        for k in [k for k, v in _HITS.items() if not v]:
+            del _HITS[k]
+    return True
+
+
+def _caller(request):
+    return request.client.host if request.client else "?"
 
 
 # ---- identity endpoints (spec 2026-07-11 §2) — pure (status, body) helpers, thin routes ----
@@ -50,13 +75,18 @@ def papers_lookup(fi, li, pid):
 
 
 def journeys(pid):
-    return 200, {"journeys": storage.journeys_for(str(pid or "").strip().upper())}
+    # Only what the rejoin list needs. Other members' papers numbers are credentials: never send them.
+    found = storage.journeys_for(str(pid or "").strip().upper())
+    return 200, {"journeys": [{"code": m.get("code"), "seats": m.get("seats"), "created": m.get("created")}
+                              for m in found]}
 
 
 def record_check(code):
     """The session file names every hand and the bullet order — it opens only
     once the line has ended (spec §4: no mid-game access, ever)."""
     code = str(code or "").strip().upper()
+    if not storage.CODE_RE.fullmatch(code):
+        return 404, None
     if storage.session_read_meta(code) is None:
         return 404, None
     if not storage.session_is_ended(code):
@@ -408,19 +438,25 @@ async def health():
 
 
 @app.post("/papers")
-async def papers_post(body: dict):
+async def papers_post(body: dict, request: Request):
+    if not (_allow(("make", _caller(request)), 10, 3600) and _allow(("make", "*"), 300, 3600)):
+        return JSONResponse({"msg": "too many papers issued, try later"}, status_code=429)
     st, out = papers_create(body.get("fi"), body.get("li"), body.get("portrait"))
     return JSONResponse(out, status_code=st)
 
 
 @app.get("/papers")
-async def papers_get(fi: str = "", li: str = "", pid: str = ""):
+async def papers_get(request: Request, fi: str = "", li: str = "", pid: str = ""):
+    if not _allow(("look", _caller(request)), 30, 60):
+        return JSONResponse({"msg": "slow down"}, status_code=429)
     st, out = papers_lookup(fi, li, pid)
     return JSONResponse(out, status_code=st)
 
 
 @app.get("/journeys")
-async def journeys_get(pid: str = ""):
+async def journeys_get(request: Request, pid: str = ""):
+    if not _allow(("look", _caller(request)), 30, 60):
+        return JSONResponse({"msg": "slow down"}, status_code=429)
     st, out = journeys(pid)
     return JSONResponse(out, status_code=st)
 
@@ -446,7 +482,10 @@ async def ws(ws: WebSocket):
             t = msg.get("type")
 
             if t == "join":
-                code = (msg.get("code") or "").strip().upper() or secrets.token_hex(2).upper()
+                code = str(msg.get("code") or "").strip().upper() or secrets.token_hex(2).upper()
+                if not CODE_RE.fullmatch(code):
+                    await _send(ws, {"type": "error", "msg": "a car code is 3 to 12 letters or digits"})
+                    continue
                 prof = PROFILES.get(str(msg.get("pid") or "").strip().upper())
                 if not prof:                             # papers ARE the identity (spec §2)
                     await _send(ws, {"type": "error", "msg": "papers not in order"})
